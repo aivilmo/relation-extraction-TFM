@@ -70,26 +70,27 @@ class Preprocessor:
         print(f"Loaded {len(collection)} sentences for fitting.")
 
         df: pd.DataFrame = pd.DataFrame()
+        index: int = 0
 
         for sentence in collection.sentences:
             for relation in sentence.relations:
-                relation = pd.DataFrame(
-                    [
-                        {
-                            "word1": Preprocessor.preprocess(
-                                relation.from_phrase.text.lower()
-                            ),
-                            "tag1": relation.from_phrase.label,
-                            "word2": Preprocessor.preprocess(
-                                relation.to_phrase.text.lower()
-                            ),
-                            "tag2": relation.to_phrase.label,
-                            "relation": relation.label,
-                            "sentence": Preprocessor.preprocess(sentence.text),
-                        }
-                    ]
+                relation = pd.Series(
+                    {
+                        "word1": Preprocessor.preprocess(
+                            relation.from_phrase.text.lower()
+                        ),
+                        "tag1": relation.from_phrase.label,
+                        "word2": Preprocessor.preprocess(
+                            relation.to_phrase.text.lower()
+                        ),
+                        "tag2": relation.to_phrase.label,
+                        "relation": relation.label,
+                        "sentence": Preprocessor.preprocess(sentence.text),
+                    },
+                    name=index,
                 )
+                index += 1
                 df = df.append(relation)
 
-        print(f"Training completed: Stored {df.shape[0]} relation pairs.")
+        print(f"Training completed: Stored {index} relation pairs.")
         return df
