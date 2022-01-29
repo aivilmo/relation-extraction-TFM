@@ -30,6 +30,7 @@ class Main:
             from visualizationhandler import VisualizationHandler
 
             VisualizationHandler.visualice_relations(dataset_train)
+            VisualizationHandler.visualice_most_common_words(dataset_train, n_words=10)
         elif args.train:
             from coremodel import CoreModel
             from preprocess import Preprocessor
