@@ -6,20 +6,25 @@ import argparse
 
 
 class Main:
+
+    text_path: str = "..\\dataset\\ehealthkd_CONCEPT_ACT_PRED_relaciones\\2021\\ref"
+    output_train: str = "data\\train.pkl"
+    output_test: str = "data\\test.pkl"
+
     @staticmethod
     def main() -> None:
-        text_dir: Path = Path(
-            "..\\dataset\\ehealthkd_CONCEPT_ACT_PRED_relaciones\\2021\\ref\\training\\"
-        )
-        output_file: str = "data\\df_dataset_train.pkl"
-
         args = Main.__get_args()
 
-        dataset_train: pd.DataFrame = pd.DataFrame()
         if args.generate:
-            dataset_train = FilesHandler.generate_dataset(text_dir, output_file)
+            dataset_train: pd.DataFrame = FilesHandler.generate_dataset(
+                Path(Main.text_path + "\\training\\"), Main.output_train
+            )
+            dataset_test: pd.DataFrame = FilesHandler.generate_dataset(
+                Path(Main.text_path + "\\testing\\"), Main.output_test
+            )
         elif args.load:
-            dataset_train = FilesHandler.load_dataset(output_file)
+            dataset_train: pd.DataFrame = FilesHandler.load_dataset(Main.output_train)
+            dataset_test: pd.DataFrame = FilesHandler.load_dataset(Main.output_test)
 
         if args.visualization:
             from visualizationhandler import VisualizationHandler
@@ -58,7 +63,7 @@ class Main:
             help="If you want to load a generated dataset",
         )
 
-        action = parser.add_mutually_exclusive_group(required=True)
+        action = parser.add_mutually_exclusive_group()
         action.add_argument(
             "--visualization",
             action="store_true",

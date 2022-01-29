@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from cmath import nan
+from pathlib import Path
 from typing_extensions import Self
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
@@ -63,47 +63,33 @@ class Preprocessor:
         return " ".join(tokens_stemmed)
 
     @staticmethod
-    def sentences_tokenizer(text: str) -> list:
-        from nltk.tokenize import sent_tokenize
+    def process_content(path: Path):
+        from ehealth.anntools import Collection
 
-        return sent_tokenize(text)
-
-    @staticmethod
-    def process_relations(relations: dict) -> pd.DataFrame:
-        import numpy as np
+        collection = Collection().load_dir(path)
+        print(f"Loaded {len(collection)} sentences for fitting.")
 
         df: pd.DataFrame = pd.DataFrame()
-        for entities, relation in relations.items():
-            relation = pd.DataFrame(
-                [
-                    {
-                        "word1": Preprocessor.preprocess(entities[0]),
-                        "tag1": entities[1],
-                        "word2": Preprocessor.preprocess(entities[2]),
-                        "tag2": entities[3],
-                        "relation": relation,
-                        "sentence": np.nan,
-                    }
-                ]
-            )
-            df = df.append(relation)
+
+        for sentence in collection.sentences:
+            for relation in sentence.relations:
+                relation = pd.DataFrame(
+                    [
+                        {
+                            "word1": Preprocessor.preprocess(
+                                relation.from_phrase.text.lower()
+                            ),
+                            "tag1": relation.from_phrase.label,
+                            "word2": Preprocessor.preprocess(
+                                relation.to_phrase.text.lower()
+                            ),
+                            "tag2": relation.to_phrase.label,
+                            "relation": relation.label,
+                            "sentence": Preprocessor.preprocess(sentence.text),
+                        }
+                    ]
+                )
+                df = df.append(relation)
+
+        print(f"Training completed: Stored {df.shape[0]} relation pairs.")
         return df
-
-    @staticmethod
-    def process_content(df: pd.DataFrame, content: str):
-        from nltk.util import ngrams
-
-        for sentence in Preprocessor.sentences_tokenizer(content):
-            processed_sentences: list = Preprocessor.preprocess(sentence).split()
-
-            sentence_ngrams: list = (
-                processed_sentences
-                + [" ".join(bigram) for bigram in ngrams(processed_sentences, 2)]
-                + [" ".join(trigram) for trigram in ngrams(processed_sentences, 3)]
-            )
-            df.loc[
-                df.eval(
-                    "word1 in @sentence_ngrams and word2 in @sentence_ngrams and sentence.isnull()"
-                ),
-                "sentence",
-            ] = " ".join(processed_sentences)
