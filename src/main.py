@@ -31,6 +31,9 @@ class Main:
 
             VisualizationHandler.visualice_relations(dataset_train)
             VisualizationHandler.visualice_most_common_words(dataset_train, n_words=10)
+            VisualizationHandler.visualice_most_common_relations(
+                dataset_train, n_relation=10, with_relation=True
+            )
         elif args.train:
             from coremodel import CoreModel
             from preprocess import Preprocessor

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-from unicodedata import name
-from numpy import int32
+from numpy import int32, real
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -10,7 +9,7 @@ import matplotlib.pyplot as plt
 class VisualizationHandler:
 
     palette = sns.color_palette("Paired", 9)
-    sns.set(rc={"figure.figsize": (12, 6)})
+    sns.set(rc={"figure.figsize": (12, 7)})
 
     @staticmethod
     def visualice_relations(df: pd.DataFrame) -> None:
@@ -26,7 +25,6 @@ class VisualizationHandler:
     @staticmethod
     def visualice_most_common_words(df: pd.DataFrame, n_words: int32) -> None:
         _, ax = plt.subplots(1, 2)
-        VisualizationHandler.palette
 
         count1 = sns.countplot(
             x="word1",
@@ -51,5 +49,21 @@ class VisualizationHandler:
         plt.show()
 
     @staticmethod
-    def visualice_most_common_relations(df: pd.DataFrame) -> None:
-        pass
+    def visualice_most_common_relations(
+        df: pd.DataFrame, n_relation: int32, with_relation=False
+    ) -> None:
+        if with_relation:
+            df["relations"] = df.word1 + "-" + df.relation + "-" + df.word2
+        else:
+            df["relations"] = df.word1 + "-" + df.word2
+
+        sns.set(font_scale=0.90)
+        sns.countplot(
+            x="relations",
+            data=df,
+            order=df.relations.value_counts().index[:n_relation],
+            palette=VisualizationHandler.palette,
+        ).set_title("Words related")
+
+        plt.xticks(rotation=25)
+        plt.show()
