@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 class VisualizationHandler:
 
-    palette = sns.color_palette("Paired", 9)
+    __palette = sns.color_palette("Paired", 9)
     sns.set(rc={"figure.figsize": (12, 7)})
 
     @staticmethod
@@ -17,7 +17,7 @@ class VisualizationHandler:
             x="relation",
             data=df,
             order=df.relation.value_counts().index,
-            palette=VisualizationHandler.palette,
+            palette=VisualizationHandler.__palette,
         ).set_title("Relations")
 
         plt.show()
@@ -31,14 +31,14 @@ class VisualizationHandler:
             data=df,
             order=df.word1.value_counts().index[:n_words],
             ax=ax[0],
-            palette=VisualizationHandler.palette,
+            palette=VisualizationHandler.__palette,
         )
         count2 = sns.countplot(
             x="word2",
             data=df,
             order=df.word2.value_counts().index[:n_words],
             ax=ax[1],
-            palette=VisualizationHandler.palette,
+            palette=VisualizationHandler.__palette,
         )
 
         count1.set_title("Word1 frecuencies")
@@ -52,17 +52,17 @@ class VisualizationHandler:
     def visualice_most_common_relations(
         df: pd.DataFrame, n_relation: int32, with_relation=False
     ) -> None:
+        relations = df.word1 + "-"
         if with_relation:
-            df["relations"] = df.word1 + "-" + df.relation + "-" + df.word2
-        else:
-            df["relations"] = df.word1 + "-" + df.word2
+            relations += df.relation + "-"
+        df["relations"] = relations + df.word2
 
         sns.set(font_scale=0.90)
         sns.countplot(
             x="relations",
             data=df,
             order=df.relations.value_counts().index[:n_relation],
-            palette=VisualizationHandler.palette,
+            palette=VisualizationHandler.__palette,
         ).set_title("Words related")
 
         plt.xticks(rotation=25)

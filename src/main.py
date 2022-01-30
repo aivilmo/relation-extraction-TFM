@@ -2,86 +2,79 @@
 from fileshandler import FilesHandler
 import pandas as pd
 from pathlib import Path
+from typing_extensions import Self
 import argparse
 
 
 class Main:
 
-    text_path: str = "..\\dataset\\ehealthkd_CONCEPT_ACT_PRED_relaciones\\2021\\ref"
-    output_train: str = "data\\train.pkl"
-    output_test: str = "data\\test.pkl"
+    _instance = None
 
-    @staticmethod
-    def main() -> None:
-        args = Main.__get_args()
+    def __new__(cls: type[Self], *args, **kwargs) -> Self:
+        if not isinstance(cls._instance, cls):
+            cls._instance = object.__new__(cls, *args, **kwargs)
+        return cls._instance
 
-        if args.generate:
-            dataset_train: pd.DataFrame = FilesHandler.generate_dataset(
-                Path(Main.text_path + "\\training\\"), Main.output_train
-            )
-            dataset_test: pd.DataFrame = FilesHandler.generate_dataset(
-                Path(Main.text_path + "\\testing\\"), Main.output_test
-            )
-        elif args.load:
-            dataset_train: pd.DataFrame = FilesHandler.load_dataset(Main.output_train)
-            dataset_test: pd.DataFrame = FilesHandler.load_dataset(Main.output_test)
+    def __init__(self) -> None:
+        self.__path: str = (
+            "..\\dataset\\ehealthkd_CONCEPT_ACT_PRED_relaciones\\2021\\ref"
+        )
+        self.__output_train: str = "data\\train.pkl"
+        self.__output_test: str = "data\\test.pkl"
+        self.__dataset_train: pd.DataFrame = None
+        self.__dataset_test: pd.DataFrame = None
+
+    def main(self) -> None:
+        from argsparser import ArgsParser
+
+        args = ArgsParser.get_args()
+        self.__get_datasets(args)
 
         if args.visualization:
-            from visualizationhandler import VisualizationHandler
-
-            VisualizationHandler.visualice_relations(dataset_train)
-            VisualizationHandler.visualice_most_common_words(dataset_train, n_words=10)
-            VisualizationHandler.visualice_most_common_relations(
-                dataset_train, n_relation=10, with_relation=True
-            )
+            self.__handleVisualizations()
         elif args.train:
-            from coremodel import CoreModel
-            from preprocess import Preprocessor
-            from sklearn.linear_model import Perceptron
+            self.__handleTrain()
 
-            prep = Preprocessor()
-            X_train, X_test, y_train, y_test = prep.train_test_split(
-                dataset_train, dataset_test
+    def __handleVisualizations(self) -> None:
+        from visualizationhandler import VisualizationHandler
+
+        VisualizationHandler.visualice_relations(self.__dataset_train)
+        VisualizationHandler.visualice_most_common_words(
+            self.__dataset_train, n_words=10
+        )
+        VisualizationHandler.visualice_most_common_relations(
+            self.__dataset_train, n_relation=10, with_relation=True
+        )
+
+    def __handleTrain(self) -> None:
+        from coremodel import CoreModel
+        from preprocess import Preprocessor
+        from sklearn.linear_model import Perceptron
+
+        prep = Preprocessor()
+        X_train, X_test, y_train, y_test = prep.train_test_split(
+            self.__dataset_train, self.__dataset_test
+        )
+
+        core = CoreModel()
+        core.set_model(Perceptron())
+        core.fit_model(X_train, y_train)
+        core.train_model()
+        core.test_model(X_test, y_test)
+
+    def __get_datasets(self, args: argparse.Namespace) -> None:
+        if args.load:
+            self.__dataset_train = FilesHandler.load_dataset(self.__output_train)
+            self.__dataset_test = FilesHandler.load_dataset(self.__output_test)
+
+        if args.generate:
+            self.__dataset_train = FilesHandler.generate_dataset(
+                Path(self.__path + "\\training\\"), self.__output_train
             )
-
-            core = CoreModel()
-            core.set_model(Perceptron())
-            core.fit_model(X_train, y_train)
-            core.train_model()
-            core.test_model(X_test, y_test)
-
-    @staticmethod
-    def __get_args():
-        parser = argparse.ArgumentParser()
-
-        data = parser.add_mutually_exclusive_group(required=True)
-        data.add_argument(
-            "--generate",
-            action="store_true",
-            help="If you want to generate a dataset",
-        )
-
-        data.add_argument(
-            "--load",
-            action="store_true",
-            help="If you want to load a generated dataset",
-        )
-
-        action = parser.add_mutually_exclusive_group()
-        action.add_argument(
-            "--visualization",
-            action="store_true",
-            help="If you want to visualice the dataset",
-        )
-
-        action.add_argument(
-            "--train",
-            action="store_true",
-            help="If you want to train a model",
-        )
-
-        return parser.parse_args()
+            self.__dataset_test = FilesHandler.generate_dataset(
+                Path(self.__path + "\\testing\\"), self.__output_test
+            )
 
 
 if __name__ == "__main__":
-    Main.main()
+    Main().main()
