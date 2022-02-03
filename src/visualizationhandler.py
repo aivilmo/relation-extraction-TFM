@@ -50,7 +50,7 @@ class VisualizationHandler:
 
     @staticmethod
     def visualice_most_common_relations(
-        df: pd.DataFrame, n_relation: int32, with_relation=False
+        df: pd.DataFrame, n_relation: int32, with_relation: bool = False
     ) -> None:
         relations = df.word1 + "-"
         if with_relation:
