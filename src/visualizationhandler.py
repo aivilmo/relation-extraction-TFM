@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from numpy import int32, real
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -23,7 +22,7 @@ class VisualizationHandler:
         plt.show()
 
     @staticmethod
-    def visualice_most_common_words(df: pd.DataFrame, n_words: int32) -> None:
+    def visualice_most_common_words(df: pd.DataFrame, n_words: int) -> None:
         _, ax = plt.subplots(1, 2)
 
         count1 = sns.countplot(
@@ -50,7 +49,7 @@ class VisualizationHandler:
 
     @staticmethod
     def visualice_most_common_relations(
-        df: pd.DataFrame, n_relation: int32, with_relation: bool = False
+        df: pd.DataFrame, n_relation: int, with_relation: bool = False
     ) -> None:
         relations = df.word1 + "-"
         if with_relation:
