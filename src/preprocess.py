@@ -29,7 +29,7 @@ class Preprocessor:
         return X_train, X_test, y_train, y_test
 
     @staticmethod
-    def preprocess(text: str) -> list:
+    def preprocess(text: str, stopwords: bool = False) -> list:
         from nltk.stem import WordNetLemmatizer, PorterStemmer
         from nltk.corpus import stopwords
         import re
@@ -42,16 +42,13 @@ class Preprocessor:
         tokens = alphanumeric_text.lower().split()
 
         # Eliminación las stopwords
-        stop_words = set(stopwords.words("spanish"))
-        tokens_without_stopwords = [
-            token for token in tokens if token not in stop_words
-        ]
+        if stopwords:
+            stop_words = set(stopwords.words("spanish"))
+            tokens = [token for token in tokens if token not in stop_words]
 
         # Lematización
         wordnet_lemmatizer = WordNetLemmatizer()
-        tokens_lemmas = [
-            wordnet_lemmatizer.lemmatize(token) for token in tokens_without_stopwords
-        ]
+        tokens_lemmas = [wordnet_lemmatizer.lemmatize(token) for token in tokens]
 
         # Stemming
         stemmer = PorterStemmer()
