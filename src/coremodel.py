@@ -6,16 +6,21 @@ from typing_extensions import Self
 class CoreModel:
     _instance = None
 
-    def __new__(cls: type[Self], *args, **kwargs) -> Self:
-        if not isinstance(cls._instance, cls):
-            cls._instance = object.__new__(cls, *args, **kwargs)
-        return cls._instance
+    @staticmethod
+    def instance():
+        if CoreModel._instance == None:
+            CoreModel()
+        return CoreModel._instance
 
     def __init__(self) -> None:
+        if CoreModel._instance != None:
+            raise Exception
+
         self._model = None
         self._params = None
         self._X = None
         self._y = None
+        CoreModel._instance = self
 
     def set_params(self, params) -> None:
         self._params = params

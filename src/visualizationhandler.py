@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 class VisualizationHandler:
 
-    __palette = sns.color_palette("Paired", 9)
+    _palette = sns.color_palette("Paired", 9)
     sns.set(rc={"figure.figsize": (12, 7)})
 
     @staticmethod
@@ -17,7 +17,7 @@ class VisualizationHandler:
             x="relation",
             data=df,
             order=df.relation.value_counts().index,
-            palette=VisualizationHandler.__palette,
+            palette=VisualizationHandler._palette,
         ).set_title("Relations")
 
         plt.show()
@@ -31,14 +31,14 @@ class VisualizationHandler:
             data=df,
             order=df.word1.value_counts().index[:n_words],
             ax=ax[0],
-            palette=VisualizationHandler.__palette,
+            palette=VisualizationHandler._palette,
         )
         count2 = sns.countplot(
             x="word2",
             data=df,
             order=df.word2.value_counts().index[:n_words],
             ax=ax[1],
-            palette=VisualizationHandler.__palette,
+            palette=VisualizationHandler._palette,
         )
 
         count1.set_title("Word1 frecuencies")
@@ -62,7 +62,7 @@ class VisualizationHandler:
             x="relations",
             data=df,
             order=df.relations.value_counts().index[:n_relation],
-            palette=VisualizationHandler.__palette,
+            palette=VisualizationHandler._palette,
         ).set_title("Words related")
 
         plt.xticks(rotation=25)

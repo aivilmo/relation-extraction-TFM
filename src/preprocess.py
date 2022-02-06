@@ -1,33 +1,30 @@
 #!/usr/bin/env python
 
 from pathlib import Path
+from pyexpat import features
+import re
 from typing_extensions import Self
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 
 class Preprocessor:
-    _instance = None
+    @staticmethod
+    def train_test_split(train_df: pd.DataFrame, test_df: pd.DataFrame):
+        from featureshandler import FeaturesHandler
+        from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
-    def __new__(cls: type[Self], *args, **kwargs) -> Self:
-        if not isinstance(cls._instance, cls):
-            cls._instance = object.__new__(cls, *args, **kwargs)
-        return cls._instance
+        le = LabelEncoder()
+        ohe = OneHotEncoder(sparse=False)
 
-    def __init__(self) -> None:
-        self._le = LabelEncoder()
-        self._ohe = OneHotEncoder(sparse=False)
-
-    def train_test_split(self, train_df: pd.DataFrame, test_df: pd.DataFrame):
         train_df_old, test_df_old = train_df.copy(), test_df.copy()
         train_df = train_df.drop("tag", axis=1).drop("filename", axis=1)
         test_df = test_df.drop("tag", axis=1).drop("filename", axis=1)
 
-        X_train = self._ohe.fit_transform(train_df.word.values.reshape(-1, 1))
-        y_train = self._le.fit_transform(train_df_old.tag.values).reshape(-1, 1)
+        X_train = ohe.fit_transform(train_df.word.values.reshape(-1, 1))
+        y_train = le.fit_transform(train_df_old.tag.values).reshape(-1, 1)
 
-        X_test = self._ohe.transform(test_df.word.values.reshape(-1, 1))
-        y_test = self._le.transform(test_df_old.tag.values).reshape(-1, 1)
+        X_test = ohe.transform(test_df.word.values.reshape(-1, 1))
+        y_test = le.transform(test_df_old.tag.values).reshape(-1, 1)
 
         return X_train, X_test, y_train, y_test
 
