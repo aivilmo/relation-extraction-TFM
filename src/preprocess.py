@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 
 from pathlib import Path
-from pyexpat import features
-import re
-from typing_extensions import Self
 import pandas as pd
 
 

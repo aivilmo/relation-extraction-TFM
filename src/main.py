@@ -2,7 +2,6 @@
 from fileshandler import FilesHandler
 import pandas as pd
 from pathlib import Path
-from typing_extensions import Self
 import argparse
 
 
@@ -27,7 +26,6 @@ class Main:
         self._output_test: str = "data\\test.pkl"
         self._dataset_train: pd.DataFrame = None
         self._dataset_test: pd.DataFrame = None
-        self._default_features: list = ["with_tags", "word_dist", "sent_emb"]
         Main._instance = self
 
     def main(self) -> None:

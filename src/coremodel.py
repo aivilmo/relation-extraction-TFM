@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from typing_extensions import Self
-
 
 class CoreModel:
     _instance = None
