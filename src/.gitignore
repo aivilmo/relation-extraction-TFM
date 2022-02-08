@@ -13,7 +13,7 @@ __pycache__/
 *.so
 
 # DataFrames
-data/.*plk
+data/
 
 # Distribution / packaging
 .Python
