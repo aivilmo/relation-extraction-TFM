@@ -8,6 +8,7 @@ class ArgsParser:
     def get_args() -> argparse.Namespace:
         parser = argparse.ArgumentParser()
 
+        # Generate or load a dataset
         data = parser.add_mutually_exclusive_group(required=True)
         data.add_argument(
             "--generate",
@@ -21,6 +22,7 @@ class ArgsParser:
             help="If you want to load a generated dataset",
         )
 
+        # Visualices data information or train a model
         action = parser.add_mutually_exclusive_group()
         action.add_argument(
             "--visualization",
@@ -33,4 +35,14 @@ class ArgsParser:
             action="store_true",
             help="If you want to train a model",
         )
+
+        # Add a list of features to train the model
+        parser.add_argument(
+            "--features",
+            nargs="+",
+            action="store",
+            choices=["with_entities", "word_dist", "sent_emb", "word_emb"],
+            help="If you want to add custom features to train",
+        )
+
         return parser.parse_args()

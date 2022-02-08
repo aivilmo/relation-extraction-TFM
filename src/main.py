@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from fileshandler import FilesHandler
 import pandas as pd
 from pathlib import Path
 import argparse
@@ -37,6 +36,10 @@ class Main:
         if args.visualization:
             self._handleVisualizations()
         elif args.train:
+            if args.features != None:
+                from featureshandler import FeaturesHandler
+
+                FeaturesHandler.instance().features = args.features
             self._handleTrain()
 
     def _handleVisualizations(self) -> None:
@@ -67,6 +70,8 @@ class Main:
         core.test_model(X_test, y_test)
 
     def _get_datasets(self, args: argparse.Namespace) -> None:
+        from fileshandler import FilesHandler
+
         if args.load:
             self._dataset_train = FilesHandler.load_dataset(self._output_train)
             self._dataset_test = FilesHandler.load_dataset(self._output_test)

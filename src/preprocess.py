@@ -8,20 +8,17 @@ class Preprocessor:
     @staticmethod
     def train_test_split(train_df: pd.DataFrame, test_df: pd.DataFrame):
         from featureshandler import FeaturesHandler
-        from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+        from sklearn.preprocessing import LabelEncoder
 
+        # Transform labels
         le = LabelEncoder()
-        ohe = OneHotEncoder(sparse=False)
+        y_train = le.fit_transform(train_df.relation.values)
+        y_test = le.fit_transform(test_df.relation.values)
 
-        train_df_old, test_df_old = train_df.copy(), test_df.copy()
-        train_df = train_df.drop("tag", axis=1).drop("filename", axis=1)
-        test_df = test_df.drop("tag", axis=1).drop("filename", axis=1)
-
-        X_train = ohe.fit_transform(train_df.word.values.reshape(-1, 1))
-        y_train = le.fit_transform(train_df_old.tag.values).reshape(-1, 1)
-
-        X_test = ohe.transform(test_df.word.values.reshape(-1, 1))
-        y_test = le.transform(test_df_old.tag.values).reshape(-1, 1)
+        # Handle features from data
+        feat = FeaturesHandler.instance()
+        X_train = feat.handleFeatures(train_df)
+        X_test = feat.handleFeatures(test_df)
 
         return X_train, X_test, y_train, y_test
 
