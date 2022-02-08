@@ -31,12 +31,12 @@ class FeaturesHandler:
         self._features = features
 
     def handleFeatures(self, df: pd.DataFrame) -> np.ndarray:
-        print("Handling features:", self.features)
+        print("Handling features:", ", ".join(self.features))
 
         df.drop("relation", axis=1, inplace=True)
         columns = []
 
-        if "with_tags" in self._features:
+        if "with_entities" in self._features:
             FeaturesHandler._feat_with_tags(df)
             columns += ["tag1"] + ["tag2"]
         if "word_emb" in self._features:
@@ -81,6 +81,8 @@ class FeaturesHandler:
 
     @staticmethod
     def _combine_features(df: pd.DataFrame, columns: list) -> np.ndarray:
+        columns_to_delete = df.columns
+
         def stack_vectors(list_of_vect: list) -> np.ndarray:
             full_vector = np.hstack(list_of_vect)
             dim_features = full_vector.shape[0]
@@ -89,5 +91,5 @@ class FeaturesHandler:
 
         df["features"] = df[columns].values.tolist()
         df["features"] = df.features.apply(lambda x: stack_vectors(x))
-        df.drop(columns, axis=1, inplace=True)
+        df.drop(columns_to_delete, axis=1, inplace=True)
         return np.vstack(df.values.tolist())
