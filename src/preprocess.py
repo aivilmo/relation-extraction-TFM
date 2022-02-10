@@ -10,15 +10,25 @@ class Preprocessor:
         from featureshandler import FeaturesHandler
         from sklearn.preprocessing import LabelEncoder
 
+        # Remove classes what are in test but not in train
+        relations_not_in_train: list = list(
+            set(test_df.relation.unique()) - set(train_df.relation.unique())
+        )
+        test_df.drop(
+            test_df.loc[test_df.relation.isin(relations_not_in_train)].index,
+            inplace=True,
+        )
+
         # Transform labels
+        print("Transforming relations into labels")
         le = LabelEncoder()
         y_train = le.fit_transform(train_df.relation.values)
-        y_test = le.fit_transform(test_df.relation.values)
+        y_test = le.transform(test_df.relation.values)
 
         # Handle features from data
         feat = FeaturesHandler.instance()
         X_train = feat.handleFeatures(train_df)
-        X_test = feat.handleFeatures(test_df)
+        X_test = feat.handleFeatures(test_df, test=True)
 
         return X_train, X_test, y_train, y_test
 

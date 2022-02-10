@@ -13,30 +13,64 @@ class Embedding:
 
 
 class SentenceEmbedding(Embedding):
+    _instance = None
+
     @staticmethod
-    def train_sentence_emebdding(tokenized_sentences: list) -> Doc2Vec:
+    def instance():
+        if SentenceEmbedding._instance == None:
+            SentenceEmbedding()
+        return SentenceEmbedding._instance
+
+    def __init__(self) -> None:
+        if SentenceEmbedding._instance != None:
+            raise Exception
+
+        self._model = None
+        SentenceEmbedding._instance = self
+
+    def train_sentence_emebdding(self, tokenized_sentences: list) -> None:
+        print("Training model sentences embedding...")
+
         def tagged_document(sentences_list: list) -> Iterable:
             for i, list_of_words in enumerate(sentences_list):
                 yield TaggedDocument(list_of_words, [i])
 
         tagged_docs: list = list(tagged_document(tokenized_sentences))
-        model = Doc2Vec(vector_size=40, min_count=1, epochs=30, workers=-1)
-        model.build_vocab(tagged_docs)
-        model.train(tagged_docs, total_examples=model.corpus_count, epochs=model.epochs)
-        return model
+        self._model = Doc2Vec(vector_size=40, min_count=1, epochs=30, workers=-1)
+        self._model.build_vocab(tagged_docs)
+        self._model.train(
+            tagged_docs,
+            total_examples=self._model.corpus_count,
+            epochs=self._model.epochs,
+        )
 
-    @staticmethod
-    def sentence_to_vector(model: Doc2Vec, sentence: str) -> np.ndarray:
+    def sentence_to_vector(self, sentence: str) -> np.ndarray:
         from preprocess import Preprocessor
 
         sent_tokens = Preprocessor.preprocess(sentence).split()
-        return model.infer_vector(sent_tokens)
+        return self._model.infer_vector(sent_tokens)
 
 
 class WordEmbedding(Embedding):
+    _instance = None
+
     @staticmethod
-    def train_word_emebdding(tokens: list) -> Word2Vec:
-        model = Word2Vec(
+    def instance():
+        if WordEmbedding._instance == None:
+            WordEmbedding()
+        return WordEmbedding._instance
+
+    def __init__(self) -> None:
+        if WordEmbedding._instance != None:
+            raise Exception
+
+        self._model = None
+        WordEmbedding._instance = self
+
+    def train_word_emebdding(self, tokens: list) -> None:
+        print("Training model word embedding...")
+
+        self._model = Word2Vec(
             sentences=tokens,
             vector_size=100,
             window=5,
@@ -45,18 +79,17 @@ class WordEmbedding(Embedding):
             sg=0,
         )
 
-        model.build_vocab(tokens)
-        model.train(tokens, total_examples=model.corpus_count, epochs=model.epochs)
-        return model
+        self._model.build_vocab(tokens)
+        self._model.train(
+            tokens, total_examples=self._model.corpus_count, epochs=self._model.epochs
+        )
 
-    @staticmethod
-    def words_to_vector(model: Word2Vec, words: list) -> np.ndarray:
+    def words_to_vector(self, words: list) -> np.ndarray:
         word_matrix: np.ndarray = np.zeros((len(words), 100))
         for w in range(len(words)):
-            if words[w] in list(model.wv.index_to_key):
-                word_matrix[w] = model.wv.word_vec(words[w])
+            if words[w] in list(self._model.wv.index_to_key):
+                word_matrix[w] = self._model.wv.word_vec(words[w])
         return np.mean(word_matrix, axis=0)
 
-    @staticmethod
-    def word_vector(model: Word2Vec, word: str) -> np.ndarray:
-        return model.wv.word_vec(word)
+    def word_vector(self, word: str) -> np.ndarray:
+        return self._model.wv.word_vec(word)
