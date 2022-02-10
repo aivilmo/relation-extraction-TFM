@@ -2,11 +2,12 @@
 
 from pathlib import Path
 import pandas as pd
+import numpy as np
 
 
 class Preprocessor:
     @staticmethod
-    def train_test_split(train_df: pd.DataFrame, test_df: pd.DataFrame):
+    def train_test_split(train_df: pd.DataFrame, test_df: pd.DataFrame) -> np.ndarray:
         from featureshandler import FeaturesHandler
         from sklearn.preprocessing import LabelEncoder
 
@@ -26,9 +27,8 @@ class Preprocessor:
         y_test = le.transform(test_df.relation.values)
 
         # Handle features from data
-        feat = FeaturesHandler.instance()
-        X_train = feat.handleFeatures(train_df)
-        X_test = feat.handleFeatures(test_df, test=True)
+        X_train = FeaturesHandler.instance().handleFeatures(train_df)
+        X_test = FeaturesHandler.instance().handleFeatures(test_df, test=True)
 
         return X_train, X_test, y_train, y_test
 
@@ -61,7 +61,7 @@ class Preprocessor:
         return " ".join(tokens_stemmed)
 
     @staticmethod
-    def process_content(path: Path):
+    def process_content(path: Path) -> pd.DataFrame:
         from ehealth.anntools import Collection
 
         collection = Collection().load_dir(path)
