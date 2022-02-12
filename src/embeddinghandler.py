@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from typing import Iterable
-from gensim.models.doc2vec import Doc2Vec, Word2Vec, TaggedDocument
+from gensim.models.doc2vec import Doc2Vec, Word2Vec, TaggedDocument, KeyedVectors
 import numpy as np
 import pandas as pd
 
@@ -65,7 +65,13 @@ class WordEmbedding(Embedding):
             raise Exception
 
         self._model = None
+        self._keyed_vectors = None
         WordEmbedding._instance = self
+
+    def load_model(self, filename: str) -> None:
+        print(f"Loading keyed vectors from: {filename}")
+
+        self._keyed_vectors = KeyedVectors.load_word2vec_format(filename, binary=True)
 
     def train_word_emebdding(self, tokens: list) -> None:
         print("Training model word embedding...")
@@ -74,22 +80,24 @@ class WordEmbedding(Embedding):
             sentences=tokens,
             vector_size=100,
             window=5,
-            min_count=2,
+            min_count=0,
             workers=-1,
             sg=0,
         )
-
-        self._model.build_vocab(tokens)
+        self._model.wv = self._keyed_vectors
+        self._model.build_vocab(tokens, update=True)
         self._model.train(
             tokens, total_examples=self._model.corpus_count, epochs=self._model.epochs
         )
+        self._keyed_vectors = self._model.wv
+        print("After train ", len(self._model.wv.index_to_key))
 
     def words_to_vector(self, words: list) -> np.ndarray:
         word_matrix: np.ndarray = np.zeros((len(words), 100))
         for w in range(len(words)):
-            if words[w] in list(self._model.wv.index_to_key):
-                word_matrix[w] = self._model.wv.word_vec(words[w])
+            if words[w] in list(self._keyed_vectors.index_to_key):
+                word_matrix[w] = self._keyed_vectors.get_vector(words[w])
         return np.mean(word_matrix, axis=0)
 
     def word_vector(self, word: str) -> np.ndarray:
-        return self._model.wv.word_vec(word)
+        return self._keyed_vectors.get_vector(word)
