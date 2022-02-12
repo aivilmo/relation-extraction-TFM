@@ -33,7 +33,7 @@ class Preprocessor:
         return X_train, X_test, y_train, y_test
 
     @staticmethod
-    def preprocess(text: str, stopwords: bool = False) -> list:
+    def preprocess(text: str, stopwords: bool = False) -> str:
         from nltk.stem import WordNetLemmatizer, PorterStemmer
         from nltk.corpus import stopwords
         import re

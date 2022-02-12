@@ -70,6 +70,9 @@ class FeaturesHandler:
     def _feat_word_emb(df: pd.DataFrame, test: bool = False) -> None:
         if not test:
             tokens = Embedding.prepare_text_to_train(df)
+            WordEmbedding.instance().load_model(
+                "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4.bin"
+            )
             WordEmbedding.instance().train_word_emebdding(tokens)
 
         df["word1"] = df.word1.apply(
