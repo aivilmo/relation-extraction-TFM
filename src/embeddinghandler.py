@@ -90,7 +90,6 @@ class WordEmbedding(Embedding):
             tokens, total_examples=self._model.corpus_count, epochs=self._model.epochs
         )
         self._keyed_vectors = self._model.wv
-        print("After train ", len(self._model.wv.index_to_key))
 
     def words_to_vector(self, words: list) -> np.ndarray:
         word_matrix: np.ndarray = np.zeros((len(words), 100))

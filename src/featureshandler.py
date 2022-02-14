@@ -100,9 +100,6 @@ class FeaturesHandler:
             print("Fitting words to bag of words")
             FeaturesHandler.instance()._cv.fit(df.sentence.unique().tolist())
 
-        # x = FeaturesHandler.instance()._cv.transform(df.sentence.tolist()).toarray()
-        # print(x.shape)
-        # print(len(df.sentence.tolist()))
         df["sentence"] = df.sentence.apply(
             lambda x: FeaturesHandler.instance()
             ._cv.transform([x])
