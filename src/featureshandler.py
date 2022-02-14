@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from embeddinghandler import Embedding, WordEmbedding, SentenceEmbedding
 from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 
 class FeaturesHandler:
@@ -21,6 +22,7 @@ class FeaturesHandler:
             raise Exception
 
         self._le: LabelEncoder = LabelEncoder()
+        self._cv: CountVectorizer = CountVectorizer()
         self._features: list = ["with_entities", "word_emb", "sent_emb"]
         FeaturesHandler._instance = self
 
@@ -47,13 +49,13 @@ class FeaturesHandler:
         if "sent_emb" in self._features:
             FeaturesHandler._feat_sent_emb(df, test)
             columns += ["sentence"]
+        if "bag_of_words" in self._features:
+            FeaturesHandler._feat_bag_of_words(df, test)
+            columns += ["sentence"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
         print("Features matrix succesfully generated, with data shape:", features.shape)
         return np.nan_to_num(features)
-
-    def encode_labels(self):
-        pass
 
     @staticmethod
     def _feat_with_tags(df: pd.DataFrame, test: bool = False) -> None:
@@ -90,6 +92,22 @@ class FeaturesHandler:
 
         df["sentence"] = df.sentence.apply(
             lambda x: SentenceEmbedding.instance().sentence_to_vector(x)
+        )
+
+    @staticmethod
+    def _feat_bag_of_words(df: pd.DataFrame, test: bool = False) -> None:
+        if not test:
+            print("Fitting words to bag of words")
+            FeaturesHandler.instance()._cv.fit(df.sentence.unique().tolist())
+
+        # x = FeaturesHandler.instance()._cv.transform(df.sentence.tolist()).toarray()
+        # print(x.shape)
+        # print(len(df.sentence.tolist()))
+        df["sentence"] = df.sentence.apply(
+            lambda x: FeaturesHandler.instance()
+            ._cv.transform([x])
+            .toarray()
+            .reshape(-1)
         )
 
     @staticmethod

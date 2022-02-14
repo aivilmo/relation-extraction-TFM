@@ -41,7 +41,13 @@ class ArgsParser:
             "--features",
             nargs="+",
             action="store",
-            choices=["with_entities", "word_dist", "sent_emb", "word_emb"],
+            choices=[
+                "with_entities",
+                "word_dist",
+                "sent_emb",
+                "word_emb",
+                "bag_of_words",
+            ],
             help="If you want to add custom features to train",
         )
 
