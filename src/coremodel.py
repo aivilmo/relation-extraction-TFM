@@ -1,8 +1,10 @@
 #!/usr/bin/env python
+import numpy as np
 
 
 class CoreModel:
     _instance = None
+    _n_classes = 13
 
     @staticmethod
     def instance():
@@ -15,7 +17,7 @@ class CoreModel:
             raise Exception
 
         self._model = None
-        self._params = None
+        self._params = {}
         self._X = None
         self._y = None
         CoreModel._instance = self
@@ -61,3 +63,28 @@ class CoreModel:
             )
         print()
         self._model = model
+
+    def start_train(self, X_train, X_test, y_train, y_test):
+        from sklearn import svm
+
+        self.set_class_weight(y_train)
+        self.set_model(svm.LinearSVC(class_weight=self._params["class_weight"]))
+        self.fit_model(X_train, y_train)
+        self.train_model()
+        self.test_model(X_test, y_test)
+
+    def set_class_weight(self, y: np.ndarray) -> None:
+        from sklearn.utils.class_weight import compute_class_weight
+
+        train_classes = np.unique(y)
+        class_weight = compute_class_weight(
+            class_weight="balanced", classes=train_classes, y=y
+        )
+        self.set_params({"class_weight": dict(zip(train_classes, class_weight))})
+
+    def prepare_labels(self, y_train: np.ndarray, y_test: np.ndarray):
+        from keras.utils.np_utils import to_categorical
+
+        return to_categorical(
+            y_train, num_classes=CoreModel._n_classes
+        ), to_categorical(y_test, num_classes=CoreModel._n_classes)

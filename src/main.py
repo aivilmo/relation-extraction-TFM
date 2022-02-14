@@ -56,18 +56,25 @@ class Main:
     def _handleTrain(self) -> None:
         from coremodel import CoreModel
         from preprocess import Preprocessor
-        from sklearn.linear_model import Perceptron
+        import numpy as np
 
         prep = Preprocessor()
         X_train, X_test, y_train, y_test = prep.train_test_split(
             self._dataset_train, self._dataset_test
         )
 
-        core = CoreModel.instance()
-        core.set_model(Perceptron())
-        core.fit_model(X_train, y_train)
-        core.train_model()
-        core.test_model(X_test, y_test)
+        # Train Core Model
+        CoreModel.instance().start_train(X_train, X_test, y_train, y_test)
+
+        # Preparte to DeepModel
+        # y_train, y_test = CoreModel.instance().prepare_labels(
+        #     y_train=y_train, y_test=y_test
+        # )
+
+        np.save("data\\X_train.npy", X_train)
+        np.save("data\\X_test.npy", X_test)
+        np.save("data\\y_train.npy", y_train)
+        np.save("data\\y_test.npy", y_test)
 
     def _get_datasets(self, args: argparse.Namespace) -> None:
         from fileshandler import FilesHandler
