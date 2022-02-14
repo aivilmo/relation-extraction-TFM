@@ -81,10 +81,3 @@ class CoreModel:
             class_weight="balanced", classes=train_classes, y=y
         )
         self.set_params({"class_weight": dict(zip(train_classes, class_weight))})
-
-    def prepare_labels(self, y_train: np.ndarray, y_test: np.ndarray):
-        from keras.utils.np_utils import to_categorical
-
-        return to_categorical(
-            y_train, num_classes=CoreModel._n_classes
-        ), to_categorical(y_test, num_classes=CoreModel._n_classes)

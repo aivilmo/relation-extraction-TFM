@@ -2,6 +2,7 @@
 import pandas as pd
 from pathlib import Path
 import argparse
+from featureshandler import FeaturesHandler
 
 
 class Main:
@@ -34,15 +35,15 @@ class Main:
         self._get_datasets(args)
 
         if args.visualization:
-            self._handleVisualizations()
-        elif args.train:
-            if args.features != None:
-                from featureshandler import FeaturesHandler
+            self._handle_visualizations()
+        if args.features != None:
+            FeaturesHandler.instance().features = args.features
+        if args.train:
+            self._handle_train()
+        if args.prepare_data:
+            self._handle_prepare_data()
 
-                FeaturesHandler.instance().features = args.features
-            self._handleTrain()
-
-    def _handleVisualizations(self) -> None:
+    def _handle_visualizations(self) -> None:
         from visualizationhandler import VisualizationHandler
 
         VisualizationHandler.visualice_relations(self._dataset_train)
@@ -53,10 +54,9 @@ class Main:
             self._dataset_train, n_relation=10, with_relation=True
         )
 
-    def _handleTrain(self) -> None:
+    def _handle_train(self) -> None:
         from coremodel import CoreModel
         from preprocess import Preprocessor
-        import numpy as np
 
         prep = Preprocessor()
         X_train, X_test, y_train, y_test = prep.train_test_split(
@@ -66,10 +66,17 @@ class Main:
         # Train Core Model
         CoreModel.instance().start_train(X_train, X_test, y_train, y_test)
 
+    def _handle_prepare_data(self) -> None:
+        from preprocess import Preprocessor
+        import numpy as np
+
+        prep = Preprocessor()
+        X_train, X_test, y_train, y_test = prep.train_test_split(
+            self._dataset_train, self._dataset_test
+        )
+
         # Preparte to DeepModel
-        # y_train, y_test = CoreModel.instance().prepare_labels(
-        #     y_train=y_train, y_test=y_test
-        # )
+        y_train, y_test = prep.prepare_labels(y_train=y_train, y_test=y_test)
 
         np.save("data\\X_train.npy", X_train)
         np.save("data\\X_test.npy", X_test)

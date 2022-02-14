@@ -36,6 +36,12 @@ class ArgsParser:
             help="If you want to train a model",
         )
 
+        action.add_argument(
+            "--prepare_data",
+            action="store_true",
+            help="If you want to prepare data to Deep Model",
+        )
+
         # Add a list of features to train the model
         parser.add_argument(
             "--features",

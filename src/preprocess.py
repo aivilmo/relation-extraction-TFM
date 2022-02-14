@@ -6,6 +6,9 @@ import numpy as np
 
 
 class Preprocessor:
+
+    _n_classes = 13
+
     @staticmethod
     def train_test_split(train_df: pd.DataFrame, test_df: pd.DataFrame) -> np.ndarray:
         from featureshandler import FeaturesHandler
@@ -92,3 +95,11 @@ class Preprocessor:
 
         print(f"Training completed: Stored {index} relation pairs.")
         return df
+
+    @staticmethod
+    def prepare_labels(y_train: np.ndarray, y_test: np.ndarray) -> np.ndarray:
+        from keras.utils.np_utils import to_categorical
+
+        return to_categorical(
+            y_train, num_classes=Preprocessor._n_classes
+        ), to_categorical(y_test, num_classes=Preprocessor._n_classes)
