@@ -83,6 +83,8 @@ class Main:
         np.save("data\\y_train.npy", y_train)
         np.save("data\\y_test.npy", y_test)
 
+        print("Data is succesfully saved in dir \\data\\")
+
     def _get_datasets(self, args: argparse.Namespace) -> None:
         from fileshandler import FilesHandler
 
