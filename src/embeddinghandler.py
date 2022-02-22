@@ -11,6 +11,10 @@ class Embedding:
         sentences = pd.DataFrame(data={"unique_sentences": df.sentence.unique()})
         return list(sentences.unique_sentences.apply(lambda x: x.split()))
 
+    @staticmethod
+    def trained() -> bool:
+        return WordEmbedding.instance()._keyed_vectors != None
+
 
 class SentenceEmbedding(Embedding):
     _instance = None

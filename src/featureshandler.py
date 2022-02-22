@@ -44,10 +44,10 @@ class FeaturesHandler:
             FeaturesHandler._feat_with_tags(df, test)
             columns += ["tag1"] + ["tag2"]
         if "word_emb" in self._features:
-            FeaturesHandler._feat_word_emb(df, test)
+            FeaturesHandler._feat_word_emb(df)
             columns += ["word1"] + ["word2"]
         if "sent_emb" in self._features:
-            FeaturesHandler._feat_sent_emb(df, test)
+            FeaturesHandler._feat_sent_emb(df)
             columns += ["sentence"]
         if "bag_of_words" in self._features:
             FeaturesHandler._feat_bag_of_words(df, test)
@@ -69,8 +69,8 @@ class FeaturesHandler:
         df["tag2"] = FeaturesHandler.instance()._le.transform(df.tag2.values)
 
     @staticmethod
-    def _feat_word_emb(df: pd.DataFrame, test: bool = False) -> None:
-        if not test:
+    def _feat_word_emb(df: pd.DataFrame) -> None:
+        if not Embedding.trained():
             tokens = Embedding.prepare_text_to_train(df)
             WordEmbedding.instance().load_model(
                 "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4.bin"
@@ -85,13 +85,20 @@ class FeaturesHandler:
         )
 
     @staticmethod
-    def _feat_sent_emb(df: pd.DataFrame, test: bool = False) -> None:
-        if not test:
-            sentences = Embedding.prepare_text_to_train(df)
-            SentenceEmbedding.instance().train_sentence_emebdding(sentences)
-
+    def _feat_sent_emb(df: pd.DataFrame) -> None:
+        if not Embedding.trained():
+            tokens = Embedding.prepare_text_to_train(df)
+            WordEmbedding.instance().load_model(
+                "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4.bin"
+            )
+            WordEmbedding.instance().train_word_emebdding(tokens)
+        #     sentences = Embedding.prepare_text_to_train(df)
+        #     SentenceEmbedding.instance().train_sentence_emebdding(sentences)
+        # df["sentence"] = df.sentence.apply(
+        #     lambda x: SentenceEmbedding.instance().sentence_to_vector(x)
+        # )
         df["sentence"] = df.sentence.apply(
-            lambda x: SentenceEmbedding.instance().sentence_to_vector(x)
+            lambda x: WordEmbedding.instance().words_to_vector(x.split())
         )
 
     @staticmethod
@@ -99,6 +106,9 @@ class FeaturesHandler:
         if not test:
             print("Fitting words to bag of words")
             FeaturesHandler.instance()._cv.fit(df.sentence.unique().tolist())
+            print(
+                "Vocab size: ", len(FeaturesHandler.instance()._cv.vocabulary_.keys())
+            )
 
         df["sentence"] = df.sentence.apply(
             lambda x: FeaturesHandler.instance()
