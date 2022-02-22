@@ -6,12 +6,18 @@ import pandas as pd
 
 class FilesHandler:
     @staticmethod
-    def generate_dataset(path: Path, output_file: str) -> pd.DataFrame:
+    def generate_dataset(
+        path: Path, output_file: str, as_IOB: bool = True
+    ) -> pd.DataFrame:
         from preprocess import Preprocessor
 
         print("Generating DataFrame...")
 
-        df: pd.DataFrame = Preprocessor.process_content(path)
+        if as_IOB:
+            df: pd.DataFrame = Preprocessor.process_content_as_IOB_format(path)
+        else:
+            df: pd.DataFrame = Preprocessor.process_content(path)
+
         df.to_pickle(output_file)
 
         print(df)

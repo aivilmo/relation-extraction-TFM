@@ -97,6 +97,37 @@ class Preprocessor:
         return df
 
     @staticmethod
+    def process_content_as_IOB_format(path: Path) -> pd.DataFrame:
+        from ehealth.anntools import Collection
+
+        collection = Collection().load_dir(path)
+        print(f"Loaded {len(collection)} sentences for fitting.")
+
+        df: pd.DataFrame = pd.DataFrame()
+        index: int = 0
+
+        for sentence in collection.sentences:
+            sentence_entities = {}
+            for keyphrases in sentence.keyphrases:
+                text = Preprocessor.preprocess(keyphrases.text).split()
+                for i in range(len(text)):
+                    tag = "B-" if i == 0 else "B-"
+                    sentence_entities[text[i]] = tag + keyphrases.label
+
+            text = Preprocessor.preprocess(sentence.text).split()
+            for word in text:
+                tag = sentence_entities.get(word, "O")
+                word = pd.Series(
+                    {"word": word, "tag": tag},
+                    name=index,
+                )
+                index += 1
+                df = df.append(word)
+
+        print(f"Training completed: Stored {index} words.")
+        return df
+
+    @staticmethod
     def prepare_labels(y_train: np.ndarray, y_test: np.ndarray) -> np.ndarray:
         from keras.utils.np_utils import to_categorical
 
