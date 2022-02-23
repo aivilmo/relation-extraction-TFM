@@ -97,7 +97,7 @@ class Main:
                 Path(self._path + "\\training\\"), self._output_train
             )
             self._dataset_test = FilesHandler.generate_dataset(
-                Path(self._path + "\\testing\\"), self._output_test
+                Path(self._path + "\\develop\\"), self._output_test
             )
 
 
