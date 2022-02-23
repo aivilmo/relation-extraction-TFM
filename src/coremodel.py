@@ -4,7 +4,6 @@ import numpy as np
 
 class CoreModel:
     _instance = None
-    _n_classes = 13
 
     @staticmethod
     def instance():
@@ -21,9 +20,6 @@ class CoreModel:
         self._X = None
         self._y = None
         CoreModel._instance = self
-
-    def set_params(self, params) -> None:
-        self._params = params
 
     def set_model(self, model) -> None:
         self._model = model
@@ -80,4 +76,4 @@ class CoreModel:
         class_weight = compute_class_weight(
             class_weight="balanced", classes=train_classes, y=y
         )
-        self.set_params({"class_weight": dict(zip(train_classes, class_weight))})
+        self._params = {"class_weight": dict(zip(train_classes, class_weight))}
