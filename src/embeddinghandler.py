@@ -103,4 +103,6 @@ class WordEmbedding(Embedding):
         return np.mean(word_matrix, axis=0)
 
     def word_vector(self, word: str) -> np.ndarray:
-        return self._keyed_vectors.get_vector(word)
+        if word in list(self._keyed_vectors.index_to_key):
+            return self._keyed_vectors.get_vector(word)
+        return np.zeros((100,))

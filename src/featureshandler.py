@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-from embeddinghandler import Embedding, WordEmbedding, SentenceEmbedding
+from embeddinghandler import Embedding, WordEmbedding
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
@@ -23,6 +23,7 @@ class FeaturesHandler:
 
         self._le: LabelEncoder = LabelEncoder()
         self._cv: CountVectorizer = CountVectorizer()
+        self._tf: TfidfVectorizer = TfidfVectorizer()
         self._features: list = ["with_entities", "word_emb", "sent_emb"]
         FeaturesHandler._instance = self
 
@@ -36,10 +37,14 @@ class FeaturesHandler:
 
     def handleFeatures(self, df: pd.DataFrame, test: bool = False) -> np.ndarray:
         print("Handling features:", ", ".join(self.features))
-
-        df.drop("relation", axis=1, inplace=True)
         columns = []
 
+        if "single_word_emb" in self._features:
+            FeaturesHandler._feat_single_word_emb(df)
+            columns += ["word"]
+        if "tf_idf" in self._features:
+            FeaturesHandler._feat_tf_idf(df, test=test)
+            columns += ["word"]
         if "with_entities" in self._features:
             FeaturesHandler._feat_with_tags(df, test)
             columns += ["tag1"] + ["tag2"]
@@ -50,8 +55,8 @@ class FeaturesHandler:
             FeaturesHandler._feat_sent_emb(df)
             columns += ["sentence"]
         if "bag_of_words" in self._features:
-            FeaturesHandler._feat_bag_of_words(df, test)
-            columns += ["sentence"]
+            FeaturesHandler._feat_bag_of_words(df, test=test)
+            columns += ["word"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
         print("Features matrix succesfully generated, with data shape:", features.shape)
@@ -102,17 +107,46 @@ class FeaturesHandler:
         )
 
     @staticmethod
-    def _feat_bag_of_words(df: pd.DataFrame, test: bool = False) -> None:
+    def _feat_bag_of_words(
+        df: pd.DataFrame, column: str = "word", test: bool = False
+    ) -> None:
         if not test:
             print("Fitting words to bag of words")
-            FeaturesHandler.instance()._cv.fit(df.sentence.unique().tolist())
+            FeaturesHandler.instance()._cv.fit(df[column].unique().tolist())
             print(
                 "Vocab size: ", len(FeaturesHandler.instance()._cv.vocabulary_.keys())
             )
 
-        df["sentence"] = df.sentence.apply(
+        df[column] = df[column].apply(
             lambda x: FeaturesHandler.instance()
             ._cv.transform([x])
+            .toarray()
+            .reshape(-1)
+        )
+
+    @staticmethod
+    def _feat_single_word_emb(df: pd.DataFrame) -> None:
+        if not Embedding.trained():
+            WordEmbedding.instance().load_model(
+                "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4.bin"
+            )
+
+        df["word"] = df.word.apply(lambda x: WordEmbedding.instance().word_vector(x))
+
+    @staticmethod
+    def _feat_tf_idf(
+        df: pd.DataFrame, column: str = "word", test: bool = False
+    ) -> None:
+        if not test:
+            print("Fitting words to tf idf")
+            FeaturesHandler.instance()._tf.fit(df[column].unique().tolist())
+            print(
+                "Vocab size: ", len(FeaturesHandler.instance()._tf.vocabulary_.keys())
+            )
+
+        df[column] = df[column].apply(
+            lambda x: FeaturesHandler.instance()
+            ._tf.transform([x])
             .toarray()
             .reshape(-1)
         )

@@ -7,27 +7,34 @@ import numpy as np
 
 class Preprocessor:
 
-    _n_classes = 13
+    _n_classes = 2
 
     @staticmethod
-    def train_test_split(train_df: pd.DataFrame, test_df: pd.DataFrame) -> np.ndarray:
+    def train_test_split(
+        train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
+    ) -> np.ndarray:
         from featureshandler import FeaturesHandler
         from sklearn.preprocessing import LabelEncoder
 
         # Remove classes what are in test but not in train
         relations_not_in_train: list = list(
-            set(test_df.relation.unique()) - set(train_df.relation.unique())
+            set(test_df[y_column].unique()) - set(train_df[y_column].unique())
         )
         test_df.drop(
-            test_df.loc[test_df.relation.isin(relations_not_in_train)].index,
+            test_df.loc[test_df[y_column].isin(relations_not_in_train)].index,
             inplace=True,
         )
 
         # Transform labels
-        print("Transforming relations into labels")
+        print(f"Transforming {y_column} into labels")
         le = LabelEncoder()
-        y_train = le.fit_transform(train_df.relation.values)
-        y_test = le.transform(test_df.relation.values)
+        y_train = le.fit_transform(train_df[y_column].values)
+        y_test = le.transform(test_df[y_column].values)
+
+        print(train_df.tag.value_counts())
+
+        train_df.drop(y_column, axis=1, inplace=True)
+        test_df.drop(y_column, axis=1, inplace=True)
 
         # Handle features from data
         X_train = FeaturesHandler.instance().handleFeatures(train_df)
@@ -109,13 +116,13 @@ class Preprocessor:
         for sentence in collection.sentences:
             sentence_entities = {}
             for keyphrases in sentence.keyphrases:
-                text = Preprocessor.preprocess(keyphrases.text).split()
-                for i in range(len(text)):
-                    tag = "B-" if i == 0 else "B-"
-                    sentence_entities[text[i]] = tag + keyphrases.label
+                entities = keyphrases.text.split()
+                for i in range(len(entities)):
+                    tag = "B-" if i == 0 else "I-"
+                    sentence_entities[entities[i]] = tag + keyphrases.label
 
-            text = Preprocessor.preprocess(sentence.text).split()
-            for word in text:
+            words = sentence.text.split()
+            for word in words:
                 tag = sentence_entities.get(word, "O")
                 word = pd.Series(
                     {"word": word, "tag": tag},
