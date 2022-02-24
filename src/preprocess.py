@@ -15,23 +15,20 @@ class Preprocessor:
     ) -> np.ndarray:
         from featureshandler import FeaturesHandler
         from sklearn.preprocessing import LabelEncoder
+        from coremodel import CoreModel
 
         # Remove classes what are in test but not in train
-        relations_not_in_train: list = list(
-            set(test_df[y_column].unique()) - set(train_df[y_column].unique())
-        )
-        test_df.drop(
-            test_df.loc[test_df[y_column].isin(relations_not_in_train)].index,
-            inplace=True,
-        )
+        Preprocessor.remove_invalid_classes(test_df, train_df, y_column)
+
+        # Remove classes not in test so we cant test it (e.g. I-Reference)
+        Preprocessor.remove_invalid_classes(train_df, test_df, y_column)
 
         # Transform labels
         print(f"Transforming {y_column} into labels")
         le = LabelEncoder()
         y_train = le.fit_transform(train_df[y_column].values)
         y_test = le.transform(test_df[y_column].values)
-
-        print(train_df.tag.value_counts())
+        CoreModel.instance().set_labels(list(le.classes_))
 
         train_df.drop(y_column, axis=1, inplace=True)
         test_df.drop(y_column, axis=1, inplace=True)
@@ -141,3 +138,17 @@ class Preprocessor:
         return to_categorical(
             y_train, num_classes=Preprocessor._n_classes
         ), to_categorical(y_test, num_classes=Preprocessor._n_classes)
+
+    @staticmethod
+    def remove_invalid_classes(
+        df_to_remove: pd.DataFrame, df_from_remove: pd.DataFrame, y_column: str
+    ) -> None:
+        invalid_labels: list = list(
+            set(df_to_remove[y_column].unique())
+            - set(df_from_remove[y_column].unique())
+        )
+
+        df_to_remove.drop(
+            df_to_remove.loc[df_to_remove[y_column].isin(invalid_labels)].index,
+            inplace=True,
+        )

@@ -17,9 +17,14 @@ class CoreModel:
 
         self._model = None
         self._params = {}
+        self._labels = []
         self._X = None
         self._y = None
         CoreModel._instance = self
+
+    def set_labels(self, labels: list) -> None:
+        print(f"Setting labels to model: {labels}")
+        self._labels = labels
 
     def set_model(self, model) -> None:
         self._model = model
@@ -41,10 +46,7 @@ class CoreModel:
         from sklearn.model_selection import GridSearchCV
 
         model = GridSearchCV(
-            estimator=self._model,
-            param_grid=self._params,
-            n_jobs=-1,
-            verbose=0,
+            estimator=self._model, param_grid=self._params, n_jobs=-1, verbose=0
         )
         model.fit(self._X, self._y)
 
