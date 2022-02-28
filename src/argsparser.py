@@ -49,12 +49,12 @@ class ArgsParser:
             action="store",
             choices=[
                 "with_entities",
-                "word_dist",
                 "sent_emb",
                 "word_emb",
                 "bag_of_words",
                 "single_word_emb",
                 "tf_idf",
+                "chars",
             ],
             help="If you want to add custom features to train",
         )

@@ -5,6 +5,7 @@ import pandas as pd
 from embeddinghandler import Embedding, WordEmbedding
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from keras.preprocessing.text import Tokenizer
 
 
 class FeaturesHandler:
@@ -24,6 +25,8 @@ class FeaturesHandler:
         self._le: LabelEncoder = LabelEncoder()
         self._cv: CountVectorizer = CountVectorizer()
         self._tf: TfidfVectorizer = TfidfVectorizer()
+        self._tk: Tokenizer = Tokenizer(char_level=True)
+
         self._features: list = ["with_entities", "word_emb", "sent_emb"]
         FeaturesHandler._instance = self
 
@@ -56,6 +59,9 @@ class FeaturesHandler:
             columns += ["sentence"]
         if "bag_of_words" in self._features:
             FeaturesHandler._feat_bag_of_words(df, test=test)
+            columns += ["word"]
+        if "chars" in self._features:
+            FeaturesHandler._feat_chars(df, test=test)
             columns += ["word"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
@@ -150,6 +156,21 @@ class FeaturesHandler:
             .toarray()
             .reshape(-1)
         )
+
+    @staticmethod
+    def _feat_chars(df: pd.DataFrame, test: bool = False) -> None:
+        from keras.preprocessing.sequence import pad_sequences
+
+        if not test:
+            FeaturesHandler.instance()._tk.fit_on_texts(df.word)
+            vocab_size = len(FeaturesHandler.instance()._tk.word_index) + 1
+            print(f"Vocab size: {vocab_size}")
+
+        df["word"] = df.word.apply(
+            lambda x: FeaturesHandler.instance()._tk.texts_to_sequences([x])[0]
+        )
+        df["word"] = df.word.apply(lambda x: pad_sequences([x], maxlen=15)[0])
+        print(f"Matriz features for emebdding: {df.word.shape}")
 
     @staticmethod
     def _combine_features(df: pd.DataFrame, columns: list) -> np.ndarray:

@@ -1,34 +1,23 @@
 #!/usr/bin/env python
 
 from pathlib import Path
+from telnetlib import PRAGMA_HEARTBEAT
 import pandas as pd
 import numpy as np
 
 
 class Preprocessor:
 
-    _n_classes = 2
+    _n_classes = 8
 
     @staticmethod
     def train_test_split(
         train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
     ) -> np.ndarray:
         from featureshandler import FeaturesHandler
-        from sklearn.preprocessing import LabelEncoder
-        from coremodel import CoreModel
-
-        # Remove classes what are in test but not in train
-        Preprocessor.remove_invalid_classes(test_df, train_df, y_column)
-
-        # Remove classes not in test so we cant test it (e.g. I-Reference)
-        Preprocessor.remove_invalid_classes(train_df, test_df, y_column)
 
         # Transform labels
-        print(f"Transforming {y_column} into labels")
-        le = LabelEncoder()
-        y_train = le.fit_transform(train_df[y_column].values)
-        y_test = le.transform(test_df[y_column].values)
-        CoreModel.instance().set_labels(list(le.classes_))
+        y_train, y_test = Preprocessor.encode_labels(train_df, test_df)
 
         train_df.drop(y_column, axis=1, inplace=True)
         test_df.drop(y_column, axis=1, inplace=True)
@@ -138,6 +127,27 @@ class Preprocessor:
         return to_categorical(
             y_train, num_classes=Preprocessor._n_classes
         ), to_categorical(y_test, num_classes=Preprocessor._n_classes)
+
+    @staticmethod
+    def encode_labels(
+        train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
+    ) -> np.ndarray:
+        from sklearn.preprocessing import LabelEncoder
+        from coremodel import CoreModel
+
+        # Remove classes what are in test but not in train
+        Preprocessor.remove_invalid_classes(test_df, train_df, y_column)
+
+        # Remove classes not in test so we cant test it (e.g. I-Reference)
+        Preprocessor.remove_invalid_classes(train_df, test_df, y_column)
+
+        print(f"Transforming {y_column} into labels")
+        le = LabelEncoder()
+        y_train = le.fit_transform(train_df[y_column].values)
+        y_test = le.transform(test_df[y_column].values)
+        CoreModel.instance().set_labels(list(le.classes_))
+
+        return y_train, y_test
 
     @staticmethod
     def remove_invalid_classes(
