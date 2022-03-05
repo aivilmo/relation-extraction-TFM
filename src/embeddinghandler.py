@@ -1,8 +1,11 @@
 #!/usr/bin/env python
-from typing import Iterable
-from gensim.models.doc2vec import Doc2Vec, Word2Vec, TaggedDocument, KeyedVectors
+from gensim.models.doc2vec import Word2Vec, KeyedVectors
 import numpy as np
 import pandas as pd
+
+import tensorflow as tf
+import tensorflow_hub as hub
+import tensorflow_text as text
 
 
 class Embedding:
@@ -13,46 +16,81 @@ class Embedding:
 
     @staticmethod
     def trained() -> bool:
-        return WordEmbedding.instance()._keyed_vectors != None
+        return (
+            WordEmbedding.instance()._keyed_vectors != None
+            or BERTEmbedding.instance()._preprocess_layer != None
+        )
 
 
-class SentenceEmbedding(Embedding):
+class BERTEmbedding(Embedding):
     _instance = None
 
     @staticmethod
     def instance():
-        if SentenceEmbedding._instance == None:
-            SentenceEmbedding()
-        return SentenceEmbedding._instance
+        if BERTEmbedding._instance == None:
+            BERTEmbedding()
+        return BERTEmbedding._instance
 
     def __init__(self) -> None:
-        if SentenceEmbedding._instance != None:
+        if BERTEmbedding._instance != None:
             raise Exception
 
-        self._model = None
-        SentenceEmbedding._instance = self
+        self._preprocess_layer = None
+        self._encoder_layer = None
+        BERTEmbedding._instance = self
 
-    def train_sentence_emebdding(self, tokenized_sentences: list) -> None:
-        print("Training model sentences embedding...")
-
-        def tagged_document(sentences_list: list) -> Iterable:
-            for i, list_of_words in enumerate(sentences_list):
-                yield TaggedDocument(list_of_words, [i])
-
-        tagged_docs: list = list(tagged_document(tokenized_sentences))
-        self._model = Doc2Vec(vector_size=40, min_count=1, epochs=30, workers=-1)
-        self._model.build_vocab(tagged_docs)
-        self._model.train(
-            tagged_docs,
-            total_examples=self._model.corpus_count,
-            epochs=self._model.epochs,
+    def build_BERT_model(self) -> None:
+        tfhub_handle_preprocess = (
+            "https://tfhub.dev/tensorflow/bert_en_uncased_preprocess/3"
         )
 
-    def sentence_to_vector(self, sentence: str) -> np.ndarray:
-        from preprocess import Preprocessor
+        tfhub_handle_encoder = (
+            "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-4_H-256_A-4/1"
+        )
 
-        sent_tokens = Preprocessor.preprocess(sentence).split()
-        return self._model.infer_vector(sent_tokens)
+        print(f"Building BERT model with preprocessor: {tfhub_handle_preprocess}")
+        print(f"Building BERT model from: {tfhub_handle_encoder}")
+
+        self._preprocess_layer = hub.KerasLayer(
+            tfhub_handle_preprocess, name="preprocessing"
+        )
+        self._encoder_layer = hub.KerasLayer(
+            tfhub_handle_encoder, trainable=True, name="BERT_encoder"
+        )
+
+    def build_distilBERT_model(self) -> None:
+        from transformers import DistilBertTokenizer, DistilBertModel
+
+        self._preprocess_layer = DistilBertTokenizer.from_pretrained(
+            "distilbert-base-uncased"
+        )
+        self._encoder_layer = DistilBertModel.from_pretrained("distilbert-base-uncased")
+
+        print("Building distilBERT model with preprocessor: distilbert-base-uncased")
+        print("Building distilBERT model from: distilbert-base-uncased")
+
+    def word_vector_distil(self, word: str) -> np.ndarray:
+        word_preprocessed = self._preprocess_layer(word, return_tensors="pt")
+        bert_results = self._encoder_layer(**word_preprocessed)
+        return bert_results.last_hidden_state.detach().numpy()[0][0]
+
+    def word_vector(self, word: str) -> np.ndarray:
+        self._preprocess_layer = hub.KerasLayer(
+            "https://tfhub.dev/tensorflow/bert_en_uncased_preprocess/3",
+            name="preprocessing",
+        )
+        word_preprocessed = self._preprocess_layer([word])
+        bert_results = self._encoder_layer(word_preprocessed)
+        results = np.array(bert_results["pooled_output"])
+        ndims = results.shape[1]
+        return results.reshape(
+            ndims,
+        )
+
+    def plot_model(self) -> None:
+        filename = "images\\bert.png"
+        tf.keras.utils.plot_model(self._model, to_file=filename)
+        print(f"Ploted model to file: {filename}")
 
 
 class WordEmbedding(Embedding):

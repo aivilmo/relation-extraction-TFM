@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-from embeddinghandler import Embedding, WordEmbedding
+from embeddinghandler import Embedding, WordEmbedding, BERTEmbedding
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from keras.preprocessing.text import Tokenizer
@@ -63,6 +63,9 @@ class FeaturesHandler:
         if "chars" in self._features:
             FeaturesHandler._feat_chars(df, test=test)
             columns += ["word"]
+        if "bert" in self._features:
+            FeaturesHandler._feat_bert(df)
+            columns += ["word"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
         print("Features matrix succesfully generated, with data shape:", features.shape)
@@ -103,11 +106,7 @@ class FeaturesHandler:
                 "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4.bin"
             )
             WordEmbedding.instance().train_word_emebdding(tokens)
-        #     sentences = Embedding.prepare_text_to_train(df)
-        #     SentenceEmbedding.instance().train_sentence_emebdding(sentences)
-        # df["sentence"] = df.sentence.apply(
-        #     lambda x: SentenceEmbedding.instance().sentence_to_vector(x)
-        # )
+
         df["sentence"] = df.sentence.apply(
             lambda x: WordEmbedding.instance().words_to_vector(x.split())
         )
@@ -171,6 +170,15 @@ class FeaturesHandler:
         )
         df["word"] = df.word.apply(lambda x: pad_sequences([x], maxlen=15)[0])
         print(f"Matriz features for emebdding: {df.word.shape}")
+
+    @staticmethod
+    def _feat_bert(df: pd.DataFrame) -> None:
+        if not Embedding.trained():
+            BERTEmbedding.instance().build_distilBERT_model()
+
+        df["word"] = df.word.apply(
+            lambda x: BERTEmbedding.instance().word_vector_distil(x)
+        )
 
     @staticmethod
     def _combine_features(df: pd.DataFrame, columns: list) -> np.ndarray:
