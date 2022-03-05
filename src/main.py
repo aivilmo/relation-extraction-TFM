@@ -58,8 +58,7 @@ class Main:
         from coremodel import CoreModel
         from preprocess import Preprocessor
 
-        prep = Preprocessor()
-        X_train, X_test, y_train, y_test = prep.train_test_split(
+        X_train, X_test, y_train, y_test = Preprocessor.instance().train_test_split(
             self._dataset_train, self._dataset_test
         )
 
@@ -70,13 +69,14 @@ class Main:
         from preprocess import Preprocessor
         import numpy as np
 
-        prep = Preprocessor()
-        X_train, X_test, y_train, y_test = prep.train_test_split(
+        X_train, X_test, y_train, y_test = Preprocessor.instance().train_test_split(
             self._dataset_train, self._dataset_test
         )
 
         # Preparte to DeepModel
-        y_train, y_test = prep.prepare_labels(y_train=y_train, y_test=y_test)
+        y_train, y_test = Preprocessor.instance().prepare_labels(
+            y_train=y_train, y_test=y_test
+        )
 
         np.save("data\\X_train.npy", X_train)
         np.save("data\\X_test.npy", X_test)

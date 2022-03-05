@@ -1,14 +1,27 @@
 #!/usr/bin/env python
 
 from pathlib import Path
-from telnetlib import PRAGMA_HEARTBEAT
 import pandas as pd
 import numpy as np
+import time
 
 
 class Preprocessor:
 
     _n_classes = 8
+    _instance = None
+
+    @staticmethod
+    def instance():
+        if Preprocessor._instance == None:
+            Preprocessor()
+        return Preprocessor._instance
+
+    def __init__(self) -> None:
+        if Preprocessor._instance != None:
+            raise Exception
+
+        Preprocessor._instance = self
 
     @staticmethod
     def train_test_split(
