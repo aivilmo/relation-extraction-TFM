@@ -42,6 +42,32 @@ class Preprocessor:
         return X_train, X_test, y_train, y_test
 
     @staticmethod
+    def data_iterator(
+        df: pd.DataFrame, chunk_size: int = 1500, y_column: str = "tag"
+    ) -> np.ndarray:
+        from featureshandler import FeaturesHandler
+        import dask.dataframe as dd
+        from dask import delayed, compute
+
+        df.drop(y_column, axis=1, inplace=True)
+
+        delayed_results = []
+        ddf = dd.from_pandas(df, chunksize=chunk_size)
+        partitions = len(ddf.to_delayed())
+        part_n = 1
+        for part in ddf.to_delayed():
+            df = part.compute()
+            print(f"Computing part of dataframe, part {part_n} of {partitions}")
+            part_n += 1
+            X = delayed(FeaturesHandler.instance().handleFeatures)(df)
+            delayed_results.append(X)
+
+        start = time.time()
+        results = compute(*delayed_results, scheduler="threads")
+        print(f"Parallel features handler: {(time.time() - start) / 60} minutes")
+        return results
+
+    @staticmethod
     def preprocess(text: str, stopwords: bool = False) -> str:
         from nltk.stem import WordNetLemmatizer, PorterStemmer
         from nltk.corpus import stopwords
