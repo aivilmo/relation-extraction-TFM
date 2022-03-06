@@ -7,7 +7,9 @@ name = "pypi"
 plaidml-keras = "*"
 numpy = "*"
 scikit-learn = "0.21.2"
-keras = "*"
+tensorflow = "*"
+matplotlib = "*"
+tensorflow-addons = "*"
 
 [dev-packages]
 

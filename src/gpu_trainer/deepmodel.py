@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 
 import numpy as np
-from os import environ
 
-environ["KERAS_BACKEND"] = "plaidml.keras.backend"
-from keras.layers import Dense
-from keras.models import Sequential
+# from os import environ
+
+# environ["KERAS_BACKEND"] = "plaidml.keras.backend"
+from tensorflow.keras import layers, models, metrics, optimizers
 
 
 class DeepModel:
     _instance = None
-    epochs = 2
+    epochs = 80
     batch_size = 32
-    n_classes = 13
+    n_classes = 8
 
     @staticmethod
     def instance():
@@ -24,6 +24,7 @@ class DeepModel:
         if DeepModel._instance != None:
             raise Exception
         self._model = None
+        self._history = None
         DeepModel._instance = self
 
     def test_model(self, X, y) -> None:
@@ -35,130 +36,149 @@ class DeepModel:
 
         print(classification_report(y, yhat))
 
-    def create_NN(
-        self, input_dim, hidden_layers, num_units, activation, optimizer, loss
+    def create_simple_NN(
+        self,
+        hidden_layers: int = 1,
+        num_units: list = [128],
+        activation: str = "relu",
+        optimizer: str = "adam",
+        loss: str = "binary_crossentropy",
     ):
-        self._model = Sequential()
+        import tensorflow_addons as tfa
+
+        self._model = models.Sequential()
+
         # Input layer
         self._model.add(
-            Dense(
-                units=num_units,
-                input_dim=input_dim,
+            layers.Dense(
+                units=num_units[0],
                 activation=activation,
             )
         )
+        self._model.add(layers.Dropout(0.25))
 
-        # hidden layers
-        for _ in range(hidden_layers):
-            # num_units /= 2
+        #  Hidden layers
+        for hl in range(2, hidden_layers):
             self._model.add(
-                Dense(
-                    units=num_units,
-                    input_dim=input_dim,
+                layers.Dense(
+                    units=num_units[hl - 1],
                     activation=activation,
                 )
             )
+            self._model.add(layers.Dropout(0.25))
 
         # Output layer
-        self._model.add(Dense(units=DeepModel.n_classes, activation="softmax"))
-        self._model.compile(loss=loss, optimizer=optimizer, metrics=["accuracy"])
-        return self._model
+        self._model.add(layers.Dense(units=DeepModel.n_classes, activation="softmax"))
+
+        local_cross_entropy = tfa.losses.SigmoidFocalCrossEntropy(alpha=0.2, gamma=2.0)
+        self._model.compile(
+            loss=local_cross_entropy, optimizer=optimizer, metrics=["accuracy"]
+        )
+
+    def create_GRU(
+        self,
+    ):
+        self._model = models.Sequential()
+        self._model.add(
+            layers.GRU(
+                units=128,
+                dropout=0.1,
+                recurrent_dropout=0.5,
+                return_sequences=True,
+            )
+        )
+        self._model.add(
+            layers.GRU(units=256, activation="relu", dropout=0.1, recurrent_dropout=0.5)
+        )
+        self._model.add(layers.Dense(units=DeepModel.n_classes))
+
+        self._model.compile(optimizer=optimizers.RMSprop(), loss="mae")
 
     def train_NN(self, X, y):
-        from keras.callbacks import EarlyStopping
-
-        accuracy = EarlyStopping(
-            monitor="val_accuracy", patience=3, restore_best_weights=True
-        )
-        loss = EarlyStopping(monitor="val_loss", patience=3, restore_best_weights=True)
-
-        self.create_NN(
-            input_dim=X.shape[1],
-            hidden_layers=3,
-            num_units=128,
-            activation="sigmoid",
-            optimizer="adam",
-            loss="binary_crossentropy",
-        )
-        self._model.fit(
+        self._history = self._model.fit(
             X,
             y,
             epochs=DeepModel.epochs,
             batch_size=DeepModel.batch_size,
             validation_split=0.2,
+            callbacks=DeepModel.get_callbacks(),
+            class_weight=DeepModel.get_class_weight(y),
         )
 
     def evaluate_NN(self, X, y):
-        from sklearn.metrics import precision_score, recall_score, f1_score
+        from sklearn.metrics import classification_report
 
-        yhat = self._model.predict(X)
-        yhat = np.argmax(yhat, axis=1)
+        print("Testing model...")
+
+        y_hat = self._model.predict(X)
+        y_hat = np.argmax(y_hat, axis=1)
         y = np.argmax(y, axis=1)
 
-        precision = precision_score(
-            y, yhat, average="weighted", labels=[i for i in range(0, 12)]
+        print("Classification report:")
+        print(classification_report(y, y_hat))
+
+    @staticmethod
+    def get_class_weight(y: np.ndarray) -> dict:
+        samples = y.shape[0]
+        unique, counts = np.unique(np.argmax(y, axis=1), return_counts=True)
+        return dict(zip(unique, 100 - (counts / samples) * 100))
+
+    @staticmethod
+    def get_callbacks() -> list:
+        from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+
+        accuracy = EarlyStopping(
+            monitor="val_accuracy", patience=10, restore_best_weights=True
         )
-        recall = recall_score(
-            y, yhat, average="weighted", labels=[i for i in range(0, 12)]
+        loss = EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)
+
+        # Create a callback that saves the model's weights
+        checkpoint_path = "training_1/cp.ckpt"
+        checkpoint = ModelCheckpoint(
+            filepath=checkpoint_path, save_weights_only=True, verbose=1
         )
-        f1score = f1_score(
-            y, yhat, average="weighted", labels=[i for i in range(0, 12)]
-        )
+        return [accuracy, loss, checkpoint]
 
-        print(
-            "Precision: %0.3f Recall %0.3f F1 score: %0.3f for %s"
-            % (precision, recall, f1score, "Neuronal Network")
-        )
-        return precision, recall, f1score
+    def show_history(self) -> None:
+        import matplotlib.pyplot as plt
 
-    def train_best_NN(self, X, y):
-        from sklearn.model_selection import GridSearchCV
-        from keras.wrappers.scikit_learn import KerasClassifier
+        acc = self._history.history["accuracy"]
+        val_acc = self._history.history["val_accuracy"]
+        loss = self._history.history["loss"]
+        val_loss = self._history.history["val_loss"]
 
-        params = dict(
-            input_dim=[X.shape[1]],
-            hidden_layers=[1],
-            num_units=[256, 128],
-            activation=["relu"],
-            optimizer=["adam"],
-            loss=["binary_crossentropy"],
-        )
+        epochs = range(1, len(acc) + 1)
 
-        base_NN = KerasClassifier(
-            build_fn=self.create_NN,
-            epochs=DeepModel.epochs,
-            batch_size=DeepModel.batch_size,
-            verbose=1,
-        )
-        model = GridSearchCV(estimator=base_NN, param_grid=params, n_jobs=-1)
+        plt.plot(epochs, acc, "bo", label="Training acc")
+        plt.plot(epochs, val_acc, "b", label="Validation acc")
+        plt.title("Training and validation accuracy")
+        plt.legend()
 
-        # Training
-        model.fit(X, y)
+        plt.figure()
 
-        means = model.cv_results_["mean_test_score"]
-        stds = model.cv_results_["std_test_score"]
+        plt.plot(epochs, loss, "bo", label="Training loss")
+        plt.plot(epochs, val_loss, "b", label="Validation loss")
+        plt.title("Training and validation loss")
+        plt.legend()
 
-        print("Best: %f using %s" % (model.best_score_, model.best_params_))
-        for mean, std, params in sorted(
-            zip(means, stds, model.cv_results_["params"]), key=lambda x: -x[0]
-        ):
-            print(
-                "Mean test score: %0.3f (+/-%0.03f) for params: %r"
-                % (mean, std * 2, params)
-            )
-        return model
+        plt.show()
 
     @staticmethod
     def main() -> None:
-
-        X_train, X_test = np.load("..\\..\\data\\X_train.npy"), np.load(
-            "..\\..\\data\\X_test.npy"
+        X_train, X_test = np.load("..\\data\\X_train_bert.npy"), np.load(
+            "..\\data\\X_test_bert.npy"
         )
-        y_train, y_test = np.load("..\\..\\data\\y_train.npy"), np.load(
-            "..\\..\\data\\y_test.npy"
+        y_train, y_test = np.load("..\\data\\y_train_bert.npy"), np.load(
+            "..\\data\\y_test_bert.npy"
         )
 
-        DeepModel.instance().train_best_NN(X=X_train, y=y_train)
+        # X_train = X_train.reshape(X_train.shape[0], 1, X_train.shape[1])
+        # X_test = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
+
+        DeepModel.instance().create_simple_NN()
+        DeepModel.instance().train_NN(X=X_train, y=y_train)
+        DeepModel.instance().evaluate_NN(X=X_test, y=y_test)
+        DeepModel.instance().show_history()
 
 
 if __name__ == "__main__":
