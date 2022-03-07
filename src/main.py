@@ -78,10 +78,14 @@ class Main:
             y_train=y_train, y_test=y_test
         )
 
-        np.save("data\\X_train.npy", X_train)
-        np.save("data\\X_test.npy", X_test)
-        np.save("data\\y_train.npy", y_train)
-        np.save("data\\y_test.npy", y_test)
+        feat: str = "_".join(FeaturesHandler.instance().features)
+        np.save(
+            "data\\X_train_" + feat + ".npy",
+            X_train,
+        )
+        np.save("data\\X_test_" + feat + ".npy", X_test)
+        np.save("data\\y_train_" + feat + ".npy", y_train)
+        np.save("data\\y_test_" + feat + ".npy", y_test)
 
         print("Data is succesfully saved in dir \\data\\")
 
