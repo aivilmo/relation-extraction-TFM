@@ -21,4 +21,22 @@ class ArgsParser:
             help="Select model to train",
         )
 
+        parser.add_argument(
+            "--features",
+            nargs="+",
+            action="store",
+            choices=[
+                "with_entities",
+                "sent_emb",
+                "word_emb",
+                "bag_of_words",
+                "single_word_emb",
+                "tf_idf",
+                "chars",
+                "bert",
+                "distil_bert",
+            ],
+            help="Selecte the feature to load",
+        )
+
         return parser.parse_args()

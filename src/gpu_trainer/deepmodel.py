@@ -87,7 +87,7 @@ class DeepModel:
         kl = tf.keras.losses.KLDivergence()
 
         self._model.compile(
-            loss=local_cross_entropy,
+            loss=loss,
             loss_weights=self.get_class_weight().values(),
             optimizer=optimizer,
             metrics=["accuracy"],
@@ -188,12 +188,13 @@ class DeepModel:
 
         # plt.show()
 
-    def _load_data(self):
-        self._X, X_test = np.load("..\\data\\X_train_bert.npy"), np.load(
-            "..\\data\\X_test_bert.npy"
+    def _load_data(self, features: list) -> None:
+
+        self._X, X_test = np.load("..\\data\\X_train_" + features[0] + ".npy"), np.load(
+            "..\\data\\X_test_" + features[0] + ".npy"
         )
-        self._y, y_test = np.load("..\\data\\y_train_bert.npy"), np.load(
-            "..\\data\\y_test_bert.npy"
+        self._y, y_test = np.load("..\\data\\y_train_" + features[0] + ".npy"), np.load(
+            "..\\data\\y_test_" + features[0] + ".npy"
         )
         return X_test, y_test
 
@@ -201,9 +202,9 @@ class DeepModel:
     def main() -> None:
         from argsparser import ArgsParser
 
-        X_test, y_test = DeepModel.instance()._load_data()
-
         args = ArgsParser.get_args()
+        X_test, y_test = DeepModel.instance()._load_data(args.features)
+
         if args.model == None or "basic_nn" in args.model:
             DeepModel.instance().create_simple_NN()
         elif "gru" in args.model:
