@@ -1,11 +1,18 @@
 #!/usr/bin/env python
 
+import random
 import numpy as np
+import tensorflow as tf
+
+seed = 6
+random.seed(seed)
+np.random.seed(seed)
+tf.random.set_seed(seed)
+
 
 # from os import environ
 
 # environ["KERAS_BACKEND"] = "plaidml.keras.backend"
-from tensorflow.keras import layers, models, metrics, optimizers
 
 
 class DeepModel:
@@ -25,6 +32,8 @@ class DeepModel:
             raise Exception
         self._model = None
         self._history = None
+        self._X = None
+        self._y = None
         DeepModel._instance = self
 
     def test_model(self, X, y) -> None:
@@ -46,67 +55,78 @@ class DeepModel:
     ):
         import tensorflow_addons as tfa
 
-        self._model = models.Sequential()
+        self._model = tf.keras.models.Sequential()
 
         # Input layer
         self._model.add(
-            layers.Dense(
+            tf.keras.layers.Dense(
                 units=num_units[0],
                 activation=activation,
             )
         )
-        self._model.add(layers.Dropout(0.25))
+        self._model.add(tf.keras.layers.Dropout(0.25))
 
         #  Hidden layers
         for hl in range(2, hidden_layers):
             self._model.add(
-                layers.Dense(
+                tf.keras.layers.Dense(
                     units=num_units[hl - 1],
                     activation=activation,
                 )
             )
-            self._model.add(layers.Dropout(0.25))
+            self._model.add(tf.keras.layers.Dropout(0.25))
 
         # Output layer
-        self._model.add(layers.Dense(units=DeepModel.n_classes, activation="softmax"))
-
-        local_cross_entropy = tfa.losses.SigmoidFocalCrossEntropy(alpha=0.2, gamma=2.0)
-        self._model.compile(
-            loss=local_cross_entropy, optimizer=optimizer, metrics=["accuracy"]
+        self._model.add(
+            tf.keras.layers.Dense(units=DeepModel.n_classes, activation="softmax")
         )
 
-    def create_GRU(
+        local_cross_entropy = tfa.losses.SigmoidFocalCrossEntropy(alpha=0.2, gamma=2.0)
+        cce = tf.keras.losses.CategoricalCrossentropy()
+        p = tf.keras.losses.Poisson()
+        kl = tf.keras.losses.KLDivergence()
+
+        self._model.compile(
+            loss=local_cross_entropy,
+            loss_weights=self.get_class_weight().values(),
+            optimizer=optimizer,
+            metrics=["accuracy"],
+        )
+
+    def create_GRU_RNN(
         self,
     ):
-        self._model = models.Sequential()
+        self._model = tf.keras.models.Sequential()
         self._model.add(
-            layers.GRU(
+            tf.keras.layers.GRU(
                 units=128,
                 dropout=0.1,
                 recurrent_dropout=0.5,
                 return_sequences=True,
             )
         )
-        self._model.add(
-            layers.GRU(units=256, activation="relu", dropout=0.1, recurrent_dropout=0.5)
-        )
-        self._model.add(layers.Dense(units=DeepModel.n_classes))
+        self._model.add(tf.keras.layers.Dense(units=DeepModel.n_classes))
 
-        self._model.compile(optimizer=optimizers.RMSprop(), loss="mae")
+        self._model.compile(optimizer=tf.keras.optimizers.RMSprop(), loss="mae")
 
-    def train_NN(self, X, y):
+    def train_NN(self):
         self._history = self._model.fit(
-            X,
-            y,
+            self._X,
+            self._y,
             epochs=DeepModel.epochs,
             batch_size=DeepModel.batch_size,
             validation_split=0.2,
             callbacks=DeepModel.get_callbacks(),
-            class_weight=DeepModel.get_class_weight(y),
+            class_weight=self.get_class_weight(),
         )
 
     def evaluate_NN(self, X, y):
-        from sklearn.metrics import classification_report
+        from sklearn.metrics import (
+            classification_report,
+            confusion_matrix,
+            ConfusionMatrixDisplay,
+        )
+        import matplotlib.pyplot as plt
 
         print("Testing model...")
 
@@ -117,24 +137,29 @@ class DeepModel:
         print("Classification report:")
         print(classification_report(y, y_hat))
 
-    @staticmethod
-    def get_class_weight(y: np.ndarray) -> dict:
-        samples = y.shape[0]
-        unique, counts = np.unique(np.argmax(y, axis=1), return_counts=True)
+        print("Confusion matrix:")
+        cm = confusion_matrix(y, y_hat)
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+        disp.plot()
+        # plt.show()
+
+    def get_class_weight(self) -> dict:
+        samples = self._y.shape[0]
+        unique, counts = np.unique(np.argmax(self._y, axis=1), return_counts=True)
         return dict(zip(unique, 100 - (counts / samples) * 100))
 
     @staticmethod
     def get_callbacks() -> list:
-        from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-
-        accuracy = EarlyStopping(
+        accuracy = tf.keras.callbacks.EarlyStopping(
             monitor="val_accuracy", patience=10, restore_best_weights=True
         )
-        loss = EarlyStopping(monitor="val_loss", patience=10, restore_best_weights=True)
+        loss = tf.keras.callbacks.EarlyStopping(
+            monitor="val_loss", patience=10, restore_best_weights=True
+        )
 
         # Create a callback that saves the model's weights
         checkpoint_path = "training_1/cp.ckpt"
-        checkpoint = ModelCheckpoint(
+        checkpoint = tf.keras.callbacks.ModelCheckpoint(
             filepath=checkpoint_path, save_weights_only=True, verbose=1
         )
         return [accuracy, loss, checkpoint]
@@ -161,22 +186,37 @@ class DeepModel:
         plt.title("Training and validation loss")
         plt.legend()
 
-        plt.show()
+        # plt.show()
+
+    def _load_data(self):
+        self._X, X_test = np.load("..\\data\\X_train_bert.npy"), np.load(
+            "..\\data\\X_test_bert.npy"
+        )
+        self._y, y_test = np.load("..\\data\\y_train_bert.npy"), np.load(
+            "..\\data\\y_test_bert.npy"
+        )
+        return X_test, y_test
 
     @staticmethod
     def main() -> None:
-        X_train, X_test = np.load("..\\data\\X_train_bert.npy"), np.load(
-            "..\\data\\X_test_bert.npy"
-        )
-        y_train, y_test = np.load("..\\data\\y_train_bert.npy"), np.load(
-            "..\\data\\y_test_bert.npy"
-        )
+        from argsparser import ArgsParser
 
-        # X_train = X_train.reshape(X_train.shape[0], 1, X_train.shape[1])
-        # X_test = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
+        X_test, y_test = DeepModel.instance()._load_data()
 
-        DeepModel.instance().create_simple_NN()
-        DeepModel.instance().train_NN(X=X_train, y=y_train)
+        args = ArgsParser.get_args()
+        if args.model == None or "basic_nn" in args.model:
+            DeepModel.instance().create_simple_NN()
+        elif "gru" in args.model:
+            X_shape = DeepModel.instance()._X.shape
+            DeepModel.instance()._X = DeepModel.instance()._X.reshape(
+                X_shape[0], 1, X_shape[1]
+            )
+            X_test = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
+            DeepModel.instance().create_GRU_RNN()
+        elif "lstm" in args.model:
+            pass
+
+        DeepModel.instance().train_NN()
         DeepModel.instance().evaluate_NN(X=X_test, y=y_test)
         DeepModel.instance().show_history()
 
