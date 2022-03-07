@@ -56,6 +56,7 @@ class ArgsParser:
                 "tf_idf",
                 "chars",
                 "bert",
+                "distil_bert",
             ],
             help="If you want to add custom features to train",
         )

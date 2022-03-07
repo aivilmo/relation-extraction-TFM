@@ -63,7 +63,7 @@ class FeaturesHandler:
         if "chars" in self._features:
             FeaturesHandler._feat_chars(df, test=test)
             columns += ["word"]
-        if "bert" in self._features:
+        if "bert" in self._features or "distil_bert" in self._features:
             FeaturesHandler._feat_bert(df)
             columns += ["word"]
 
@@ -174,11 +174,12 @@ class FeaturesHandler:
     @staticmethod
     def _feat_bert(df: pd.DataFrame) -> None:
         if not Embedding.trained():
-            BERTEmbedding.instance().build_distilBERT_model()
+            if "bert" in FeaturesHandler.instance()._features:
+                BERTEmbedding.instance().build_BERT_model()
+            elif "distil_bert" in FeaturesHandler.instance()._features:
+                BERTEmbedding.instance().build_distilBERT_model()
 
-        df["word"] = df.word.apply(
-            lambda x: BERTEmbedding.instance().word_vector_distil(x)
-        )
+        df["word"] = df.word.apply(lambda x: BERTEmbedding.instance().word_vector(x))
 
     @staticmethod
     def _combine_features(df: pd.DataFrame, columns: list) -> np.ndarray:

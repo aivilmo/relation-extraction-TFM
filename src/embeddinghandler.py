@@ -40,23 +40,13 @@ class BERTEmbedding(Embedding):
         BERTEmbedding._instance = self
 
     def build_BERT_model(self) -> None:
-        tfhub_handle_preprocess = (
-            "https://tfhub.dev/tensorflow/bert_en_uncased_preprocess/3"
-        )
+        from transformers import BertTokenizer, BertModel
 
-        tfhub_handle_encoder = (
-            "https://tfhub.dev/tensorflow/small_bert/bert_en_uncased_L-4_H-256_A-4/1"
-        )
+        self._preprocess_layer = BertTokenizer.from_pretrained("bert-base-uncased")
+        self._encoder_layer = BertModel.from_pretrained("bert-base-uncased")
 
-        print(f"Building BERT model with preprocessor: {tfhub_handle_preprocess}")
-        print(f"Building BERT model from: {tfhub_handle_encoder}")
-
-        self._preprocess_layer = hub.KerasLayer(
-            tfhub_handle_preprocess, name="preprocessing"
-        )
-        self._encoder_layer = hub.KerasLayer(
-            tfhub_handle_encoder, trainable=True, name="BERT_encoder"
-        )
+        print("Building BERT model with preprocessor: bert-base-uncased")
+        print("Building BERT model from: bert-base-uncased")
 
     def build_distilBERT_model(self) -> None:
         from transformers import DistilBertTokenizer, DistilBertModel
@@ -69,23 +59,10 @@ class BERTEmbedding(Embedding):
         print("Building distilBERT model with preprocessor: distilbert-base-uncased")
         print("Building distilBERT model from: distilbert-base-uncased")
 
-    def word_vector_distil(self, word: str) -> np.ndarray:
+    def word_vector(self, word: str) -> np.ndarray:
         word_preprocessed = self._preprocess_layer(word, return_tensors="pt")
         bert_results = self._encoder_layer(**word_preprocessed)
         return bert_results.last_hidden_state.detach().numpy()[0][0]
-
-    def word_vector(self, word: str) -> np.ndarray:
-        self._preprocess_layer = hub.KerasLayer(
-            "https://tfhub.dev/tensorflow/bert_en_uncased_preprocess/3",
-            name="preprocessing",
-        )
-        word_preprocessed = self._preprocess_layer([word])
-        bert_results = self._encoder_layer(word_preprocessed)
-        results = np.array(bert_results["pooled_output"])
-        ndims = results.shape[1]
-        return results.reshape(
-            ndims,
-        )
 
     def plot_model(self) -> None:
         filename = "images\\bert.png"
