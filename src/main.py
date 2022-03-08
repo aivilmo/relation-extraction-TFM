@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 import argparse
 from featureshandler import FeaturesHandler
+from logger import Logger
 
 
 class Main:
@@ -26,6 +27,7 @@ class Main:
         self._output_test: str = "data\\test.pkl"
         self._dataset_train: pd.DataFrame = None
         self._dataset_test: pd.DataFrame = None
+        self._logger = Logger.instance()
         Main._instance = self
 
     def main(self) -> None:
@@ -87,7 +89,7 @@ class Main:
         np.save("data\\y_train_" + feat + ".npy", y_train)
         np.save("data\\y_test_" + feat + ".npy", y_test)
 
-        print("Data is succesfully saved in dir \\data\\")
+        self._logger.info("Data is succesfully saved in dir \\data\\")
 
     def _get_datasets(self, args: argparse.Namespace) -> None:
         from fileshandler import FilesHandler

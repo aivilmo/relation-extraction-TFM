@@ -7,6 +7,8 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import tensorflow_text as text
 
+from logger import Logger
+
 
 class Embedding:
     @staticmethod
@@ -37,6 +39,7 @@ class BERTEmbedding(Embedding):
 
         self._preprocess_layer = None
         self._encoder_layer = None
+        self._logger = Logger.instance()
         BERTEmbedding._instance = self
 
     def build_BERT_model(self) -> None:
@@ -45,8 +48,8 @@ class BERTEmbedding(Embedding):
         self._preprocess_layer = BertTokenizer.from_pretrained("bert-base-uncased")
         self._encoder_layer = BertModel.from_pretrained("bert-base-uncased")
 
-        print("Building BERT model with preprocessor: bert-base-uncased")
-        print("Building BERT model from: bert-base-uncased")
+        self._logger.info("Building BERT model with preprocessor: bert-base-uncased")
+        self._logger.info("Building BERT model from: bert-base-uncased")
 
     def build_distilBERT_model(self) -> None:
         from transformers import DistilBertTokenizer, DistilBertModel
@@ -56,8 +59,10 @@ class BERTEmbedding(Embedding):
         )
         self._encoder_layer = DistilBertModel.from_pretrained("distilbert-base-uncased")
 
-        print("Building distilBERT model with preprocessor: distilbert-base-uncased")
-        print("Building distilBERT model from: distilbert-base-uncased")
+        self._logger.info(
+            "Building distilBERT model with preprocessor: distilbert-base-uncased"
+        )
+        self._logger.info("Building distilBERT model from: distilbert-base-uncased")
 
     def word_vector(self, word: str) -> np.ndarray:
         word_preprocessed = self._preprocess_layer(word, return_tensors="pt")
@@ -67,7 +72,7 @@ class BERTEmbedding(Embedding):
     def plot_model(self) -> None:
         filename = "images\\bert.png"
         tf.keras.utils.plot_model(self._model, to_file=filename)
-        print(f"Ploted model to file: {filename}")
+        self._logger.info(f"Ploted model to file: {filename}")
 
 
 class WordEmbedding(Embedding):
@@ -85,15 +90,16 @@ class WordEmbedding(Embedding):
 
         self._model = None
         self._keyed_vectors = None
+        self._logger = Logger.instance()
         WordEmbedding._instance = self
 
     def load_model(self, filename: str) -> None:
-        print(f"Loading keyed vectors from: {filename}")
+        self._logger.info(f"Loading keyed vectors from: {filename}")
 
         self._keyed_vectors = KeyedVectors.load_word2vec_format(filename, binary=True)
 
     def train_word_emebdding(self, tokens: list) -> None:
-        print("Training model word embedding...")
+        self._logger.info("Training model word embedding...")
 
         self._model = Word2Vec(
             sentences=tokens,

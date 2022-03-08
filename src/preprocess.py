@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import time
+from logger import Logger
 
 
 class Preprocessor:
@@ -21,6 +22,7 @@ class Preprocessor:
         if Preprocessor._instance != None:
             raise Exception
 
+        self._logger = Logger.instance()
         Preprocessor._instance = self
 
     @staticmethod
@@ -57,14 +59,18 @@ class Preprocessor:
         part_n = 1
         for part in ddf.to_delayed():
             df = part.compute()
-            print(f"Computing part of dataframe, part {part_n} of {partitions}")
+            Preprocessor.instance()._logger.info(
+                f"Computing part of dataframe, part {part_n} of {partitions}"
+            )
             part_n += 1
             X = delayed(FeaturesHandler.instance().handleFeatures)(df)
             delayed_results.append(X)
 
         start = time.time()
         results = compute(*delayed_results, scheduler="threads")
-        print(f"Parallel features handler: {(time.time() - start) / 60} minutes")
+        Preprocessor.instance()._logger.info(
+            f"Parallel features handler: {(time.time() - start) / 60} minutes"
+        )
         return results
 
     @staticmethod
@@ -100,7 +106,9 @@ class Preprocessor:
         from ehealth.anntools import Collection
 
         collection = Collection().load_dir(path)
-        print(f"Loaded {len(collection)} sentences for fitting.")
+        Preprocessor.instance()._logger.info(
+            f"Loaded {len(collection)} sentences for fitting."
+        )
 
         df: pd.DataFrame = pd.DataFrame()
         index: int = 0
@@ -125,7 +133,9 @@ class Preprocessor:
                 index += 1
                 df = df.append(relation)
 
-        print(f"Training completed: Stored {index} relation pairs.")
+        Preprocessor.instance()._logger.info(
+            f"Training completed: Stored {index} relation pairs."
+        )
         return df
 
     @staticmethod
@@ -133,7 +143,9 @@ class Preprocessor:
         from ehealth.anntools import Collection
 
         collection = Collection().load_dir(path)
-        print(f"Loaded {len(collection)} sentences for fitting.")
+        Preprocessor.instance()._logger.info(
+            f"Loaded {len(collection)} sentences for fitting."
+        )
 
         df: pd.DataFrame = pd.DataFrame()
         index: int = 0
@@ -156,7 +168,9 @@ class Preprocessor:
                 index += 1
                 df = df.append(word)
 
-        print(f"Training completed: Stored {index} words.")
+        Preprocessor.instance()._logger.info(
+            f"Training completed: Stored {index} words."
+        )
         return df
 
     @staticmethod
@@ -180,7 +194,7 @@ class Preprocessor:
         # Remove classes not in test so we cant test it (e.g. I-Reference)
         Preprocessor.remove_invalid_classes(train_df, test_df, y_column)
 
-        print(f"Transforming {y_column} into labels")
+        Preprocessor.instance()._logger.info(f"Transforming {y_column} into labels")
         le = LabelEncoder()
         y_train = le.fit_transform(train_df[y_column].values)
         y_test = le.transform(test_df[y_column].values)
