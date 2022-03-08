@@ -3,6 +3,8 @@
 from pathlib import Path
 import pandas as pd
 
+from logger import Logger
+
 
 class FilesHandler:
     @staticmethod
@@ -11,7 +13,7 @@ class FilesHandler:
     ) -> pd.DataFrame:
         from preprocess import Preprocessor
 
-        print("Generating DataFrame...")
+        Logger.instance().info("Generating DataFrame...")
 
         if as_IOB:
             df: pd.DataFrame = Preprocessor.process_content_as_IOB_format(path)
@@ -20,13 +22,15 @@ class FilesHandler:
 
         df.to_pickle(output_file)
 
-        print(df)
-        print("DataFrame succesfully generated and saved at: " + output_file)
+        Logger.instance().info(df)
+        Logger.instance().info(
+            "DataFrame succesfully generated and saved at: " + output_file
+        )
         return df
 
     @staticmethod
     def load_dataset(filename: str) -> pd.DataFrame:
-        print("Loading DataFrame from: " + filename)
+        Logger.instance().info("Loading DataFrame from: " + filename)
         df: pd.DataFrame = pd.read_pickle(filename)
-        print("DataFrame succesfully loaded")
+        Logger.instance().info("DataFrame succesfully loaded")
         return df

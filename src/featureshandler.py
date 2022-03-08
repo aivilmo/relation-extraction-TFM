@@ -7,6 +7,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from keras.preprocessing.text import Tokenizer
 
+from logger import Logger
+
 
 class FeaturesHandler:
 
@@ -28,6 +30,7 @@ class FeaturesHandler:
         self._tk: Tokenizer = Tokenizer(char_level=True)
 
         self._features: list = ["with_entities", "word_emb", "sent_emb"]
+        self._logger = Logger.instance()
         FeaturesHandler._instance = self
 
     @property
@@ -39,7 +42,7 @@ class FeaturesHandler:
         self._features = features
 
     def handleFeatures(self, df: pd.DataFrame, test: bool = False) -> np.ndarray:
-        print("Handling features:", ", ".join(self.features))
+        self._logger.info(f"Handling features: " + ", ".join(self.features))
         columns = []
 
         if "single_word_emb" in self._features:
@@ -68,12 +71,14 @@ class FeaturesHandler:
             columns += ["word"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
-        print("Features matrix succesfully generated, with data shape:", features.shape)
+        self._logger.info(
+            f"Features matrix succesfully generated, with data shape: {features.shape}"
+        )
         return np.nan_to_num(features)
 
     def _feat_with_tags(self, df: pd.DataFrame, test: bool = False) -> None:
         if not test:
-            print("Fitting word labels")
+            self._logger.info("Fitting word labels")
             df["tag1"] = self._le.fit_transform(df.tag1.values)
             df["tag2"] = self._le.fit_transform(df.tag2.values)
             return
@@ -112,9 +117,9 @@ class FeaturesHandler:
         self, df: pd.DataFrame, column: str = "word", test: bool = False
     ) -> None:
         if not test:
-            print("Fitting words to bag of words")
+            self._logger.info("Fitting words to bag of words")
             self._cv.fit(df[column].unique().tolist())
-            print("Vocab size: ", len(self._cv.vocabulary_.keys()))
+            self._logger.info("Vocab size: ", len(self._cv.vocabulary_.keys()))
 
         df[column] = df[column].apply(
             lambda x: self._cv.transform([x]).toarray().reshape(-1)
@@ -132,9 +137,9 @@ class FeaturesHandler:
         self, df: pd.DataFrame, column: str = "word", test: bool = False
     ) -> None:
         if not test:
-            print("Fitting words to tf idf")
+            self._logger.info("Fitting words to tf idf")
             self._tf.fit(df[column].unique().tolist())
-            print("Vocab size: ", len(self._tf.vocabulary_.keys()))
+            self._logger.info("Vocab size: ", len(self._tf.vocabulary_.keys()))
 
         df[column] = df[column].apply(
             lambda x: self._tf.transform([x]).toarray().reshape(-1)
@@ -146,11 +151,11 @@ class FeaturesHandler:
         if not test:
             self._tk.fit_on_texts(df.word)
             vocab_size = len(self._tk.word_index) + 1
-            print(f"Vocab size: {vocab_size}")
+            self._logger.info(f"Vocab size: {vocab_size}")
 
         df["word"] = df.word.apply(lambda x: self._tk.texts_to_sequences([x])[0])
         df["word"] = df.word.apply(lambda x: pad_sequences([x], maxlen=15)[0])
-        print(f"Matriz features for emebdding: {df.word.shape}")
+        self._logger.info(f"Matriz features for emebdding: {df.word.shape}")
 
     def _feat_bert(self, df: pd.DataFrame) -> None:
         if not Embedding.trained():

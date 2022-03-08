@@ -2,6 +2,7 @@
 from cmath import isnan
 import numpy as np
 from sklearn.preprocessing import StandardScaler
+from logger import Logger
 
 
 class CoreModel:
@@ -22,17 +23,18 @@ class CoreModel:
         self._labels = []
         self._X = None
         self._y = None
+        self._logger = Logger.instance()
         CoreModel._instance = self
 
     def set_labels(self, labels: list) -> None:
-        print(f"Setting labels to model: {labels}")
+        self._logger.info(f"Setting labels to model: {labels}")
         self._labels = labels
 
     def set_model(self, model) -> None:
         self._model = model
 
     def fit_model(self, X, y) -> None:
-        print(f"Setting data to model, X: {X.shape}, y: {y.shape}")
+        self._logger.info(f"Setting data to model, X: {X.shape}, y: {y.shape}")
         self._X = X
         self._y = y
 
@@ -41,11 +43,11 @@ class CoreModel:
         # from sklearn import svm
         import time
 
-        print("Training model...")
+        self._logger.info("Training model...")
         start = time.time()
         # self._model = make_pipeline(StandardScaler(), svm.SVC())
         self._model.fit(self._X, self._y)
-        print(f"Model trained, time: {(time.time() - start) / 60} minutes")
+        self._logger.info(f"Model trained, time: {(time.time() - start) / 60} minutes")
 
     def test_model(self, X, y) -> None:
         from sklearn.metrics import (
@@ -55,13 +57,13 @@ class CoreModel:
         )
         import matplotlib.pyplot as plt
 
-        print("Testing model...")
+        self._logger.info("Testing model...")
         y_hat = self._model.predict(X)
 
-        print("Classification report:")
-        print(classification_report(y, y_hat, target_names=self._labels))
+        self._logger.info("Classification report:")
+        self._logger.info(classification_report(y, y_hat, target_names=self._labels))
 
-        print("Confusion matrix:")
+        self._logger.info("Confusion matrix:")
         cm = confusion_matrix(y, y_hat)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=self._labels)
         disp.plot()
@@ -75,7 +77,7 @@ class CoreModel:
         model = GridSearchCV(
             estimator=self._model, param_grid=self._params, cv=cv, n_jobs=6, verbose=1
         )
-        print("Training best model")
+        self._logger.info("Training best model")
         model.fit(self._X, self._y)
 
         means = model.cv_results_["mean_test_score"]
@@ -84,11 +86,10 @@ class CoreModel:
             zip(means, stds, model.cv_results_["params"]), key=lambda x: -x[0]
         ):
             if not np.isnan(mean):
-                print(
+                self._logger.info(
                     "Mean test score: %0.3f (+/-%0.03f) for params: %r"
                     % (mean, std * 2, params)
                 )
-        print()
         self._model = model
 
     def start_train(self, X_train, X_test, y_train, y_test):
@@ -97,11 +98,11 @@ class CoreModel:
         from sklearn.preprocessing import StandardScaler
         from sklearn.tree import DecisionTreeClassifier
 
-        # print("Scaling data...")
+        # self._logger.info("Scaling data...")
         # scaler = StandardScaler()
         # X_train = scaler.fit_transform(X_train).reshape(X_train.shape)
         # X_test = scaler.transform(X_test).reshape(X_test.shape)
-        # print(f"Data scaled, new X_train: {X_train.shape}, new X_test: {X_test.shape} ")
+        # self._logger.info(f"Data scaled, new X_train: {X_train.shape}, new X_test: {X_test.shape} ")
 
         self._params = {
             "penalty": ["l1", "l2"],
@@ -119,7 +120,7 @@ class CoreModel:
             "class_weight": [None],
         }
 
-        self.set_model(DecisionTreeClassifier())
+        self.set_model(LinearSVC())
         self.fit_model(X_train, y_train)
         self.train_model()
         # self.train_best_model()
