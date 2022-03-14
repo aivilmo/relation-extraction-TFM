@@ -62,15 +62,16 @@ class DeepModel:
             tf.keras.layers.Dense(
                 units=num_units[0],
                 activation=activation,
+                input_shape=(None, self._X.shape[1]),
             )
         )
         self._model.add(tf.keras.layers.Dropout(0.25))
 
         #  Hidden layers
-        for hl in range(2, hidden_layers):
+        for hl in range(1, hidden_layers):
             self._model.add(
                 tf.keras.layers.Dense(
-                    units=num_units[hl - 1],
+                    units=num_units[hl],
                     activation=activation,
                 )
             )
@@ -93,16 +94,18 @@ class DeepModel:
             metrics=["accuracy"],
         )
 
+        print(self._model.summary())
+
     def create_GRU_RNN(
         self,
     ):
         self._model = tf.keras.models.Sequential()
+
         self._model.add(
             tf.keras.layers.GRU(
-                units=128,
+                units=768,
                 dropout=0.1,
                 recurrent_dropout=0.5,
-                return_sequences=True,
             )
         )
         self._model.add(tf.keras.layers.Dense(units=DeepModel.n_classes))
@@ -141,7 +144,9 @@ class DeepModel:
         cm = confusion_matrix(y, y_hat)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot()
+
         # plt.show()
+        plt.savefig("confusion_matrix.png")
 
     def get_class_weight(self) -> dict:
         samples = self._y.shape[0]
@@ -187,6 +192,7 @@ class DeepModel:
         plt.legend()
 
         # plt.show()
+        plt.savefig("history.png")
 
     def _load_data(self, features: list) -> None:
 
