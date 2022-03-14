@@ -20,49 +20,50 @@ class Embedding:
     def trained() -> bool:
         return (
             WordEmbedding.instance()._keyed_vectors != None
-            or BERTEmbedding.instance()._preprocess_layer != None
+            or TransformerEmbedding.instance()._preprocess_layer != None
         )
 
 
-class BERTEmbedding(Embedding):
+class TransformerEmbedding(Embedding):
     _instance = None
 
     @staticmethod
     def instance():
-        if BERTEmbedding._instance == None:
-            BERTEmbedding()
-        return BERTEmbedding._instance
+        if TransformerEmbedding._instance == None:
+            TransformerEmbedding()
+        return TransformerEmbedding._instance
 
     def __init__(self) -> None:
-        if BERTEmbedding._instance != None:
+        if TransformerEmbedding._instance != None:
             raise Exception
 
         self._preprocess_layer = None
         self._encoder_layer = None
         self._logger = Logger.instance()
-        BERTEmbedding._instance = self
+        TransformerEmbedding._instance = self
 
-    def build_BERT_model(self) -> None:
-        from transformers import BertTokenizer, BertModel
-
-        self._preprocess_layer = BertTokenizer.from_pretrained("bert-base-uncased")
-        self._encoder_layer = BertModel.from_pretrained("bert-base-uncased")
-
-        self._logger.info("Building BERT model with preprocessor: bert-base-uncased")
-        self._logger.info("Building BERT model from: bert-base-uncased")
-
-    def build_distilBERT_model(self) -> None:
-        from transformers import DistilBertTokenizer, DistilBertModel
-
-        self._preprocess_layer = DistilBertTokenizer.from_pretrained(
-            "distilbert-base-uncased"
+    def build_transformer(self, type: str = "distilbert-base-uncased") -> None:
+        from transformers import (
+            BertTokenizer,
+            BertModel,
+            DistilBertTokenizer,
+            DistilBertModel,
+            GPT2Tokenizer,
+            GPT2Model,
         )
-        self._encoder_layer = DistilBertModel.from_pretrained("distilbert-base-uncased")
 
-        self._logger.info(
-            "Building distilBERT model with preprocessor: distilbert-base-uncased"
-        )
-        self._logger.info("Building distilBERT model from: distilbert-base-uncased")
+        if type == "distilbert-base-uncased":
+            self._preprocess_layer = DistilBertTokenizer.from_pretrained(type)
+            self._encoder_layer = DistilBertModel.from_pretrained(type)
+        if type == "bert-base-uncased":
+            self._preprocess_layer = BertTokenizer.from_pretrained(type)
+            self._encoder_layer = BertModel.from_pretrained(type)
+        if type == "gpt2":
+            self._preprocess_layer = GPT2Tokenizer.from_pretrained(type)
+            self._encoder_layer = GPT2Model.from_pretrained(type)
+
+        self._logger.info(f"Building transformer model with preprocessor: {type}")
+        self._logger.info(f"Building transformer model from: {type}")
 
     def word_vector(self, word: str) -> np.ndarray:
         word_preprocessed = self._preprocess_layer(word, return_tensors="pt")

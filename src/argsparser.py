@@ -55,8 +55,9 @@ class ArgsParser:
                 "single_word_emb",
                 "tf_idf",
                 "chars",
-                "bert",
-                "distil_bert",
+                "distilbert-base-uncased",
+                "bert-base-uncased",
+                "gpt2",
             ],
             help="If you want to add custom features to train",
         )

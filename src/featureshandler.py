@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-from embeddinghandler import Embedding, WordEmbedding, BERTEmbedding
+from embeddinghandler import Embedding, WordEmbedding, TransformerEmbedding
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from keras.preprocessing.text import Tokenizer
@@ -66,8 +66,12 @@ class FeaturesHandler:
         if "chars" in self._features:
             self._feat_chars(df, test=test)
             columns += ["word"]
-        if "bert" in self._features or "distil_bert" in self._features:
-            self._feat_bert(df)
+        if (
+            "distilbert-base-uncased" in self._features
+            or "bert-base-uncased" in self._features
+            or "gpt2" in self._features
+        ):
+            self._feat_transformer(df, self._features[0])
             columns += ["word"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
@@ -163,14 +167,13 @@ class FeaturesHandler:
         df["word"] = df.word.apply(lambda x: pad_sequences([x], maxlen=15)[0])
         self._logger.info(f"Matriz features for emebdding: {df.word.shape}")
 
-    def _feat_bert(self, df: pd.DataFrame) -> None:
+    def _feat_transformer(self, df: pd.DataFrame, type) -> None:
         if not Embedding.trained():
-            if "bert" in self._features:
-                BERTEmbedding.instance().build_BERT_model()
-            elif "distil_bert" in self._features:
-                BERTEmbedding.instance().build_distilBERT_model()
+            TransformerEmbedding.instance().build_transformer(type=type)
 
-        df["word"] = df.word.apply(lambda x: BERTEmbedding.instance().word_vector(x))
+        df["word"] = df.word.apply(
+            lambda x: TransformerEmbedding.instance().word_vector(x)
+        )
 
     @staticmethod
     def _combine_features(df: pd.DataFrame, columns: list) -> np.ndarray:
