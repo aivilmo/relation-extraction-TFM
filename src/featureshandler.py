@@ -16,12 +16,12 @@ class FeaturesHandler:
 
     @staticmethod
     def instance():
-        if FeaturesHandler._instance == None:
+        if FeaturesHandler._instance is None:
             FeaturesHandler()
         return FeaturesHandler._instance
 
     def __init__(self) -> None:
-        if FeaturesHandler._instance != None:
+        if FeaturesHandler._instance is not None:
             raise Exception
 
         self._le: LabelEncoder = LabelEncoder()
@@ -41,7 +41,7 @@ class FeaturesHandler:
     def features(self, features: str) -> None:
         self._features = features
 
-    def handleFeatures(self, df: pd.DataFrame, test: bool = False) -> np.ndarray:
+    def handle_features(self, df: pd.DataFrame, test: bool = False) -> np.ndarray:
         self._logger.info(f"Handling features: " + ", ".join(self.features))
         columns = []
 
@@ -86,11 +86,13 @@ class FeaturesHandler:
         df["tag1"] = self._le.transform(df.tag1.values)
         df["tag2"] = self._le.transform(df.tag2.values)
 
-    def _feat_word_emb(self, df: pd.DataFrame) -> None:
+    @staticmethod
+    def _feat_word_emb(df: pd.DataFrame) -> None:
         if not Embedding.trained():
             tokens = Embedding.prepare_text_to_train(df)
             WordEmbedding.instance().load_model(
-                "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4.bin"
+                "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4"
+                ".bin "
             )
             WordEmbedding.instance().train_word_emebdding(tokens)
 
@@ -101,11 +103,13 @@ class FeaturesHandler:
             lambda x: WordEmbedding.instance().words_to_vector(x.split())
         )
 
-    def _feat_sent_emb(self, df: pd.DataFrame) -> None:
+    @staticmethod
+    def _feat_sent_emb(df: pd.DataFrame) -> None:
         if not Embedding.trained():
             tokens = Embedding.prepare_text_to_train(df)
             WordEmbedding.instance().load_model(
-                "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4.bin"
+                "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4"
+                ".bin "
             )
             WordEmbedding.instance().train_word_emebdding(tokens)
 
@@ -125,10 +129,12 @@ class FeaturesHandler:
             lambda x: self._cv.transform([x]).toarray().reshape(-1)
         )
 
-    def _feat_single_word_emb(self, df: pd.DataFrame) -> None:
+    @staticmethod
+    def _feat_single_word_emb(df: pd.DataFrame) -> None:
         if not Embedding.trained():
             WordEmbedding.instance().load_model(
-                "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4.bin"
+                "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4"
+                ".bin "
             )
 
         df["word"] = df.word.apply(lambda x: WordEmbedding.instance().word_vector(x))
