@@ -6,10 +6,14 @@ import numpy as np
 import time
 from logger import Logger
 
+import warnings
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
+
 
 class Preprocessor:
 
-    _n_classes = 8
+    _n_classes = 9
     _instance = None
 
     @staticmethod
@@ -38,8 +42,8 @@ class Preprocessor:
         test_df.drop(y_column, axis=1, inplace=True)
 
         # Handle features from data
-        X_train = FeaturesHandler.instance().handleFeatures(train_df)
-        X_test = FeaturesHandler.instance().handleFeatures(test_df, test=True)
+        X_train = FeaturesHandler.instance().handle_features(train_df)
+        X_test = FeaturesHandler.instance().handle_features(test_df, test=True)
 
         return X_train, X_test, y_train, y_test
 
@@ -63,7 +67,7 @@ class Preprocessor:
                 f"Computing part of dataframe, part {part_n} of {partitions}"
             )
             part_n += 1
-            X = delayed(FeaturesHandler.instance().handleFeatures)(df)
+            X = delayed(FeaturesHandler.instance().handle_features)(df)
             delayed_results.append(X)
 
         start = time.time()
@@ -156,13 +160,15 @@ class Preprocessor:
                 entities = keyphrases.text.split()
                 for i in range(len(entities)):
                     tag = "B-" if i == 0 else "I-"
-                    sentence_entities[entities[i]] = tag + keyphrases.label
+                    old_entity = sentence_entities.get(entities[i], [])
+                    old_entity.append(tag + keyphrases.label)
+                    sentence_entities[entities[i]] = old_entity
 
             words = sentence.text.split()
             for word in words:
-                tag = sentence_entities.get(word, "O")
+                tag = sentence_entities.get(word, ["O"])
                 word = pd.Series(
-                    {"word": word, "tag": tag},
+                    {"word": word, "tag": max(set(tag), key=tag.count)},
                     name=index,
                 )
                 index += 1
@@ -189,10 +195,10 @@ class Preprocessor:
         from coremodel import CoreModel
 
         # Remove classes what are in test but not in train
-        Preprocessor.remove_invalid_classes(test_df, train_df, y_column)
+        # Preprocessor.remove_invalid_classes(test_df, train_df, y_column)
 
         # Remove classes not in test so we cant test it (e.g. I-Reference)
-        Preprocessor.remove_invalid_classes(train_df, test_df, y_column)
+        # Preprocessor.remove_invalid_classes(train_df, test_df, y_column)
 
         Preprocessor.instance()._logger.info(f"Transforming {y_column} into labels")
         le = LabelEncoder()
