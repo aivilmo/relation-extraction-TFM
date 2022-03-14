@@ -17,9 +17,9 @@ tf.random.set_seed(seed)
 
 class DeepModel:
     _instance = None
-    epochs = 80
-    batch_size = 32
-    n_classes = 8
+    _epochs = 80
+    _batch_size = 32
+    _n_classes = 9
 
     @staticmethod
     def instance():
@@ -31,6 +31,7 @@ class DeepModel:
         if DeepModel._instance != None:
             raise Exception
         self._model = None
+        self._loss = None
         self._history = None
         self._X = None
         self._y = None
@@ -51,10 +52,7 @@ class DeepModel:
         num_units: list = [128],
         activation: str = "relu",
         optimizer: str = "adam",
-        loss: str = "binary_crossentropy",
     ):
-        import tensorflow_addons as tfa
-
         self._model = tf.keras.models.Sequential()
 
         # Input layer
@@ -79,17 +77,11 @@ class DeepModel:
 
         # Output layer
         self._model.add(
-            tf.keras.layers.Dense(units=DeepModel.n_classes, activation="softmax")
+            tf.keras.layers.Dense(units=DeepModel._n_classes, activation="softmax")
         )
 
-        local_cross_entropy = tfa.losses.SigmoidFocalCrossEntropy(alpha=0.2, gamma=2.0)
-        cce = tf.keras.losses.CategoricalCrossentropy()
-        p = tf.keras.losses.Poisson()
-        kl = tf.keras.losses.KLDivergence()
-
         self._model.compile(
-            loss=loss,
-            loss_weights=self.get_class_weight().values(),
+            loss=self._loss,
             optimizer=optimizer,
             metrics=["accuracy"],
         )
@@ -108,16 +100,21 @@ class DeepModel:
                 recurrent_dropout=0.5,
             )
         )
-        self._model.add(tf.keras.layers.Dense(units=DeepModel.n_classes))
+        self._model.add(tf.keras.layers.Dense(units=DeepModel._n_classes))
 
-        self._model.compile(optimizer=tf.keras.optimizers.RMSprop(), loss="mae")
+        self._model.compile(
+            loss="binary_crossentropy",
+            loss_weights=self.get_class_weight().values(),
+            optimizer="adam",
+            metrics=["accuracy"],
+        )
 
     def train_NN(self):
         self._history = self._model.fit(
             self._X,
             self._y,
-            epochs=DeepModel.epochs,
-            batch_size=DeepModel.batch_size,
+            epochs=DeepModel._epochs,
+            batch_size=DeepModel._batch_size,
             validation_split=0.2,
             callbacks=DeepModel.get_callbacks(),
             class_weight=self.get_class_weight(),
@@ -204,12 +201,33 @@ class DeepModel:
         )
         return X_test, y_test
 
+    # SOURCE: https://towardsdatascience.com/handling-class-imbalanced-data-using-a-loss-specifically-made-for-it-6e58fd65ffab
+    def get_class_weight_imbalanced(self, beta: float = 0.9) -> np.ndarray:
+        unique, samples_per_cls = np.unique(
+            np.argmax(self._y, axis=1), return_counts=True
+        )
+        effective_num = 1.0 - np.power(beta, samples_per_cls)
+        weights = (1.0 - beta) / np.array(effective_num)
+        weights = weights / np.sum(weights) * DeepModel._n_classes
+
+        return dict(zip(unique, weights))
+
     @staticmethod
     def main() -> None:
         from argsparser import ArgsParser
+        import tensorflow_addons as tfa
 
         args = ArgsParser.get_args()
         X_test, y_test = DeepModel.instance()._load_data(args.features)
+
+        if args.loss == None or "binary_crossentropy" in args.loss:
+            DeepModel.instance()._loss = tf.keras.losses.BinaryCrossentropy(
+                from_logits=True
+            )
+        elif "sigmoid_focal_crossentropy" in args.loss:
+            DeepModel.instance()._loss = tfa.losses.SigmoidFocalCrossEntropy(
+                alpha=0.20, gamma=2.0
+            )
 
         if args.model == None or "basic_nn" in args.model:
             DeepModel.instance().create_simple_NN()

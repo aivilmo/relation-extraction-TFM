@@ -33,10 +33,19 @@ class ArgsParser:
                 "single_word_emb",
                 "tf_idf",
                 "chars",
-                "bert",
-                "distil_bert",
+                "distilbert-base-uncased",
+                "bert-base-uncased",
+                "gpt2",
             ],
             help="Selecte the feature to load",
+        )
+
+        parser.add_argument(
+            "--loss",
+            nargs="+",
+            action="store",
+            choices=["sigmoid_focal_crossentropy", "binary_crossentropy"],
+            help="Selecte the loss function to load",
         )
 
         return parser.parse_args()
