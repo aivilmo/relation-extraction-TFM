@@ -252,10 +252,10 @@ class Preprocessor:
         if not Embedding.trained():
             TransformerEmbedding.instance().build_transformer()
 
-        is_initial_sentence: bool = True
         for sentence in collection.sentences:
             sent = TransformerEmbedding.instance().sentence_vector(sentence.text)
             tokenized_sent = TransformerEmbedding.instance().tokenize(sentence.text)
+            # tokenized_sent = ["[CLS]"] + tokenized_sent + ["[SEP]"]
             sentence_entities = {}
             for keyphrases in sentence.keyphrases:
                 entities = keyphrases.text.split()

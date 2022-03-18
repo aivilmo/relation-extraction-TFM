@@ -14,7 +14,7 @@ class FilesHandler:
         output_file: str,
         as_IOB: bool = True,
         as_BILUOV: bool = False,
-        as_sentences=True,
+        as_sentences: bool = True,
     ) -> pd.DataFrame:
         from preprocess import Preprocessor
 
