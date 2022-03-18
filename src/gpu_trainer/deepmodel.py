@@ -19,7 +19,7 @@ class DeepModel:
     _instance = None
     _epochs = 80
     _batch_size = 32
-    _n_classes = 9
+    _n_classes = None
 
     @staticmethod
     def instance():
@@ -36,15 +36,6 @@ class DeepModel:
         self._X = None
         self._y = None
         DeepModel._instance = self
-
-    def test_model(self, X, y) -> None:
-        from sklearn.metrics import classification_report
-
-        yhat = self._model.predict(X)
-        yhat = np.argmax(yhat, axis=1)
-        y = np.argmax(y, axis=1)
-
-        print(classification_report(y, yhat))
 
     def create_simple_NN(
         self,
@@ -199,6 +190,7 @@ class DeepModel:
         self._y, y_test = np.load("..\\data\\y_train_" + features[0] + ".npy"), np.load(
             "..\\data\\y_test_" + features[0] + ".npy"
         )
+        DeepModel._n_classes = self._y.shape[1]
         return X_test, y_test
 
     # SOURCE: https://towardsdatascience.com/handling-class-imbalanced-data-using-a-loss-specifically-made-for-it-6e58fd65ffab
