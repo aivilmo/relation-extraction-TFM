@@ -42,33 +42,41 @@ class TransformerEmbedding(Embedding):
         self._logger = Logger.instance()
         TransformerEmbedding._instance = self
 
-    def build_transformer(self, type: str = "distilbert-base-uncased") -> None:
-        from transformers import (
-            BertTokenizer,
-            BertModel,
-            DistilBertTokenizer,
-            DistilBertModel,
-            GPT2Tokenizer,
-            GPT2Model,
-        )
+    def build_transformer(self, type: str = "bert-base-multilingual-cased") -> None:
+        self._logger.info(f"Building transformer model with preprocessor: {type}")
+        self._logger.info(f"Building transformer model from: {type}")
 
         if type == "distilbert-base-uncased":
+            from transformers import DistilBertTokenizer, DistilBertModel
+
             self._preprocess_layer = DistilBertTokenizer.from_pretrained(type)
             self._encoder_layer = DistilBertModel.from_pretrained(type)
-        if type == "bert-base-uncased":
+        if type == "bert-base-uncased" or type == "bert-base-multilingual-cased":
+            from transformers import BertTokenizer, BertModel
+
             self._preprocess_layer = BertTokenizer.from_pretrained(type)
             self._encoder_layer = BertModel.from_pretrained(type)
         if type == "gpt2":
+            from transformers import GPT2Tokenizer, GPT2Model
+
             self._preprocess_layer = GPT2Tokenizer.from_pretrained(type)
             self._encoder_layer = GPT2Model.from_pretrained(type)
 
-        self._logger.info(f"Building transformer model with preprocessor: {type}")
-        self._logger.info(f"Building transformer model from: {type}")
+        self._logger.info(f"Transformer has built with preprocessor: {type}")
+        self._logger.info(f"Transformer has built from: {type}")
 
     def word_vector(self, word: str) -> np.ndarray:
         word_preprocessed = self._preprocess_layer(word, return_tensors="pt")
         bert_results = self._encoder_layer(**word_preprocessed)
         return bert_results.last_hidden_state.detach().numpy()[0][0]
+
+    def sentence_vector(self, sentence: str) -> np.ndarray:
+        sentence_preprocessed = self._preprocess_layer(sentence, return_tensors="pt")
+        bert_results = self._encoder_layer(**sentence_preprocessed)
+        return bert_results.last_hidden_state.detach().numpy()[0]
+
+    def tokenize(self, text: str) -> list:
+        return self._preprocess_layer.tokenize(text)
 
     def plot_model(self) -> None:
         filename = "images\\bert.png"

@@ -10,13 +10,18 @@ from logger import Logger
 class FilesHandler:
     @staticmethod
     def generate_dataset(
-        path: Path, output_file: str, as_IOB: bool = True, as_BILUOV: bool = False
+        path: Path,
+        output_file: str,
+        as_IOB: bool = True,
+        as_BILUOV: bool = False,
+        as_sentences=True,
     ) -> pd.DataFrame:
         from preprocess import Preprocessor
 
         Logger.instance().info("Generating DataFrame...")
-
-        if as_BILUOV:
+        if as_sentences:
+            df: pd.DataFrame = Preprocessor.process_content_as_sentences(path)
+        elif as_BILUOV:
             df: pd.DataFrame = Preprocessor.process_content_as_BILUOV_format(path)
         elif as_IOB:
             df: pd.DataFrame = Preprocessor.process_content_as_IOB_format(path)

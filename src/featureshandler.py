@@ -69,10 +69,13 @@ class FeaturesHandler:
         if (
             "distilbert-base-uncased" in self._features
             or "bert-base-uncased" in self._features
+            or "bert-base-multilingual-cased" in self._features
             or "gpt2" in self._features
         ):
             self._feat_transformer(df, self._features[0])
             columns += ["word"]
+        if "sentences_bert" in self._features:
+            columns += ["vector"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
         self._logger.info(

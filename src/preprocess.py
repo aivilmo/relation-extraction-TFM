@@ -35,6 +35,10 @@ class Preprocessor:
     ) -> np.ndarray:
         from featureshandler import FeaturesHandler
 
+        # train_df = Preprocessor.filter_word_tag_ocurrences(train_df)
+
+        Preprocessor._n_classes = len(set(train_df[y_column].unique()))
+
         # Transform labels
         y_train, y_test = Preprocessor.encode_labels(train_df, test_df)
 
@@ -232,6 +236,52 @@ class Preprocessor:
         return df
 
     @staticmethod
+    def process_content_as_sentences(path: Path) -> pd.DataFrame:
+        from ehealth.anntools import Collection
+        from embeddinghandler import Embedding, TransformerEmbedding
+
+        collection = Collection().load_dir(path)
+        Preprocessor.instance()._logger.info(
+            f"Loaded {len(collection)} sentences for fitting."
+        )
+        Preprocessor.instance()._logger.info(f"process_content_as_sentences")
+
+        df: pd.DataFrame = pd.DataFrame()
+        index: int = 0
+
+        if not Embedding.trained():
+            TransformerEmbedding.instance().build_transformer()
+
+        is_initial_sentence: bool = True
+        for sentence in collection.sentences:
+            sent = TransformerEmbedding.instance().sentence_vector(sentence.text)
+            tokenized_sent = TransformerEmbedding.instance().tokenize(sentence.text)
+            sentence_entities = {}
+            for keyphrases in sentence.keyphrases:
+                entities = keyphrases.text.split()
+                for i in range(len(entities)):
+                    entity_word = TransformerEmbedding.instance().tokenize(entities[i])
+                    tag = "B-" if i == 0 else "I-"
+                    tag = tag + keyphrases.label
+                    for j in range(len(entity_word)):
+                        if j != 0:
+                            break
+                        sentence_entities[entity_word[j]] = tag
+            for i in range(len(tokenized_sent)):
+                tag = sentence_entities.get(tokenized_sent[i], "O")
+                word = pd.Series(
+                    {"token": tokenized_sent[i], "vector": sent[i + 1], "tag": tag},
+                    name=index,
+                )
+                index += 1
+                df = df.append(word)
+
+        Preprocessor.instance()._logger.info(
+            f"Training completed: Stored {index} words."
+        )
+        return df
+
+    @staticmethod
     def prepare_labels(y_train: np.ndarray, y_test: np.ndarray) -> np.ndarray:
         from keras.utils.np_utils import to_categorical
 
@@ -273,3 +323,27 @@ class Preprocessor:
             df_to_remove.loc[df_to_remove[y_column].isin(invalid_labels)].index,
             inplace=True,
         )
+
+    @staticmethod
+    def filter_word_tag_ocurrences(df: pd.DataFrame) -> pd.DataFrame:
+        from random import sample
+
+        print(df.value_counts())
+        print(df.tag.value_counts())
+
+        # Other posibilities
+        # train_df = train_df.groupby("word").filter(lambda x: len(x) < 700)
+        # train_df.drop_duplicates(
+        #     subset=["word", "tag"], keep="last", inplace=True, ignore_index=True
+        # )
+        # o_indexes = df[(df.tag == "O") & (df.word == "de")].index.tolist()
+
+        # o_indexes = df[df.tag == "O"].index.tolist()
+        # indexes_to_drop = sample(o_indexes, int(len(o_indexes) * 0.6))
+        # indexes_to_keep = set(range(df.shape[0])) - set(indexes_to_drop)
+        # df = df.take(list(indexes_to_keep))
+
+        # print("AFTER")
+        # print(df.value_counts())
+        # print(df.tag.value_counts())
+        return df

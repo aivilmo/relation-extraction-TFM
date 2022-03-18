@@ -35,6 +35,8 @@ class ArgsParser:
                 "chars",
                 "distilbert-base-uncased",
                 "bert-base-uncased",
+                "bert-base-multilingual-cased",
+                "sentences_bert",
                 "gpt2",
             ],
             help="Selecte the feature to load",

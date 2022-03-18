@@ -57,6 +57,8 @@ class ArgsParser:
                 "chars",
                 "distilbert-base-uncased",
                 "bert-base-uncased",
+                "bert-base-multilingual-cased",
+                "sentences_bert",
                 "gpt2",
             ],
             help="If you want to add custom features to train",
