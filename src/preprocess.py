@@ -13,7 +13,7 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 class Preprocessor:
 
-    _n_classes = 9
+    _n_classes = None
     _instance = None
 
     @staticmethod
@@ -78,7 +78,7 @@ class Preprocessor:
         return results
 
     @staticmethod
-    def preprocess(text: str, stopwords: bool = False) -> str:
+    def preprocess(text: str, without_stopwords: bool = False) -> str:
         from nltk.stem import WordNetLemmatizer, PorterStemmer
         from nltk.corpus import stopwords
         import re
@@ -91,9 +91,10 @@ class Preprocessor:
         tokens = alphanumeric_text.lower().split()
 
         # Eliminación las stopwords
-        if stopwords:
+        if without_stopwords:
             stop_words = set(stopwords.words("spanish"))
             tokens = [token for token in tokens if token not in stop_words]
+            return " ".join(tokens)
 
         # Lematización
         wordnet_lemmatizer = WordNetLemmatizer()
@@ -150,6 +151,7 @@ class Preprocessor:
         Preprocessor.instance()._logger.info(
             f"Loaded {len(collection)} sentences for fitting."
         )
+        Preprocessor.instance()._logger.info(f"process_content_as_IOB_format")
 
         df: pd.DataFrame = pd.DataFrame()
         index: int = 0
@@ -169,6 +171,56 @@ class Preprocessor:
                 tag = sentence_entities.get(word, ["O"])
                 word = pd.Series(
                     {"word": word, "tag": max(set(tag), key=tag.count)},
+                    name=index,
+                )
+                index += 1
+                df = df.append(word)
+
+        Preprocessor.instance()._logger.info(
+            f"Training completed: Stored {index} words."
+        )
+        return df
+
+    @staticmethod
+    def process_content_as_BILUOV_format(path: Path) -> pd.DataFrame:
+        from ehealth.anntools import Collection
+
+        collection = Collection().load_dir(path)
+        Preprocessor.instance()._logger.info(
+            f"Loaded {len(collection)} sentences for fitting."
+        )
+        Preprocessor.instance()._logger.info(f"process_content_as_BILUOV_format")
+
+        df: pd.DataFrame = pd.DataFrame()
+        index: int = 0
+
+        for sentence in collection.sentences:
+            sentence_entities = {}
+            for keyphrases in sentence.keyphrases:
+                entities = Preprocessor.preprocess(keyphrases.text).split()
+                for i in range(len(entities)):
+                    # 1 word entity
+                    if len(entities) == 1:
+                        tag = "U-"
+                    # More than 1 word entities
+                    elif i == 0:
+                        tag = "B-"
+                    # Last word in entity
+                    elif i == len(entities) - 1:
+                        tag = "L-"
+                    # Inner word
+                    else:
+                        tag = "I-"
+                    # Overlapped word
+                    if sentence_entities.get(entities[i], -1) != -1:
+                        tag = "V-"
+                    sentence_entities[entities[i]] = tag + keyphrases.label
+
+            words = Preprocessor.preprocess(sentence.text).split()
+            for word in words:
+                tag = sentence_entities.get(word, "O")
+                word = pd.Series(
+                    {"word": word, "tag": tag},
                     name=index,
                 )
                 index += 1
