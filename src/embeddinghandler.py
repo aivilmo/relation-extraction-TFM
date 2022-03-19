@@ -61,6 +61,11 @@ class TransformerEmbedding(Embedding):
 
             self._preprocess_layer = GPT2Tokenizer.from_pretrained(type)
             self._encoder_layer = GPT2Model.from_pretrained(type)
+        elif "roberta" in type:
+            from transformers import AutoTokenizer, AutoModel
+
+            self._preprocess_layer = AutoTokenizer.from_pretrained(type)
+            self._encoder_layer = AutoModel.from_pretrained(type)
 
         self._logger.info(f"Transformer has built with preprocessor: {type}")
         self._logger.info(f"Transformer has built from: {type}")
