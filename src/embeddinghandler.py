@@ -46,17 +46,17 @@ class TransformerEmbedding(Embedding):
         self._logger.info(f"Building transformer model with preprocessor: {type}")
         self._logger.info(f"Building transformer model from: {type}")
 
-        if type == "distilbert-base-uncased":
+        if "distil" in type:
             from transformers import DistilBertTokenizer, DistilBertModel
 
             self._preprocess_layer = DistilBertTokenizer.from_pretrained(type)
             self._encoder_layer = DistilBertModel.from_pretrained(type)
-        if type == "bert-base-uncased" or type == "bert-base-multilingual-cased":
+        elif "bert-base" in type:
             from transformers import BertTokenizer, BertModel
 
             self._preprocess_layer = BertTokenizer.from_pretrained(type)
             self._encoder_layer = BertModel.from_pretrained(type)
-        if type == "gpt2":
+        elif type == "gpt2":
             from transformers import GPT2Tokenizer, GPT2Model
 
             self._preprocess_layer = GPT2Tokenizer.from_pretrained(type)
