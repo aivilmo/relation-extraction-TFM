@@ -42,7 +42,9 @@ class TransformerEmbedding(Embedding):
         self._logger = Logger.instance()
         TransformerEmbedding._instance = self
 
-    def build_transformer(self, type: str = "bert-base-multilingual-cased") -> None:
+    def build_transformer(
+        self, type: str = "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es"
+    ) -> None:
         self._logger.info(f"Building transformer model with preprocessor: {type}")
         self._logger.info(f"Building transformer model from: {type}")
 
