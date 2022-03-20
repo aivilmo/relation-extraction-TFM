@@ -39,6 +39,8 @@ class ArgsParser:
                 "bert-base-cased",
                 "bert-base-multilingual-uncased",
                 "bert-base-multilingual-cased",
+                "dccuchile/bert-base-spanish-wwm-uncased",
+                "dccuchile/bert-base-spanish-wwm-cased",
                 "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es",
                 "gpt2",
             ],

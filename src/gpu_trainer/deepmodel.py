@@ -183,7 +183,7 @@ class DeepModel:
         plt.savefig("history.png")
 
     def _load_data(self, features: list) -> None:
-
+        feat = features[0].replace("/", "_")
         self._X, X_test = np.load("..\\data\\X_train_" + features[0] + ".npy"), np.load(
             "..\\data\\X_test_" + features[0] + ".npy"
         )
