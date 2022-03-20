@@ -68,13 +68,14 @@ class FeaturesHandler:
             columns += ["word"]
         if (
             "distilbert-base-uncased" in self._features
+            or "distilbert-base-cased" in self._features
             or "bert-base-uncased" in self._features
+            or "bert-base-cased" in self._features
+            or "bert-base-multilingual-uncased" in self._features
             or "bert-base-multilingual-cased" in self._features
+            or "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es" in self._features
             or "gpt2" in self._features
         ):
-            self._feat_transformer(df, self._features[0])
-            columns += ["word"]
-        if "sentences_bert" in self._features:
             columns += ["vector"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
@@ -130,7 +131,7 @@ class FeaturesHandler:
         if not test:
             self._logger.info("Fitting words to bag of words")
             self._cv.fit(df[column].unique().tolist())
-            self._logger.info("Vocab size: ", len(self._cv.vocabulary_.keys()))
+            self._logger.info(f"Vocab size: {len(self._cv.vocabulary_.keys())}")
 
         df[column] = df[column].apply(
             lambda x: self._cv.transform([x]).toarray().reshape(-1)
@@ -152,7 +153,7 @@ class FeaturesHandler:
         if not test:
             self._logger.info("Fitting words to tf idf")
             self._tf.fit(df[column].unique().tolist())
-            self._logger.info("Vocab size: ", len(self._tf.vocabulary_.keys()))
+            self._logger.info(f"Vocab size: {len(self._tf.vocabulary_.keys())}")
 
         df[column] = df[column].apply(
             lambda x: self._tf.transform([x]).toarray().reshape(-1)

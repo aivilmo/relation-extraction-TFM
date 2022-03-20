@@ -236,7 +236,7 @@ class Preprocessor:
         return df
 
     @staticmethod
-    def process_content_as_sentences(path: Path) -> pd.DataFrame:
+    def process_content_as_sentences(path: Path, transformer_type: str) -> pd.DataFrame:
         from ehealth.anntools import Collection
         from embeddinghandler import Embedding, TransformerEmbedding
 
@@ -250,7 +250,7 @@ class Preprocessor:
         index: int = 0
 
         if not Embedding.trained():
-            TransformerEmbedding.instance().build_transformer()
+            TransformerEmbedding.instance().build_transformer(type=transformer_type)
 
         for sentence in collection.sentences:
             sent = TransformerEmbedding.instance().sentence_vector(sentence.text)

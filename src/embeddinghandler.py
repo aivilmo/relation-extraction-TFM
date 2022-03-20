@@ -42,11 +42,12 @@ class TransformerEmbedding(Embedding):
         self._logger = Logger.instance()
         TransformerEmbedding._instance = self
 
-    def build_transformer(
-        self, type: str = "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es"
-    ) -> None:
+    def build_transformer(self, type: str) -> None:
         self._logger.info(f"Building transformer model with preprocessor: {type}")
         self._logger.info(f"Building transformer model from: {type}")
+
+        if type == "":
+            type = "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es"
 
         if "distil" in type:
             from transformers import DistilBertTokenizer, DistilBertModel

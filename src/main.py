@@ -99,11 +99,29 @@ class Main:
             self._dataset_test = FilesHandler.load_dataset(self._output_test)
 
         if args.generate:
+            as_sentences: bool = False
+            as_IOB: bool = True
+            transformer_type: str = ""
+
+            if args.features != None and (
+                "bert" in args.features[0] or "gpt" in args.features[0]
+            ):
+                as_sentences = True
+                transformer_type = args.features[0]
+
             self._dataset_train = FilesHandler.generate_dataset(
-                Path(self._path + "\\training\\"), self._output_train
+                Path(self._path + "\\training\\"),
+                self._output_train,
+                as_IOB=as_IOB,
+                as_sentences=as_sentences,
+                transformer_type=transformer_type,
             )
             self._dataset_test = FilesHandler.generate_dataset(
-                Path(self._path + "\\develop\\"), self._output_test
+                Path(self._path + "\\develop\\"),
+                self._output_test,
+                as_IOB=as_IOB,
+                as_sentences=as_sentences,
+                transformer_type=transformer_type,
             )
 
 
