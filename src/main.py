@@ -48,13 +48,7 @@ class Main:
     def _handle_visualizations(self) -> None:
         from visualizationhandler import VisualizationHandler
 
-        VisualizationHandler.visualice_relations(self._dataset_train)
-        VisualizationHandler.visualice_most_common_words(
-            self._dataset_train, n_words=10
-        )
-        VisualizationHandler.visualice_most_common_relations(
-            self._dataset_train, n_relation=10, with_relation=True
-        )
+        VisualizationHandler.visualice_tags(self._dataset_train)
 
     def _handle_train(self) -> None:
         from coremodel import CoreModel
@@ -81,6 +75,7 @@ class Main:
         )
 
         feat: str = "_".join(FeaturesHandler.instance().features)
+        feat = feat.replace("/", "_")
         np.save(
             "data\\X_train_" + feat + ".npy",
             X_train,

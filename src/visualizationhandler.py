@@ -11,6 +11,17 @@ class VisualizationHandler:
     sns.set(rc={"figure.figsize": (12, 7)})
 
     @staticmethod
+    def visualice_tags(df: pd.DataFrame) -> None:
+        sns.countplot(
+            x="tag",
+            data=df,
+            order=df.tag.value_counts().index,
+            palette=VisualizationHandler._palette,
+        ).set_title("Tags")
+        print(df.tag.value_counts())
+        plt.show()
+
+    @staticmethod
     def visualice_relations(df: pd.DataFrame) -> None:
         sns.countplot(
             x="relation",
