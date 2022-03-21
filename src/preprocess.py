@@ -35,8 +35,6 @@ class Preprocessor:
     ) -> np.ndarray:
         from featureshandler import FeaturesHandler
 
-        # train_df = Preprocessor.filter_word_tag_ocurrences(train_df)
-
         Preprocessor._n_classes = len(set(train_df[y_column].unique()))
 
         # Transform labels
@@ -255,7 +253,6 @@ class Preprocessor:
         for sentence in collection.sentences:
             sent = TransformerEmbedding.instance().sentence_vector(sentence.text)
             tokenized_sent = TransformerEmbedding.instance().tokenize(sentence.text)
-            # tokenized_sent = ["[CLS]"] + tokenized_sent + ["[SEP]"]
             sentence_entities = {}
             for keyphrases in sentence.keyphrases:
                 entities = keyphrases.text.split()
@@ -296,12 +293,6 @@ class Preprocessor:
         from sklearn.preprocessing import LabelEncoder
         from coremodel import CoreModel
 
-        # Remove classes what are in test but not in train
-        # Preprocessor.remove_invalid_classes(test_df, train_df, y_column)
-
-        # Remove classes not in test so we cant test it (e.g. I-Reference)
-        # Preprocessor.remove_invalid_classes(train_df, test_df, y_column)
-
         Preprocessor.instance()._logger.info(f"Transforming {y_column} into labels")
         le = LabelEncoder()
         y_train = le.fit_transform(train_df[y_column].values)
@@ -325,25 +316,44 @@ class Preprocessor:
         )
 
     @staticmethod
-    def filter_word_tag_ocurrences(df: pd.DataFrame) -> pd.DataFrame:
-        from random import sample
+    def data_augmentation(df: pd.DataFrame, transformer_type: str) -> pd.DataFrame:
+        def synsets(word: str) -> list:
+            from nltk.corpus import wordnet as wn
+            from googletrans import Translator
 
-        print(df.value_counts())
-        print(df.tag.value_counts())
+            translator = Translator()
+            translation: str = translator.translate(word, src="es", dest="en").text
+            synsets: list = []
+            for synset in wn.synsets(translation):
+                synsets += synset.lemma_names("spa")
+            synsets: list = list(set(synsets))
+            return synsets
 
-        # Other posibilities
-        # train_df = train_df.groupby("word").filter(lambda x: len(x) < 700)
-        # train_df.drop_duplicates(
-        #     subset=["word", "tag"], keep="last", inplace=True, ignore_index=True
-        # )
-        # o_indexes = df[(df.tag == "O") & (df.word == "de")].index.tolist()
+        from embeddinghandler import Embedding, TransformerEmbedding
 
-        # o_indexes = df[df.tag == "O"].index.tolist()
-        # indexes_to_drop = sample(o_indexes, int(len(o_indexes) * 0.6))
-        # indexes_to_keep = set(range(df.shape[0])) - set(indexes_to_drop)
-        # df = df.take(list(indexes_to_keep))
+        Logger.instance().info(
+            "Starting data augmentation for the 3th least represented classes"
+        )
 
-        # print("AFTER")
-        # print(df.value_counts())
-        # print(df.tag.value_counts())
-        return df
+        augmented_df: pd.DataFrame = df.copy()
+        if not Embedding.trained():
+            TransformerEmbedding.instance().build_transformer(type=transformer_type)
+
+        index: int = df.iloc[-1].name
+        for tag in df.tag.value_counts().index.tolist()[-3:]:
+            for value in df.query("tag=='" + tag + "'")["token"].values:
+                for syn in synsets(value):
+                    vector = TransformerEmbedding.instance().sentence_vector(syn)
+                    token = TransformerEmbedding.instance().tokenize(syn)
+                    for t in range(len(token)):
+                        word = pd.Series(
+                            {"token": token[t], "vector": vector[t + 1], "tag": tag},
+                            name=index,
+                        )
+                        index += 1
+                        augmented_df = augmented_df.append(word)
+
+        Logger.instance().info(
+            f"Finished data augmentation, added {index - df.iloc[-1].name} new synsets"
+        )
+        return augmented_df

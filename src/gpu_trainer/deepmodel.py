@@ -139,9 +139,7 @@ class DeepModel:
 
         print("Confusion matrix:")
         cm = confusion_matrix(y, y_hat)
-        disp = ConfusionMatrixDisplay(
-            confusion_matrix=cm, display_labels=np.unique(y_hat)
-        )
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot()
 
         plt.show()
@@ -266,12 +264,13 @@ class DeepModel:
         elif "lstm" in args.model:
             pass
 
-        if "oversampling" in args.imbalance_strategy:
-            DeepModel.instance().oversample_data()
-        elif "undersampling" in args.imbalance_strategy:
-            DeepModel.instance().undersample_data()
-        elif "both" in args.imbalance_strategy:
-            DeepModel.instance().combined_resample_data()
+        if args.imbalance_strategy != None:
+            if "oversampling" in args.imbalance_strategy:
+                DeepModel.instance().oversample_data()
+            elif "undersampling" in args.imbalance_strategy:
+                DeepModel.instance().undersample_data()
+            elif "both" in args.imbalance_strategy:
+                DeepModel.instance().combined_resample_data()
 
         DeepModel.instance().train_NN()
         DeepModel.instance().evaluate_NN(X=X_test, y=y_test)

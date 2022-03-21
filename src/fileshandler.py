@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from logger import Logger
+from preprocess import Preprocessor
 
 
 class FilesHandler:
@@ -16,7 +17,6 @@ class FilesHandler:
         as_sentences: bool = True,
         transformer_type: str = "",
     ) -> pd.DataFrame:
-        from preprocess import Preprocessor
 
         Logger.instance().info("Generating DataFrame...")
         if as_sentences:
@@ -32,15 +32,19 @@ class FilesHandler:
 
         df.to_pickle(output_file)
 
-        Logger.instance().info(df)
+        print(df)
         Logger.instance().info(
             "DataFrame succesfully generated and saved at: " + output_file
         )
         return df
 
     @staticmethod
-    def load_dataset(filename: str) -> pd.DataFrame:
+    def load_dataset(
+        filename: str, transformer_type="", test: bool = False
+    ) -> pd.DataFrame:
         Logger.instance().info("Loading DataFrame from: " + filename)
         df: pd.DataFrame = pd.read_pickle(filename)
         Logger.instance().info("DataFrame succesfully loaded")
+        if not test:
+            df = Preprocessor.data_augmentation(df, transformer_type=transformer_type)
         return df

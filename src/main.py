@@ -91,7 +91,7 @@ class Main:
 
         if args.load:
             self._dataset_train = FilesHandler.load_dataset(self._output_train)
-            self._dataset_test = FilesHandler.load_dataset(self._output_test)
+            self._dataset_test = FilesHandler.load_dataset(self._output_test, test=True)
 
         if args.generate:
             as_sentences: bool = False
