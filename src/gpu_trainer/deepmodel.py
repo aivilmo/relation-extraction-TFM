@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import random
+from typing import Iterator
 import numpy as np
 import tensorflow as tf
 
@@ -18,8 +19,9 @@ tf.random.set_seed(seed)
 class DeepModel:
     _instance = None
     _epochs = 80
-    _batch_size = 32
+    _batch_size = 64
     _n_classes = None
+    _embedding_dims = 100
 
     @staticmethod
     def instance():
@@ -39,7 +41,9 @@ class DeepModel:
 
     def create_simple_NN(
         self,
-        hidden_layers: int = 1,
+        # hidden_layers: int = 5,
+        # num_units: list = [768, 640, 512, 384, 256, 128],
+        hidden_layers: int = 0,
         num_units: list = [128],
         activation: str = "relu",
         optimizer: str = "adam",
@@ -57,10 +61,10 @@ class DeepModel:
         self._model.add(tf.keras.layers.Dropout(0.25))
 
         #  Hidden layers
-        for hl in range(1, hidden_layers):
+        for hl in range(hidden_layers):
             self._model.add(
                 tf.keras.layers.Dense(
-                    units=num_units[hl],
+                    units=num_units[hl + 1],
                     activation=activation,
                 )
             )
@@ -79,14 +83,18 @@ class DeepModel:
 
         print(self._model.summary())
 
-    def create_GRU_RNN(
-        self,
-    ):
+    def create_GRU_RNN(self, vocab_size: int, input_length: int):
         self._model = tf.keras.models.Sequential()
+
+        self._model = tf.keras.layers.Embedding(
+            input_dim=vocab_size,
+            output_dim=DeepModel._embedding_dims,
+            input_length=input_length,
+        )
 
         self._model.add(
             tf.keras.layers.GRU(
-                units=768,
+                units=DeepModel._embedding_dims,
                 dropout=0.1,
                 recurrent_dropout=0.5,
             )
@@ -95,10 +103,11 @@ class DeepModel:
 
         self._model.compile(
             loss="binary_crossentropy",
-            loss_weights=self.get_class_weight().values(),
-            optimizer="adam",
+            optimizer="rmsprop",
             metrics=["accuracy"],
         )
+
+        print(self._model.summary())
 
     def train_NN(self):
         self._history = self._model.fit(
@@ -130,16 +139,29 @@ class DeepModel:
 
         print("Confusion matrix:")
         cm = confusion_matrix(y, y_hat)
-        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+        disp = ConfusionMatrixDisplay(
+            confusion_matrix=cm, display_labels=np.unique(y_hat)
+        )
         disp.plot()
 
-        # plt.show()
-        plt.savefig("confusion_matrix.png")
+        plt.show()
+        # plt.savefig("confusion_matrix.png")
 
     def get_class_weight(self) -> dict:
         samples = self._y.shape[0]
         unique, counts = np.unique(np.argmax(self._y, axis=1), return_counts=True)
         return dict(zip(unique, 100 - (counts / samples) * 100))
+
+    # SOURCE: https://towardsdatascience.com/handling-class-imbalanced-data-using-a-loss-specifically-made-for-it-6e58fd65ffab
+    def get_class_weight_imbalanced(self, beta: float = 0.9) -> np.ndarray:
+        unique, samples_per_cls = np.unique(
+            np.argmax(self._y, axis=1), return_counts=True
+        )
+        effective_num = 1.0 - np.power(beta, samples_per_cls)
+        weights = (1.0 - beta) / np.array(effective_num)
+        weights = weights / np.sum(weights) * DeepModel._n_classes
+
+        return dict(zip(unique, weights))
 
     @staticmethod
     def get_callbacks() -> list:
@@ -179,30 +201,43 @@ class DeepModel:
         plt.title("Training and validation loss")
         plt.legend()
 
-        # plt.show()
-        plt.savefig("history.png")
+        plt.show()
+        # plt.savefig("history.png")
 
     def _load_data(self, features: list) -> None:
         feat = features[0].replace("/", "_")
-        self._X, X_test = np.load("..\\data\\X_train_" + features[0] + ".npy"), np.load(
-            "..\\data\\X_test_" + features[0] + ".npy"
+        self._X, X_test = np.load("..\\data\\X_train_" + feat + ".npy"), np.load(
+            "..\\data\\X_test_" + feat + ".npy"
         )
-        self._y, y_test = np.load("..\\data\\y_train_" + features[0] + ".npy"), np.load(
-            "..\\data\\y_test_" + features[0] + ".npy"
+        self._y, y_test = np.load("..\\data\\y_train_" + feat + ".npy"), np.load(
+            "..\\data\\y_test_" + feat + ".npy"
         )
         DeepModel._n_classes = self._y.shape[1]
         return X_test, y_test
 
-    # SOURCE: https://towardsdatascience.com/handling-class-imbalanced-data-using-a-loss-specifically-made-for-it-6e58fd65ffab
-    def get_class_weight_imbalanced(self, beta: float = 0.9) -> np.ndarray:
-        unique, samples_per_cls = np.unique(
-            np.argmax(self._y, axis=1), return_counts=True
-        )
-        effective_num = 1.0 - np.power(beta, samples_per_cls)
-        weights = (1.0 - beta) / np.array(effective_num)
-        weights = weights / np.sum(weights) * DeepModel._n_classes
+    def undersample_data(self) -> None:
+        from imblearn.under_sampling import NearMiss
 
-        return dict(zip(unique, weights))
+        unsersampler = NearMiss(
+            n_neighbors=1, n_neighbors_ver3=3, sampling_strategy="majority"
+        )
+        self._X, self._y = unsersampler.fit_resample(self._X, self._y)
+
+    def oversample_data(self) -> None:
+        from imblearn.over_sampling import RandomOverSampler, ADASYN
+
+        # oversampler = RandomOverSampler(sampling_strategy="minority")
+        oversampler = ADASYN(
+            # sampling_strategy="minority",
+            random_state=0,
+            n_neighbors=1,
+        )
+        self._X, self._y = oversampler.fit_resample(self._X, self._y)
+
+    def combined_resample_data(self) -> None:
+        from imblearn.combine import SMOTETomek, SMOTEENN
+
+        self._X, self._y = SMOTEENN().fit_resample(self._X, self._y)
 
     @staticmethod
     def main() -> None:
@@ -213,9 +248,7 @@ class DeepModel:
         X_test, y_test = DeepModel.instance()._load_data(args.features)
 
         if args.loss == None or "binary_crossentropy" in args.loss:
-            DeepModel.instance()._loss = tf.keras.losses.BinaryCrossentropy(
-                from_logits=True
-            )
+            DeepModel.instance()._loss = tf.keras.losses.BinaryCrossentropy()
         elif "sigmoid_focal_crossentropy" in args.loss:
             DeepModel.instance()._loss = tfa.losses.SigmoidFocalCrossEntropy(
                 alpha=0.20, gamma=2.0
@@ -232,6 +265,13 @@ class DeepModel:
             DeepModel.instance().create_GRU_RNN()
         elif "lstm" in args.model:
             pass
+
+        if "oversampling" in args.imbalance_strategy:
+            DeepModel.instance().oversample_data()
+        elif "undersampling" in args.imbalance_strategy:
+            DeepModel.instance().undersample_data()
+        elif "both" in args.imbalance_strategy:
+            DeepModel.instance().combined_resample_data()
 
         DeepModel.instance().train_NN()
         DeepModel.instance().evaluate_NN(X=X_test, y=y_test)

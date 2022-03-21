@@ -11,7 +11,7 @@ class ArgsParser:
         # Select kind of model to train
         parser.add_argument(
             "--model",
-            nargs="+",
+            nargs=1,
             action="store",
             choices=[
                 "basic_nn",
@@ -23,7 +23,7 @@ class ArgsParser:
 
         parser.add_argument(
             "--features",
-            nargs="+",
+            nargs=1,
             action="store",
             choices=[
                 "with_entities",
@@ -49,10 +49,18 @@ class ArgsParser:
 
         parser.add_argument(
             "--loss",
-            nargs="+",
+            nargs=1,
             action="store",
             choices=["sigmoid_focal_crossentropy", "binary_crossentropy"],
             help="Selecte the loss function to load",
+        )
+
+        parser.add_argument(
+            "--imbalance_strategy",
+            nargs=1,
+            action="store",
+            choices=["oversampling", "undersampling", "both"],
+            help="Selecte the sampling strategy for fight against imabalnce of data.",
         )
 
         return parser.parse_args()
