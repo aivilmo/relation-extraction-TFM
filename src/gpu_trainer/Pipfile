@@ -10,6 +10,7 @@ scikit-learn = "0.21.2"
 tensorflow = "*"
 matplotlib = "*"
 tensorflow-addons = "*"
+imbalanced-learn = "*"
 
 [dev-packages]
 
