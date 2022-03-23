@@ -20,11 +20,14 @@ class Main:
         if Main._instance != None:
             raise Exception
 
-        self._path: str = (
+        self._path_ref: str = (
             "..\\dataset\\ehealthkd_CONCEPT_ACT_PRED_relaciones\\2021\\ref"
         )
-        self._output_train: str = "data\\train.pkl"
-        self._output_test: str = "data\\test.pkl"
+        self._path_eval: str = (
+            "..\\dataset\\ehealthkd_CONCEPT_ACT_PRED_relaciones\\2021\\eval"
+        )
+        self._output_train: str = "data\\ref_train.pkl"
+        self._output_test: str = "data\\eval_train.pkl"
         self._dataset_train: pd.DataFrame = None
         self._dataset_test: pd.DataFrame = None
         self._logger = Logger.instance()
@@ -77,12 +80,12 @@ class Main:
         feat: str = "_".join(FeaturesHandler.instance().features)
         feat = feat.replace("/", "_")
         np.save(
-            "data\\X_train_" + feat + ".npy",
+            "data\\X_ref_train_" + feat + ".npy",
             X_train,
         )
-        np.save("data\\X_test_" + feat + ".npy", X_test)
-        np.save("data\\y_train_" + feat + ".npy", y_train)
-        np.save("data\\y_test_" + feat + ".npy", y_test)
+        np.save("data\\X_eval_train_" + feat + ".npy", X_test)
+        np.save("data\\y_ref_train_" + feat + ".npy", y_train)
+        np.save("data\\y_eval_train_" + feat + ".npy", y_test)
 
         self._logger.info("Data is succesfully saved in dir \\data\\")
 
@@ -105,14 +108,14 @@ class Main:
                 transformer_type = args.features[0]
 
             self._dataset_train = FilesHandler.generate_dataset(
-                Path(self._path + "\\training\\"),
+                Path(self._path_ref + "\\training\\"),
                 self._output_train,
                 as_IOB=as_IOB,
                 as_sentences=as_sentences,
                 transformer_type=transformer_type,
             )
             self._dataset_test = FilesHandler.generate_dataset(
-                Path(self._path + "\\develop\\"),
+                Path(self._path_eval + "\\training\\scenario2-taskA\\"),
                 self._output_test,
                 as_IOB=as_IOB,
                 as_sentences=as_sentences,

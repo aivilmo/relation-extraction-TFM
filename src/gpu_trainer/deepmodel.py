@@ -31,6 +31,7 @@ class DeepModel:
         "I-Action",
         "I-Concept",
         "I-Predicate",
+        "I-Reference",
         "O",
     ]
 
@@ -231,11 +232,11 @@ class DeepModel:
 
     def _load_data(self, features: list) -> None:
         feat = features[0].replace("/", "_")
-        self._X, X_test = np.load("..\\data\\X_train_" + feat + ".npy"), np.load(
-            "..\\data\\X_dev_" + feat + ".npy"
+        self._X, X_test = np.load("..\\data\\X_ref_train_" + feat + ".npy"), np.load(
+            "..\\data\\X_eval_train_" + feat + ".npy"
         )
-        self._y, y_test = np.load("..\\data\\y_train_" + feat + ".npy"), np.load(
-            "..\\data\\y_dev_" + feat + ".npy"
+        self._y, y_test = np.load("..\\data\\y_ref_train_" + feat + ".npy"), np.load(
+            "..\\data\\y_eval_train_" + feat + ".npy"
         )
         DeepModel._n_classes = self._y.shape[1]
         return X_test, y_test
