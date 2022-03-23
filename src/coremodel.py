@@ -61,11 +61,11 @@ class CoreModel:
         y_hat = self._model.predict(X)
 
         self._logger.info("Classification report:")
-        self._logger.info(classification_report(y, y_hat, target_names=self._labels))
+        self._logger.info(classification_report(y, y_hat))
 
         self._logger.info("Confusion matrix:")
         cm = confusion_matrix(y, y_hat)
-        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=self._labels)
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot()
         # plt.show()
 
@@ -75,7 +75,7 @@ class CoreModel:
 
         cv = ShuffleSplit(n_splits=5, test_size=0.2, random_state=0)
         model = GridSearchCV(
-            estimator=self._model, param_grid=self._params, cv=cv, n_jobs=6, verbose=1
+            estimator=self._model, param_grid=self._params, cv=cv, n_jobs=8, verbose=1
         )
         self._logger.info("Training best model")
         model.fit(self._X, self._y)
@@ -98,26 +98,11 @@ class CoreModel:
         from sklearn.preprocessing import StandardScaler
         from sklearn.tree import DecisionTreeClassifier
 
-        # self._logger.info("Scaling data...")
-        # scaler = StandardScaler()
-        # X_train = scaler.fit_transform(X_train).reshape(X_train.shape)
-        # X_test = scaler.transform(X_test).reshape(X_test.shape)
-        # self._logger.info(f"Data scaled, new X_train: {X_train.shape}, new X_test: {X_test.shape} ")
-
         self._params = {
             "penalty": ["l1", "l2"],
-            "loss": ["hingue", "squared_hinge"],
-            "dual": [True, False],
-            "C": [1, 10, 100, 1000],
-            "class_weight": [None],
-        }
-
-        self._params = {
-            "penalty": ["l2"],
             "loss": ["squared_hinge"],
-            "dual": [True],
-            "C": [100],
-            "class_weight": [None],
+            "dual": [True, False],
+            "C": [1, 10, 100],
         }
 
         self.set_model(LinearSVC())

@@ -22,6 +22,17 @@ class DeepModel:
     _batch_size = 64
     _n_classes = None
     _embedding_dims = 100
+    _random_state = 42
+    _labels = [
+        "B-Action",
+        "B-Concept",
+        "B-Predicate",
+        "B-Reference",
+        "I-Action",
+        "I-Concept",
+        "I-Predicate",
+        "O",
+    ]
 
     @staticmethod
     def instance():
@@ -125,6 +136,7 @@ class DeepModel:
             classification_report,
             confusion_matrix,
             ConfusionMatrixDisplay,
+            precision_recall_fscore_support,
         )
         import matplotlib.pyplot as plt
 
@@ -135,11 +147,26 @@ class DeepModel:
         y = np.argmax(y, axis=1)
 
         print("Classification report:")
-        print(classification_report(y, y_hat))
+        print(
+            classification_report(
+                y,
+                y_hat,
+                target_names=DeepModel._labels,
+            )
+        )
+
+        precision, recall, f1score, _ = precision_recall_fscore_support(
+            y, y_hat, average="micro"
+        )
+        print(
+            f"MICRO: Precision: {round(precision, 2)}, Recall: {round(recall, 2)}, F1Score: {round(f1score, 2)}"
+        )
 
         print("Confusion matrix:")
         cm = confusion_matrix(y, y_hat)
-        disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+        disp = ConfusionMatrixDisplay(
+            confusion_matrix=cm, display_labels=DeepModel._labels
+        )
         disp.plot()
 
         plt.show()
@@ -205,10 +232,10 @@ class DeepModel:
     def _load_data(self, features: list) -> None:
         feat = features[0].replace("/", "_")
         self._X, X_test = np.load("..\\data\\X_train_" + feat + ".npy"), np.load(
-            "..\\data\\X_test_" + feat + ".npy"
+            "..\\data\\X_dev_" + feat + ".npy"
         )
         self._y, y_test = np.load("..\\data\\y_train_" + feat + ".npy"), np.load(
-            "..\\data\\y_test_" + feat + ".npy"
+            "..\\data\\y_dev_" + feat + ".npy"
         )
         DeepModel._n_classes = self._y.shape[1]
         return X_test, y_test
@@ -216,26 +243,29 @@ class DeepModel:
     def undersample_data(self) -> None:
         from imblearn.under_sampling import NearMiss
 
+        print("Undersampling data...")
+
         unsersampler = NearMiss(
             n_neighbors=1, n_neighbors_ver3=3, sampling_strategy="majority"
         )
         self._X, self._y = unsersampler.fit_resample(self._X, self._y)
 
     def oversample_data(self) -> None:
-        from imblearn.over_sampling import RandomOverSampler, ADASYN
+        from imblearn.over_sampling import RandomOverSampler, SMOTE
 
-        # oversampler = RandomOverSampler(sampling_strategy="minority")
-        oversampler = ADASYN(
-            # sampling_strategy="minority",
-            random_state=0,
-            n_neighbors=1,
-        )
+        print("Oversampling data...")
+
+        oversampler = RandomOverSampler(sampling_strategy="minority")
+
         self._X, self._y = oversampler.fit_resample(self._X, self._y)
 
     def combined_resample_data(self) -> None:
         from imblearn.combine import SMOTETomek, SMOTEENN
 
-        self._X, self._y = SMOTEENN().fit_resample(self._X, self._y)
+        print("Combined oversampling and undersampling data...")
+
+        resampler = SMOTETomek(random_state=DeepModel._random_state, n_jobs=-1)
+        self._X, self._y = resampler.fit_resample(self._X, self._y)
 
     @staticmethod
     def main() -> None:

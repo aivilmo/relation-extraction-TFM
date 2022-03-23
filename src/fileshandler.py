@@ -45,6 +45,7 @@ class FilesHandler:
         Logger.instance().info("Loading DataFrame from: " + filename)
         df: pd.DataFrame = pd.read_pickle(filename)
         Logger.instance().info("DataFrame succesfully loaded")
+        print(df.tag.value_counts())
         if not test:
             df = Preprocessor.data_augmentation(
                 df,
@@ -52,4 +53,6 @@ class FilesHandler:
                 last_n_classes=2,
                 classes_to_augmentate=["I-Predicate", "I-Action", "B-Reference"],
             )
+            print(df.tag.value_counts())
+            df.to_pickle(filename)
         return df
