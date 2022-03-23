@@ -46,5 +46,10 @@ class FilesHandler:
         df: pd.DataFrame = pd.read_pickle(filename)
         Logger.instance().info("DataFrame succesfully loaded")
         if not test:
-            df = Preprocessor.data_augmentation(df, transformer_type=transformer_type)
+            df = Preprocessor.data_augmentation(
+                df,
+                transformer_type=transformer_type,
+                last_n_classes=2,
+                classes_to_augmentate=["I-Predicate", "I-Action", "B-Reference"],
+            )
         return df

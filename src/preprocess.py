@@ -267,7 +267,12 @@ class Preprocessor:
             for i in range(len(tokenized_sent)):
                 tag = sentence_entities.get(tokenized_sent[i], "O")
                 word = pd.Series(
-                    {"token": tokenized_sent[i], "vector": sent[i + 1], "tag": tag},
+                    {
+                        "token": tokenized_sent[i],
+                        "vector": sent[i + 1],
+                        "tag": tag,
+                        "sentence": sentence.text,
+                    },
                     name=index,
                 )
                 index += 1
@@ -316,7 +321,12 @@ class Preprocessor:
         )
 
     @staticmethod
-    def data_augmentation(df: pd.DataFrame, transformer_type: str) -> pd.DataFrame:
+    def data_augmentation(
+        df: pd.DataFrame,
+        transformer_type: str,
+        last_n_classes: int = 3,
+        classes_to_augmentate: list = [],
+    ) -> pd.DataFrame:
         def synsets(word: str) -> list:
             from nltk.corpus import wordnet as wn
             from googletrans import Translator
@@ -325,29 +335,54 @@ class Preprocessor:
             translation: str = translator.translate(word, src="es", dest="en").text
             synsets: list = []
             for synset in wn.synsets(translation):
+                synsets += synset.lemma_names()
                 synsets += synset.lemma_names("spa")
-            synsets: list = list(set(synsets))
+                synsets += synset.lemma_names("ita")
+                synsets += synset.lemma_names("fra")
             return synsets
 
         from embeddinghandler import Embedding, TransformerEmbedding
 
         Logger.instance().info(
-            "Starting data augmentation for the 3th least represented classes"
+            f"Starting data augmentation for the {last_n_classes}th least represented classes"
         )
 
         augmented_df: pd.DataFrame = df.copy()
         if not Embedding.trained():
             TransformerEmbedding.instance().build_transformer(type=transformer_type)
 
+        tags = df.tag.value_counts().index.tolist()[-last_n_classes:]
+        if classes_to_augmentate != []:
+            tags = classes_to_augmentate
+
+        Logger.instance().info(
+            "Data augmentation for clases: " + ", ".join(classes_to_augmentate)
+        )
+
         index: int = df.iloc[-1].name
-        for tag in df.tag.value_counts().index.tolist()[-3:]:
+        for tag in tags:
+            Logger.instance().info(f"Data augmentation for class {tag}")
             for value in df.query("tag=='" + tag + "'")["token"].values:
-                for syn in synsets(value):
-                    vector = TransformerEmbedding.instance().sentence_vector(syn)
-                    token = TransformerEmbedding.instance().tokenize(syn)
-                    for t in range(len(token)):
+                sentences = df[(df.tag == tag) & (df.token == value)]["sentence"].values
+                for sent in sentences:
+                    tokenized_sent = TransformerEmbedding.instance().tokenize(sent)
+                    for syn in synsets(value):
+                        synset = TransformerEmbedding.instance().tokenize(syn)[0]
+                        new_tokenized_sent = [
+                            synset if token == value else token
+                            for token in tokenized_sent
+                        ]
+                        vector = TransformerEmbedding.instance().sentence_vector(
+                            " ".join(new_tokenized_sent)
+                        )
+                        position = new_tokenized_sent.index(synset)
                         word = pd.Series(
-                            {"token": token[t], "vector": vector[t + 1], "tag": tag},
+                            {
+                                "token": synset,
+                                "vector": vector[position + 1],
+                                "tag": tag,
+                                "sentence": sent,
+                            },
                             name=index,
                         )
                         index += 1
