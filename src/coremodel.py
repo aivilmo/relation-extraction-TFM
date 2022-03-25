@@ -105,7 +105,7 @@ class CoreModel:
             "C": [1, 10, 100],
         }
 
-        self.set_model(LinearSVC())
+        self.set_model(DecisionTreeClassifier())
         self.fit_model(X_train, y_train)
         self.train_model()
         # self.train_best_model()
