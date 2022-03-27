@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from sklearn.preprocessing import LabelEncoder
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -27,6 +28,20 @@ class Preprocessor:
             raise Exception
 
         self._logger = Logger.instance()
+        self._le = LabelEncoder()
+        self._le.fit(
+            [
+                "B-Action",
+                "B-Concept",
+                "B-Predicate",
+                "B-Reference",
+                "I-Action",
+                "I-Concept",
+                "I-Predicate",
+                "I-Reference",
+                "O",
+            ]
+        )
         Preprocessor._instance = self
 
     @staticmethod
@@ -35,10 +50,8 @@ class Preprocessor:
     ) -> np.ndarray:
         from featureshandler import FeaturesHandler
 
-        Preprocessor._n_classes = len(set(train_df[y_column].unique()))
-
         # Transform labels
-        y_train, y_test = Preprocessor.encode_labels(train_df, test_df)
+        y_train, y_test = Preprocessor.instance().encode_labels(train_df, test_df)
 
         train_df.drop(y_column, axis=1, inplace=True)
         test_df.drop(y_column, axis=1, inplace=True)
@@ -251,8 +264,9 @@ class Preprocessor:
             TransformerEmbedding.instance().build_transformer(type=transformer_type)
 
         for sentence in collection.sentences:
-            sent = TransformerEmbedding.instance().sentence_vector(sentence.text)
-            tokenized_sent = TransformerEmbedding.instance().tokenize(sentence.text)
+            prep_sent = Preprocessor.preprocess(sentence.text)
+            sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
+            tokenized_sent = TransformerEmbedding.instance().tokenize(prep_sent)
             sentence_entities = {}
             for keyphrases in sentence.keyphrases:
                 entities = keyphrases.text.split()
@@ -271,7 +285,7 @@ class Preprocessor:
                         "token": tokenized_sent[i],
                         "vector": sent[i + 1],
                         "tag": tag,
-                        "sentence": sentence.text,
+                        "sentence": prep_sent,
                     },
                     name=index,
                 )
@@ -280,6 +294,58 @@ class Preprocessor:
 
         Preprocessor.instance()._logger.info(
             f"Training completed: Stored {index} words."
+        )
+        return df
+
+    def process_content_as_sentences_tensor(
+        path: Path, transformer_type: str
+    ) -> pd.DataFrame:
+        from ehealth.anntools import Collection
+        from embeddinghandler import Embedding, TransformerEmbedding
+
+        collection = Collection().load_dir(path)
+        Preprocessor.instance()._logger.info(
+            f"Loaded {len(collection)} sentences for fitting."
+        )
+        Preprocessor.instance()._logger.info(f"process_content_as_sentences_tensor")
+
+        df: pd.DataFrame = pd.DataFrame()
+        index: int = 0
+
+        if not Embedding.trained():
+            TransformerEmbedding.instance().build_transformer(type=transformer_type)
+
+        for sentence in collection.sentences:
+            sent = TransformerEmbedding.instance().sentence_vector(sentence.text)
+            tokenized_sent = TransformerEmbedding.instance().tokenize(sentence.text)
+            sentence_entities = {}
+            labels_vector = []
+            for keyphrases in sentence.keyphrases:
+                entities = keyphrases.text.split()
+                for i in range(len(entities)):
+                    entity_word = TransformerEmbedding.instance().tokenize(entities[i])
+                    tag = "B-" if i == 0 else "I-"
+                    tag = tag + keyphrases.label
+                    for j in range(len(entity_word)):
+                        if j != 0:
+                            break
+                        sentence_entities[entity_word[j]] = tag
+            for i in range(len(tokenized_sent)):
+                tag = sentence_entities.get(tokenized_sent[i], "O")
+                labels_vector.append(tag)
+            serie = pd.Series(
+                {
+                    "sentence": sentence.text,
+                    "vector": sent,
+                    "tag": labels_vector,
+                },
+                name=index,
+            )
+            index += 1
+            df = df.append(serie)
+
+        Preprocessor.instance()._logger.info(
+            f"Training completed: Stored {index} sentences."
         )
         return df
 
@@ -292,17 +358,44 @@ class Preprocessor:
         ), to_categorical(y_test, num_classes=Preprocessor._n_classes)
 
     @staticmethod
+    def prepare_2D_labels(y_train: np.ndarray, y_test: np.ndarray) -> np.ndarray:
+        from keras.preprocessing.sequence import pad_sequences
+
+        y_train, y_test = pad_sequences(
+            y_train.values, maxlen=100, padding="post", value=8
+        ), pad_sequences(y_test.values, maxlen=100, padding="post", value=8)
+
+        y_train = y_train.reshape((y_train.shape[0], y_train.shape[1], 1))
+        y_test = y_test.reshape((y_test.shape[0], y_test.shape[1], 1))
+
+        return y_train, y_test
+
     def encode_labels(
-        train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
+        self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
     ) -> np.ndarray:
-        from sklearn.preprocessing import LabelEncoder
         from coremodel import CoreModel
 
         Preprocessor.instance()._logger.info(f"Transforming {y_column} into labels")
-        le = LabelEncoder()
-        y_train = le.fit_transform(train_df[y_column].values)
-        y_test = le.transform(test_df[y_column].values)
-        CoreModel.instance().set_labels(list(le.classes_))
+        y_train = self._le.fit_transform(train_df[y_column].values)
+        y_test = self._le.transform(test_df[y_column].values)
+
+        CoreModel.instance().set_labels(list(self._le.classes_))
+        Preprocessor._n_classes = len(list(self._le.classes_))
+
+        return y_train, y_test
+
+    def encode_2D_labels(
+        self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
+    ) -> np.ndarray:
+
+        from coremodel import CoreModel
+
+        Preprocessor.instance()._logger.info(f"Transforming {y_column} into 2D labels")
+        y_train = train_df[y_column].apply(self._le.transform)
+        y_test = test_df[y_column].apply(self._le.transform)
+
+        CoreModel.instance().set_labels(list(self._le.classes_))
+        Preprocessor._n_classes = len(list(self._le.classes_))
 
         return y_train, y_test
 

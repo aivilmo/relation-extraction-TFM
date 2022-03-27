@@ -195,3 +195,35 @@ class FeaturesHandler:
         df["features"] = df.features.apply(lambda x: stack_vectors(x))
         df.drop(columns_to_delete, axis=1, inplace=True)
         return np.vstack(df.values.tolist())
+
+    @staticmethod
+    def _combine_2D_features(df: pd.DataFrame, columns: list) -> np.ndarray:
+        columns_to_delete = df.columns
+
+        def stack_vectors(list_of_vect: list) -> np.ndarray:
+            full_vector = np.hstack(list_of_vect)
+            dim_features = full_vector.shape[0]
+            # For 2D features vectors
+            dim_of_features = full_vector.shape[1]
+            full_vector.reshape(1, dim_features, dim_of_features)
+            return full_vector
+
+        def pad_vector(vector: np.ndarray, n_rows: int = 100) -> np.ndarray:
+            for _ in range(n_rows - vector.shape[0]):
+                vector = np.concatenate((vector, np.zeros((1, vector.shape[1]))))
+            return vector
+
+        df["features"] = df[columns].values.tolist()
+        df["features"] = df.features.apply(lambda x: stack_vectors(x))
+        df.drop(columns_to_delete, axis=1, inplace=True)
+        vectors = df.values.tolist()
+
+        global_vector = np.zeros(
+            (len(vectors), 100, vectors[0][0].shape[1])
+        )  # (1500, 100, 768)
+        first_vector = pad_vector(vectors[0][0])
+
+        global_vector[0] = first_vector
+        for i in range(1, len(vectors) - 1):
+            global_vector[i] = pad_vector(vectors[i][0])
+        return global_vector

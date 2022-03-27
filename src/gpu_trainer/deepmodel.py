@@ -173,6 +173,31 @@ class DeepModel:
         plt.show()
         # plt.savefig("confusion_matrix.png")
 
+    def evaluate_RNN(self, X, y) -> None:
+        print("Testing model...")
+
+        y_hat = self._model.predict(X)
+        samples = y_hat.shape[0]
+        timesteps = y_hat.shape[1]
+        dim_data = samples * timesteps
+        print(y_hat.shape)
+        print(y.shape)
+
+        errors = 0
+        for s in range(samples):
+            print(f"Sample {s}")
+            errors_sample = 0
+            for t in range(timesteps):
+                y_hat_s_t = np.argmax(y_hat[s][t], axis=0)
+                if y[s][t][0] != y_hat_s_t:
+                    # print("Error in classification")
+                    # print(y[s][t][0])
+                    # print(y_hat_s_t)
+                    errors += 1
+                    errors_sample += 1
+            print(f"Errors for sample {s}, {errors}")
+        print(f"Accuracy: {round(((dim_data - errors) / dim_data) * 100, 2)}%")
+
     def get_class_weight(self) -> dict:
         samples = self._y.shape[0]
         unique, counts = np.unique(np.argmax(self._y, axis=1), return_counts=True)
