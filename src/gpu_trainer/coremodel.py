@@ -2,7 +2,7 @@
 from cmath import isnan
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from logger import Logger
+from logger.logger import Logger
 
 
 class CoreModel:
@@ -61,7 +61,7 @@ class CoreModel:
         y_hat = self._model.predict(X)
 
         self._logger.info("Classification report:")
-        self._logger.info(classification_report(y, y_hat))
+        print(classification_report(y, y_hat))
 
         self._logger.info("Confusion matrix:")
         cm = confusion_matrix(y, y_hat)
@@ -97,15 +97,16 @@ class CoreModel:
         from sklearn.linear_model import Perceptron
         from sklearn.preprocessing import StandardScaler
         from sklearn.tree import DecisionTreeClassifier
+        from sklearn.ensemble import RandomForestClassifier
 
-        self._params = {
-            "penalty": ["l1", "l2"],
-            "loss": ["squared_hinge"],
-            "dual": [True, False],
-            "C": [1, 10, 100],
-        }
+        # self._params = {
+        #     "min_samples_split": [3, 5, 10],
+        #     "n_estimators": [100, 300],
+        #     "max_depth": [3, 5, 15, 25],
+        #     "max_features": [3, 5, 10, 20],
+        # }
 
-        self.set_model(DecisionTreeClassifier())
+        self.set_model(RandomForestClassifier())
         self.fit_model(X_train, y_train)
         self.train_model()
         # self.train_best_model()

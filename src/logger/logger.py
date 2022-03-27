@@ -16,7 +16,7 @@ class Logger:
             level=logging.INFO,
             format="%(asctime)s [%(levelname)s] %(message)s",
             handlers=[
-                logging.FileHandler("logger\\core_app.log"),
+                logging.FileHandler("core_app.log"),
                 logging.StreamHandler(),
             ],
         )

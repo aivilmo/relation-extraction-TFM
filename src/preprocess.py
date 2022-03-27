@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import time
-from logger import Logger
+from logger.logger import Logger
 
 import warnings
 
@@ -373,7 +373,7 @@ class Preprocessor:
     def encode_labels(
         self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
     ) -> np.ndarray:
-        from coremodel import CoreModel
+        from gpu_trainer.coremodel import CoreModel
 
         Preprocessor.instance()._logger.info(f"Transforming {y_column} into labels")
         y_train = self._le.fit_transform(train_df[y_column].values)
@@ -388,7 +388,7 @@ class Preprocessor:
         self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
     ) -> np.ndarray:
 
-        from coremodel import CoreModel
+        from gpu_trainer.coremodel import CoreModel
 
         Preprocessor.instance()._logger.info(f"Transforming {y_column} into 2D labels")
         y_train = train_df[y_column].apply(self._le.transform)

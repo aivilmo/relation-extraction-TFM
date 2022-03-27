@@ -3,7 +3,7 @@ import pandas as pd
 from pathlib import Path
 import argparse
 from featureshandler import FeaturesHandler
-from logger import Logger
+from logger.logger import Logger
 
 
 class Main:
@@ -54,7 +54,7 @@ class Main:
         VisualizationHandler.visualice_tags(self._dataset_train)
 
     def _handle_train(self) -> None:
-        from coremodel import CoreModel
+        from gpu_trainer.coremodel import CoreModel
         from preprocess import Preprocessor
 
         X_train, X_test, y_train, y_test = Preprocessor.instance().train_test_split(

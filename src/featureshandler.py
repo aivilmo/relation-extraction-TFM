@@ -7,7 +7,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from keras.preprocessing.text import Tokenizer
 
-from logger import Logger
+from logger.logger import Logger
 
 
 class FeaturesHandler:

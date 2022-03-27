@@ -3,7 +3,7 @@
 from pathlib import Path
 import pandas as pd
 
-from logger import Logger
+from logger.logger import Logger
 from preprocess import Preprocessor
 
 

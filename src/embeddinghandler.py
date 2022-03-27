@@ -7,7 +7,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import tensorflow_text as text
 
-from logger import Logger
+from logger.logger import Logger
 
 
 class Embedding:
