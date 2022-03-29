@@ -42,6 +42,7 @@ class ArgsParser:
                 "dccuchile/bert-base-spanish-wwm-uncased",
                 "dccuchile/bert-base-spanish-wwm-cased",
                 "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es",
+                "ixa-ehu/ixambert-base-cased",
                 "gpt2",
             ],
             help="Selecte the feature to load",

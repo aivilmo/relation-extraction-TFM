@@ -76,6 +76,7 @@ class FeaturesHandler:
             or "dccuchile/bert-base-spanish-wwm-uncased" in self._features
             or "dccuchile/bert-base-spanish-wwm-cased" in self._features
             or "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es" in self._features
+            or "ixa-ehu/ixambert-base-cased" in self._features
             or "gpt2" in self._features
         ):
             columns += ["vector"]
