@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import random
-from typing import Iterator
 import numpy as np
 import tensorflow as tf
 
@@ -46,9 +45,11 @@ class DeepModel:
             raise Exception
         self._model = None
         self._loss = None
+        self._optimizer = None
         self._history = None
         self._X = None
         self._y = None
+
         DeepModel._instance = self
 
     def create_simple_NN(
@@ -56,9 +57,8 @@ class DeepModel:
         # hidden_layers: int = 5,
         # num_units: list = [768, 640, 512, 384, 256, 128],
         hidden_layers: int = 0,
-        num_units: list = [128],
+        num_units: list = [768],
         activation: str = "relu",
-        optimizer: str = "adam",
     ):
         self._model = tf.keras.models.Sequential()
 
@@ -80,7 +80,7 @@ class DeepModel:
                     activation=activation,
                 )
             )
-            self._model.add(tf.keras.layers.Dropout(0.25))
+            self._model.add(tf.keras.layers.Dropout(0.5))
 
         # Output layer
         self._model.add(
@@ -89,7 +89,7 @@ class DeepModel:
 
         self._model.compile(
             loss=self._loss,
-            optimizer=optimizer,
+            optimizer=self._optimizer,
             metrics=["accuracy"],
         )
 
@@ -98,10 +98,12 @@ class DeepModel:
     def create_GRU_RNN(self, vocab_size: int, input_length: int):
         self._model = tf.keras.models.Sequential()
 
-        self._model = tf.keras.layers.Embedding(
-            input_dim=vocab_size,
-            output_dim=DeepModel._embedding_dims,
-            input_length=input_length,
+        self._model.add(
+            tf.keras.layers.Embedding(
+                input_dim=vocab_size,
+                output_dim=DeepModel._embedding_dims,
+                input_length=input_length,
+            )
         )
 
         self._model.add(
@@ -111,6 +113,7 @@ class DeepModel:
                 recurrent_dropout=0.5,
             )
         )
+
         self._model.add(tf.keras.layers.Dense(units=DeepModel._n_classes))
 
         self._model.compile(
@@ -152,7 +155,7 @@ class DeepModel:
             classification_report(
                 y,
                 y_hat,
-                target_names=DeepModel._labels,
+                # target_names=DeepModel._labels,
             )
         )
 
@@ -166,7 +169,7 @@ class DeepModel:
         print("Confusion matrix:")
         cm = confusion_matrix(y, y_hat)
         disp = ConfusionMatrixDisplay(
-            confusion_matrix=cm, display_labels=DeepModel._labels
+            confusion_matrix=cm  # , display_labels=DeepModel._labels
         )
         disp.plot()
 
@@ -190,9 +193,6 @@ class DeepModel:
             for t in range(timesteps):
                 y_hat_s_t = np.argmax(y_hat[s][t], axis=0)
                 if y[s][t][0] != y_hat_s_t:
-                    # print("Error in classification")
-                    # print(y[s][t][0])
-                    # print(y_hat_s_t)
                     errors += 1
                     errors_sample += 1
             print(f"Errors for sample {s}, {errors}")
@@ -293,44 +293,38 @@ class DeepModel:
         resampler = SMOTETomek(random_state=DeepModel._random_state, n_jobs=-1)
         self._X, self._y = resampler.fit_resample(self._X, self._y)
 
-    @staticmethod
-    def main() -> None:
+    def main(self) -> None:
         from argsparser import ArgsParser
         import tensorflow_addons as tfa
 
         args = ArgsParser.get_args()
-        X_test, y_test = DeepModel.instance()._load_data(args.features)
+        X_test, y_test = self._load_data(args.features)
 
         if args.loss == None or "binary_crossentropy" in args.loss:
-            DeepModel.instance()._loss = tf.keras.losses.BinaryCrossentropy()
+            self._loss = tf.keras.losses.BinaryCrossentropy()
         elif "sigmoid_focal_crossentropy" in args.loss:
-            DeepModel.instance()._loss = tfa.losses.SigmoidFocalCrossEntropy(
-                alpha=0.20, gamma=2.0
-            )
+            self._loss = tfa.losses.SigmoidFocalCrossEntropy(alpha=0.20, gamma=2.0)
+
+        self._optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
         if args.model == None or "basic_nn" in args.model:
-            DeepModel.instance().create_simple_NN()
+            self.create_simple_NN()
         elif "gru" in args.model:
-            X_shape = DeepModel.instance()._X.shape
-            DeepModel.instance()._X = DeepModel.instance()._X.reshape(
-                X_shape[0], 1, X_shape[1]
-            )
-            X_test = X_test.reshape(X_test.shape[0], 1, X_test.shape[1])
-            DeepModel.instance().create_GRU_RNN()
+            self.create_GRU_RNN(vocab_size=4846, input_length=3)
         elif "lstm" in args.model:
             pass
 
         if args.imbalance_strategy != None:
             if "oversampling" in args.imbalance_strategy:
-                DeepModel.instance().oversample_data()
+                self.oversample_data()
             elif "undersampling" in args.imbalance_strategy:
-                DeepModel.instance().undersample_data()
+                self.undersample_data()
             elif "both" in args.imbalance_strategy:
-                DeepModel.instance().combined_resample_data()
+                self.combined_resample_data()
 
-        DeepModel.instance().train_NN()
-        DeepModel.instance().evaluate_NN(X=X_test, y=y_test)
-        DeepModel.instance().show_history()
+        self.train_NN()
+        self.evaluate_NN(X=X_test, y=y_test)
+        self.show_history()
 
 
 if __name__ == "__main__":
