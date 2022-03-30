@@ -55,6 +55,7 @@ class ArgsParser:
                 "single_word_emb",
                 "tf_idf",
                 "chars",
+                "tokens",
                 "distilbert-base-uncased",
                 "distilbert-base-cased",
                 "bert-base-uncased",

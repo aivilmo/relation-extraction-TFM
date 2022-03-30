@@ -247,7 +247,9 @@ class Preprocessor:
         return df
 
     @staticmethod
-    def process_content_as_sentences(path: Path, transformer_type: str) -> pd.DataFrame:
+    def process_content_as_sentences(
+        path: Path, transformer_type: str, as_id: bool = False
+    ) -> pd.DataFrame:
         from ehealth.anntools import Collection
         from embeddinghandler import Embedding, TransformerEmbedding
 
@@ -265,7 +267,10 @@ class Preprocessor:
 
         for sentence in collection.sentences:
             prep_sent = Preprocessor.preprocess(sentence.text)
-            sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
+            if as_id:
+                sent = TransformerEmbedding.instance().tokenize_input_ids(prep_sent)
+            else:
+                sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
             tokenized_sent = TransformerEmbedding.instance().tokenize(prep_sent)
             sentence_entities = {}
             for keyphrases in sentence.keyphrases:

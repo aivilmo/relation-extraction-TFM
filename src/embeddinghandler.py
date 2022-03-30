@@ -83,6 +83,10 @@ class TransformerEmbedding(Embedding):
         bert_results = self._encoder_layer(**sentence_preprocessed)
         return bert_results.last_hidden_state.detach().numpy()[0]
 
+    def tokenize_input_ids(self, sentence: str) -> np.array:
+        sentence_preprocessed = self._preprocess_layer(sentence, return_tensors="pt")
+        return sentence_preprocessed.input_ids.detach().numpy()[0]
+
     def tokenize(self, text: str) -> list:
         return self._preprocess_layer.tokenize(text)
 

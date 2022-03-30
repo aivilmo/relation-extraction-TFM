@@ -6,6 +6,7 @@ from embeddinghandler import Embedding, WordEmbedding, TransformerEmbedding
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
 
 from logger.logger import Logger
 
@@ -27,7 +28,8 @@ class FeaturesHandler:
         self._le: LabelEncoder = LabelEncoder()
         self._cv: CountVectorizer = CountVectorizer()
         self._tf: TfidfVectorizer = TfidfVectorizer()
-        self._tk: Tokenizer = Tokenizer(char_level=True)
+        self._ck: Tokenizer = Tokenizer(char_level=True)
+        self._tk: Tokenizer = Tokenizer()
 
         self._features: list = ["with_entities", "word_emb", "sent_emb"]
         self._logger = Logger.instance()
@@ -65,6 +67,9 @@ class FeaturesHandler:
             columns += ["word"]
         if "chars" in self._features:
             self._feat_chars(df, test=test)
+            columns += ["word"]
+        if "tokens" in self._features:
+            self._feat_tokens(df, test=test)
             columns += ["word"]
         if (
             "distilbert-base-uncased" in self._features
@@ -163,15 +168,23 @@ class FeaturesHandler:
         )
 
     def _feat_chars(self, df: pd.DataFrame, test: bool = False) -> None:
-        from keras.preprocessing.sequence import pad_sequences
+        if not test:
+            self._ck.fit_on_texts(df.word)
+            vocab_size = len(self._ck.word_index) + 1
+            self._logger.info(f"Vocab size: {vocab_size}")
 
+        df["word"] = df.word.apply(lambda x: self._ck.texts_to_sequences([x])[0])
+        df["word"] = df.word.apply(lambda x: pad_sequences([x], maxlen=15)[0])
+        self._logger.info(f"Matriz features for emebdding: {df.word.shape}")
+
+    def _feat_tokens(self, df: pd.DataFrame, test: bool = False) -> None:
         if not test:
             self._tk.fit_on_texts(df.word)
             vocab_size = len(self._tk.word_index) + 1
             self._logger.info(f"Vocab size: {vocab_size}")
 
         df["word"] = df.word.apply(lambda x: self._tk.texts_to_sequences([x])[0])
-        df["word"] = df.word.apply(lambda x: pad_sequences([x], maxlen=15)[0])
+        df["word"] = df.word.apply(lambda x: pad_sequences([x], maxlen=3)[0])
         self._logger.info(f"Matriz features for emebdding: {df.word.shape}")
 
     def _feat_transformer(self, df: pd.DataFrame, type) -> None:
