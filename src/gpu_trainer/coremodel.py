@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-from cmath import isnan
 import numpy as np
-from sklearn.preprocessing import StandardScaler
 from logger.logger import Logger
+import time
 
 
 class CoreModel:
@@ -39,15 +38,40 @@ class CoreModel:
         self._y = y
 
     def train_model(self) -> None:
-        # from sklearn.pipeline import make_pipeline
-        # from sklearn import svm
-        import time
-
         self._logger.info("Training model...")
         start = time.time()
-        # self._model = make_pipeline(StandardScaler(), svm.SVC())
-        self._model.fit(self._X, self._y)
+
+        self._model.fit(
+            self._X, self._y
+        )  # , sample_weight=self.get_sample_weight(self._y))
+
         self._logger.info(f"Model trained, time: {(time.time() - start) / 60} minutes")
+
+    def make_pipeline(self) -> None:
+        from sklearn.pipeline import Pipeline
+        from sklearn.feature_selection import f_classif, SelectKBest
+
+        self._logger.info("Creating a pipeline...")
+
+        self._model = Pipeline(
+            steps=[
+                ("feature_selection", SelectKBest(score_func=f_classif, k=100)),
+                ("classifier", self._model),
+            ],
+            verbose=True,
+        )
+
+        self._logger.info(
+            f"Pipeline cretad with {self._model.named_steps['feature_selection']}"
+        )
+        start = time.time()
+
+        self._model.fit(self._X, self._y)
+        self._logger.info(self._model)
+
+        self._logger.info(
+            f"Pipeline trained, time: {(time.time() - start) / 60} minutes"
+        )
 
     def test_model(self, X, y) -> None:
         from sklearn.metrics import (
@@ -67,7 +91,7 @@ class CoreModel:
         cm = confusion_matrix(y, y_hat)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot()
-        # plt.show()
+        plt.show()
 
     def train_best_model(self):
         from sklearn.model_selection import GridSearchCV
@@ -98,21 +122,26 @@ class CoreModel:
         from sklearn.preprocessing import StandardScaler
         from sklearn.tree import DecisionTreeClassifier
         from sklearn.ensemble import RandomForestClassifier
+        from sklearn.neighbors import KNeighborsClassifier
 
-        # self._params = {
-        #     "min_samples_split": [3, 5, 10],
-        #     "n_estimators": [100, 300],
-        #     "max_depth": [3, 5, 15, 25],
-        #     "max_features": [3, 5, 10, 20],
-        # }
-
-        self.set_model(RandomForestClassifier())
+        self.set_model(
+            RandomForestClassifier(
+                criterion="gini",
+                min_samples_split=2,
+                n_estimators=100,
+                max_depth=None,
+                max_features="sqrt",
+                n_jobs=10,
+                class_weight=self.get_class_weight(y_train),
+            )
+        )
         self.fit_model(X_train, y_train)
-        self.train_model()
+        self.make_pipeline()
+        # self.train_model()
         # self.train_best_model()
         self.test_model(X_test, y_test)
 
-    def get_class_weight(self, y: np.ndarray) -> None:
+    def get_class_weight(self, y: np.ndarray) -> dict:
         from sklearn.utils.class_weight import compute_class_weight
 
         train_classes = np.unique(y)
@@ -120,3 +149,8 @@ class CoreModel:
             class_weight="balanced", classes=train_classes, y=y
         )
         return dict(zip(train_classes, class_weight))
+
+    def get_sample_weight(self, y: np.ndarray) -> dict:
+        from sklearn.utils.class_weight import compute_sample_weight
+
+        return compute_sample_weight(class_weight="balanced", y=y)
