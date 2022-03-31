@@ -7,7 +7,7 @@ class Logger:
 
     @staticmethod
     def instance():
-        if Logger._instance == None:
+        if Logger._instance is None:
             Logger()
         return Logger._instance
 

@@ -19,8 +19,8 @@ class Embedding:
     @staticmethod
     def trained() -> bool:
         return (
-            WordEmbedding.instance()._keyed_vectors != None
-            or TransformerEmbedding.instance()._preprocess_layer != None
+                WordEmbedding.instance()._keyed_vectors is not None
+                or TransformerEmbedding.instance()._preprocess_layer is not None
         )
 
 
@@ -29,12 +29,12 @@ class TransformerEmbedding(Embedding):
 
     @staticmethod
     def instance():
-        if TransformerEmbedding._instance == None:
+        if TransformerEmbedding._instance is None:
             TransformerEmbedding()
         return TransformerEmbedding._instance
 
     def __init__(self) -> None:
-        if TransformerEmbedding._instance != None:
+        if TransformerEmbedding._instance is not None:
             raise Exception
 
         self._preprocess_layer = None
@@ -101,12 +101,12 @@ class WordEmbedding(Embedding):
 
     @staticmethod
     def instance():
-        if WordEmbedding._instance == None:
+        if WordEmbedding._instance is None:
             WordEmbedding()
         return WordEmbedding._instance
 
     def __init__(self) -> None:
-        if WordEmbedding._instance != None:
+        if WordEmbedding._instance is not None:
             raise Exception
 
         self._model = None
@@ -119,7 +119,7 @@ class WordEmbedding(Embedding):
 
         self._keyed_vectors = KeyedVectors.load_word2vec_format(filename, binary=True)
 
-    def train_word_emebdding(self, tokens: list) -> None:
+    def train_word_embedding(self, tokens: list) -> None:
         self._logger.info("Training model word embedding...")
 
         self._model = Word2Vec(

@@ -36,12 +36,12 @@ class DeepModel:
 
     @staticmethod
     def instance():
-        if DeepModel._instance == None:
+        if DeepModel._instance is None:
             DeepModel()
         return DeepModel._instance
 
     def __init__(self) -> None:
-        if DeepModel._instance != None:
+        if DeepModel._instance is not None:
             raise Exception
         self._model = None
         self._loss = None
@@ -54,8 +54,6 @@ class DeepModel:
 
     def create_simple_NN(
         self,
-        # hidden_layers: int = 5,
-        # num_units: list = [768, 640, 512, 384, 256, 128],
         hidden_layers: int = 0,
         num_units: list = [768],
         activation: str = "relu",
@@ -203,7 +201,8 @@ class DeepModel:
         unique, counts = np.unique(np.argmax(self._y, axis=1), return_counts=True)
         return dict(zip(unique, 100 - (counts / samples) * 100))
 
-    # SOURCE: https://towardsdatascience.com/handling-class-imbalanced-data-using-a-loss-specifically-made-for-it-6e58fd65ffab
+    # SOURCE: https://towardsdatascience.com/handling-class-imbalanced-data-using-a-loss-specifically-made-for-it
+    # -6e58fd65ffab
     def get_class_weight_imbalanced(self, beta: float = 0.9) -> np.ndarray:
         unique, samples_per_cls = np.unique(
             np.argmax(self._y, axis=1), return_counts=True
@@ -266,24 +265,24 @@ class DeepModel:
         DeepModel._n_classes = self._y.shape[1]
         return X_test, y_test
 
-    def undersample_data(self) -> None:
+    def under_sample_data(self) -> None:
         from imblearn.under_sampling import NearMiss
 
         print("Undersampling data...")
 
-        unsersampler = NearMiss(
+        under_sampler = NearMiss(
             n_neighbors=1, n_neighbors_ver3=3, sampling_strategy="majority"
         )
-        self._X, self._y = unsersampler.fit_resample(self._X, self._y)
+        self._X, self._y = under_sampler.fit_resample(self._X, self._y)
 
-    def oversample_data(self) -> None:
+    def over_sample_data(self) -> None:
         from imblearn.over_sampling import RandomOverSampler, SMOTE
 
         print("Oversampling data...")
 
-        oversampler = RandomOverSampler(sampling_strategy="minority")
+        over_sampler = RandomOverSampler(sampling_strategy="minority")
 
-        self._X, self._y = oversampler.fit_resample(self._X, self._y)
+        self._X, self._y = over_sampler.fit_resample(self._X, self._y)
 
     def combined_resample_data(self) -> None:
         from imblearn.combine import SMOTETomek, SMOTEENN
@@ -293,39 +292,35 @@ class DeepModel:
         resampler = SMOTETomek(random_state=DeepModel._random_state, n_jobs=-1)
         self._X, self._y = resampler.fit_resample(self._X, self._y)
 
-    def main(self) -> None:
+    def start_train(self) -> None:
         from argsparser import ArgsParser
         import tensorflow_addons as tfa
 
         args = ArgsParser.get_args()
         X_test, y_test = self._load_data(args.features)
 
-        if args.loss == None or "binary_crossentropy" in args.loss:
+        if args.loss is None or "binary_crossentropy" in args.loss:
             self._loss = tf.keras.losses.BinaryCrossentropy()
         elif "sigmoid_focal_crossentropy" in args.loss:
             self._loss = tfa.losses.SigmoidFocalCrossEntropy(alpha=0.20, gamma=2.0)
 
         self._optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
-        if args.model == None or "basic_nn" in args.model:
+        if args.model is None or "basic_nn" in args.model:
             self.create_simple_NN()
         elif "gru" in args.model:
             self.create_GRU_RNN(vocab_size=4846, input_length=3)
         elif "lstm" in args.model:
             pass
 
-        if args.imbalance_strategy != None:
+        if args.imbalance_strategy is not None:
             if "oversampling" in args.imbalance_strategy:
-                self.oversample_data()
+                self.over_sample_data()
             elif "undersampling" in args.imbalance_strategy:
-                self.undersample_data()
+                self.under_sample_data()
             elif "both" in args.imbalance_strategy:
                 self.combined_resample_data()
 
         self.train_NN()
         self.evaluate_NN(X=X_test, y=y_test)
         self.show_history()
-
-
-if __name__ == "__main__":
-    DeepModel.instance().main()

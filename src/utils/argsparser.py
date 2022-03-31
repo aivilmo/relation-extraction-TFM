@@ -6,7 +6,7 @@ import argparse
 class ArgsParser:
     @staticmethod
     def get_args() -> argparse.Namespace:
-        parser = argparse.ArgumentParser()
+        parser: argparse.ArgumentParser = argparse.ArgumentParser()
 
         # Generate or load a dataset
         data = parser.add_mutually_exclusive_group(required=True)
@@ -22,12 +22,12 @@ class ArgsParser:
             help="If you want to load a generated dataset",
         )
 
-        # Visualices data information or train a model
+        # Visualizes data information or train a model
         action = parser.add_mutually_exclusive_group()
         action.add_argument(
             "--visualization",
             action="store_true",
-            help="If you want to visualice the dataset",
+            help="If you want to visualize the dataset",
         )
 
         action.add_argument(
@@ -69,6 +69,38 @@ class ArgsParser:
                 "gpt2",
             ],
             help="If you want to add custom features to train",
+        )
+
+        # Select kind of model to train
+        parser.add_argument(
+            "--model",
+            nargs=1,
+            action="store",
+            choices=[
+                "dense",
+                "gru",
+                "svm",
+                "perceptron",
+                "decisiontree",
+                "randomforest"
+            ],
+            help="Select model to train",
+        )
+
+        parser.add_argument(
+            "--loss",
+            nargs=1,
+            action="store",
+            choices=["sigmoid_focal_crossentropy", "binary_crossentropy"],
+            help="Select the loss function to load",
+        )
+
+        parser.add_argument(
+            "--imbalance_strategy",
+            nargs=1,
+            action="store",
+            choices=["oversampling", "undersampling", "both"],
+            help="Select the sampling strategy for fight against imbalance of data.",
         )
 
         return parser.parse_args()

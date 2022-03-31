@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 from logger.logger import Logger
-from preprocess import Preprocessor
+from core.preprocess import Preprocessor
 
 
 class FilesHandler:
@@ -34,7 +34,7 @@ class FilesHandler:
 
         print(df)
         Logger.instance().info(
-            "DataFrame succesfully generated and saved at: " + output_file
+            "DataFrame successfully generated and saved at: " + output_file
         )
         return df
 
@@ -51,7 +51,7 @@ class FilesHandler:
         #         df,
         #         transformer_type=transformer_type,
         #         last_n_classes=2,
-        #         classes_to_augmentate=["I-Predicate", "I-Action", "B-Reference"],
+        #         classes_to_augment=["I-Predicate", "I-Action", "B-Reference"],
         #     )
         #     print(df.tag.value_counts())
         #     df.to_pickle(filename)

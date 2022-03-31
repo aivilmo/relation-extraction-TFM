@@ -11,6 +11,11 @@ tensorflow = "*"
 matplotlib = "*"
 tensorflow-addons = "*"
 imbalanced-learn = "*"
+gensim = "*"
+pandas = "*"
+tensorflow-hub = "*"
+tensorflow-text = "*"
+tensorflow-estimator = "2.6.0"
 
 [dev-packages]
 

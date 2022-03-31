@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-from embeddinghandler import Embedding, WordEmbedding, TransformerEmbedding
+from core.embeddinghandler import Embedding, WordEmbedding, TransformerEmbedding
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from keras.preprocessing.text import Tokenizer
@@ -31,7 +31,7 @@ class FeaturesHandler:
         self._ck: Tokenizer = Tokenizer(char_level=True)
         self._tk: Tokenizer = Tokenizer()
 
-        self._features: list = ["with_entities", "word_emb", "sent_emb"]
+        self._features: list = ["PlanTL-GOB-ES/roberta-base-biomedical-clinical-es"]
         self._logger = Logger.instance()
         FeaturesHandler._instance = self
 
@@ -88,7 +88,7 @@ class FeaturesHandler:
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
         self._logger.info(
-            f"Features matrix succesfully generated, with data shape: {features.shape}"
+            f"Features matrix successfully generated, with data shape: {features.shape}"
         )
         return np.nan_to_num(features)
 

@@ -2,7 +2,7 @@
 import pandas as pd
 from pathlib import Path
 import argparse
-from featureshandler import FeaturesHandler
+from core.featureshandler import FeaturesHandler
 from logger.logger import Logger
 
 
@@ -12,12 +12,12 @@ class Main:
 
     @staticmethod
     def instance():
-        if Main._instance == None:
+        if Main._instance is None:
             Main()
         return Main._instance
 
     def __init__(self) -> None:
-        if Main._instance != None:
+        if Main._instance is not None:
             raise Exception
 
         self._path_ref: str = (
@@ -30,32 +30,34 @@ class Main:
         self._output_test: str = "data\\eval_train.pkl"
         self._dataset_train: pd.DataFrame = None
         self._dataset_test: pd.DataFrame = None
+        self._args: argparse.Namespace = None
         self._logger = Logger.instance()
         Main._instance = self
 
     def main(self) -> None:
-        from argsparser import ArgsParser
+        from utils.argsparser import ArgsParser
 
-        args = ArgsParser.get_args()
-        self._get_datasets(args)
+        self._args = ArgsParser.get_args()
+        self._get_datasets()
 
-        if args.visualization:
+        if self._args.features is not None:
+            FeaturesHandler.instance().features = self._args.features
+
+        if self._args.visualization:
             self._handle_visualizations()
-        if args.features != None:
-            FeaturesHandler.instance().features = args.features
-        if args.train:
+        if self._args.train:
             self._handle_train()
-        if args.prepare_data:
+        if self._args.prepare_data:
             self._handle_prepare_data()
 
     def _handle_visualizations(self) -> None:
-        from visualizationhandler import VisualizationHandler
+        from utils.visualizationhandler import VisualizationHandler
 
         VisualizationHandler.visualice_tags(self._dataset_train)
 
     def _handle_train(self) -> None:
-        from gpu_trainer.coremodel import CoreModel
-        from preprocess import Preprocessor
+        from model.coremodel import CoreModel
+        from core.preprocess import Preprocessor
 
         X_train, X_test, y_train, y_test = Preprocessor.instance().train_test_split(
             self._dataset_train, self._dataset_test
@@ -65,47 +67,44 @@ class Main:
         CoreModel.instance().start_train(X_train, X_test, y_train, y_test)
 
     def _handle_prepare_data(self) -> None:
-        from preprocess import Preprocessor
+        from core.preprocess import Preprocessor
         import numpy as np
 
         X_train, X_test, y_train, y_test = Preprocessor.instance().train_test_split(
             self._dataset_train, self._dataset_test
         )
 
-        # Preparte to DeepModel
+        # Prepare to DeepModel
         y_train, y_test = Preprocessor.instance().prepare_labels(
             y_train=y_train, y_test=y_test
         )
 
         feat: str = "_".join(FeaturesHandler.instance().features)
         feat = feat.replace("/", "_")
-        np.save(
-            "data\\X_ref_train_" + feat + ".npy",
-            X_train,
-        )
+        np.save("data\\X_ref_train_" + feat + ".npy", X_train)
         np.save("data\\X_eval_train_" + feat + ".npy", X_test)
         np.save("data\\y_ref_train_" + feat + ".npy", y_train)
         np.save("data\\y_eval_train_" + feat + ".npy", y_test)
 
-        self._logger.info("Data is succesfully saved in dir \\data\\")
+        self._logger.info("Data is successfully saved in dir \\data\\")
 
-    def _get_datasets(self, args: argparse.Namespace) -> None:
-        from fileshandler import FilesHandler
+    def _get_datasets(self) -> None:
+        from utils.fileshandler import FilesHandler
 
-        if args.load:
+        if self._args.load:
             self._dataset_train = FilesHandler.load_dataset(self._output_train)
             self._dataset_test = FilesHandler.load_dataset(self._output_test, test=True)
 
-        if args.generate:
+        if self._args.generate:
             as_sentences: bool = False
             as_IOB: bool = True
             transformer_type: str = ""
 
-            if args.features != None and (
-                "bert" in args.features[0] or "gpt" in args.features[0]
+            if self._args.features is not None and (
+                "bert" in self._args.features[0] or "gpt" in self._args.features[0]
             ):
                 as_sentences = True
-                transformer_type = args.features[0]
+                transformer_type = self._args.features[0]
 
             self._dataset_train = FilesHandler.generate_dataset(
                 Path(self._path_ref + "\\training\\"),

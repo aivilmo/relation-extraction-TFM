@@ -19,12 +19,12 @@ class Preprocessor:
 
     @staticmethod
     def instance():
-        if Preprocessor._instance == None:
+        if Preprocessor._instance is None:
             Preprocessor()
         return Preprocessor._instance
 
     def __init__(self) -> None:
-        if Preprocessor._instance != None:
+        if Preprocessor._instance is not None:
             raise Exception
 
         self._logger = Logger.instance()
@@ -101,21 +101,16 @@ class Preprocessor:
 
         unaccented_string = unidecode.unidecode(text)
         alphanumeric_text = re.sub("[^0-9a-zA-Z]+", " ", unaccented_string)
-
-        # Conversión texto a minúsculas y tokenización a lista de palabras
         tokens = alphanumeric_text.lower().split()
 
-        # Eliminación las stopwords
         if without_stopwords:
             stop_words = set(stopwords.words("spanish"))
             tokens = [token for token in tokens if token not in stop_words]
             return " ".join(tokens)
 
-        # Lematización
         wordnet_lemmatizer = WordNetLemmatizer()
         tokens_lemmas = [wordnet_lemmatizer.lemmatize(token) for token in tokens]
 
-        # Stemming
         stemmer = PorterStemmer()
         tokens_stemmed = [stemmer.stem(token) for token in tokens_lemmas]
 
@@ -273,12 +268,12 @@ class Preprocessor:
                 sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
             tokenized_sent = TransformerEmbedding.instance().tokenize(prep_sent)
             sentence_entities = {}
-            for keyphrases in sentence.keyphrases:
-                entities = keyphrases.text.split()
+            for keyphrase in sentence.keyphrases:
+                entities = keyphrase.text.split()
                 for i in range(len(entities)):
                     entity_word = TransformerEmbedding.instance().tokenize(entities[i])
                     tag = "B-" if i == 0 else "I-"
-                    tag = tag + keyphrases.label
+                    tag = tag + keyphrase.label
                     for j in range(len(entity_word)):
                         if j != 0:
                             break
@@ -325,12 +320,12 @@ class Preprocessor:
             tokenized_sent = TransformerEmbedding.instance().tokenize(sentence.text)
             sentence_entities = {}
             labels_vector = []
-            for keyphrases in sentence.keyphrases:
-                entities = keyphrases.text.split()
+            for keyphrase in sentence.keyphrases:
+                entities = keyphrase.text.split()
                 for i in range(len(entities)):
                     entity_word = TransformerEmbedding.instance().tokenize(entities[i])
                     tag = "B-" if i == 0 else "I-"
-                    tag = tag + keyphrases.label
+                    tag = tag + keyphrase.label
                     for j in range(len(entity_word)):
                         if j != 0:
                             break
@@ -423,7 +418,7 @@ class Preprocessor:
         df: pd.DataFrame,
         transformer_type: str,
         last_n_classes: int = 3,
-        classes_to_augmentate: list = [],
+        classes_to_augment: list = [],
     ) -> pd.DataFrame:
         def synsets(word: str) -> list:
             from nltk.corpus import wordnet as wn
@@ -450,11 +445,11 @@ class Preprocessor:
             TransformerEmbedding.instance().build_transformer(type=transformer_type)
 
         tags = df.tag.value_counts().index.tolist()[-last_n_classes:]
-        if classes_to_augmentate != []:
-            tags = classes_to_augmentate
+        if classes_to_augment:
+            tags = classes_to_augment
 
         Logger.instance().info(
-            "Data augmentation for clases: " + ", ".join(classes_to_augmentate)
+            "Data augmentation for classes: " + ", ".join(classes_to_augment)
         )
 
         index: int = df.iloc[-1].name
