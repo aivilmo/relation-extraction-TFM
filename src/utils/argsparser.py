@@ -36,10 +36,30 @@ class ArgsParser:
             help="If you want to train a model",
         )
 
-        action.add_argument(
-            "--prepare_data",
-            action="store_true",
-            help="If you want to prepare data to Deep Model",
+        # Select kind of model
+        model = parser.add_mutually_exclusive_group(required=True)
+        model.add_argument(
+            "--ml_model",
+            nargs=1,
+            action="store",
+            choices=[
+                "svm",
+                "perceptron",
+                "decisiontree",
+                "randomforest",
+            ],
+            help="Select ML model to train",
+        )
+
+        model.add_argument(
+            "--dl_model",
+            nargs=1,
+            action="store",
+            choices=[
+                "dense",
+                "gru",
+            ],
+            help="Select DL model to train",
         )
 
         # Add a list of features to train the model
@@ -47,6 +67,7 @@ class ArgsParser:
             "--features",
             nargs="+",
             action="store",
+            default="PlanTL-GOB-ES/roberta-base-biomedical-clinical-es",
             choices=[
                 "with_entities",
                 "sent_emb",
@@ -71,34 +92,22 @@ class ArgsParser:
             help="If you want to add custom features to train",
         )
 
-        # Select kind of model to train
-        parser.add_argument(
-            "--model",
-            nargs=1,
-            action="store",
-            choices=[
-                "dense",
-                "gru",
-                "svm",
-                "perceptron",
-                "decisiontree",
-                "randomforest"
-            ],
-            help="Select model to train",
-        )
-
+        # Select a loss function
         parser.add_argument(
             "--loss",
             nargs=1,
             action="store",
+            default="sigmoid_focal_crossentropy",
             choices=["sigmoid_focal_crossentropy", "binary_crossentropy"],
             help="Select the loss function to load",
         )
 
+        # Select a imbalance strategy
         parser.add_argument(
             "--imbalance_strategy",
             nargs=1,
             action="store",
+            default=None,
             choices=["oversampling", "undersampling", "both"],
             help="Select the sampling strategy for fight against imbalance of data.",
         )

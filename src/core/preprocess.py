@@ -14,8 +14,8 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 class Preprocessor:
 
-    _n_classes = None
     _instance = None
+    _n_classes = None
 
     @staticmethod
     def instance():
@@ -48,7 +48,7 @@ class Preprocessor:
     def train_test_split(
         train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
     ) -> np.ndarray:
-        from featureshandler import FeaturesHandler
+        from core.featureshandler import FeaturesHandler
 
         # Transform labels
         y_train, y_test = Preprocessor.instance().encode_labels(train_df, test_df)
@@ -180,7 +180,11 @@ class Preprocessor:
             for word in words:
                 tag = sentence_entities.get(word, ["O"])
                 word = pd.Series(
-                    {"word": word, "tag": max(set(tag), key=tag.count)},
+                    {
+                        "word": word,
+                        "tag": max(set(tag), key=tag.count),
+                        "sentence": sentence.text,
+                    },
                     name=index,
                 )
                 index += 1
@@ -246,7 +250,7 @@ class Preprocessor:
         path: Path, transformer_type: str, as_id: bool = False
     ) -> pd.DataFrame:
         from ehealth.anntools import Collection
-        from embeddinghandler import Embedding, TransformerEmbedding
+        from core.embeddinghandler import Embedding, TransformerEmbedding
 
         collection = Collection().load_dir(path)
         Preprocessor.instance()._logger.info(
@@ -373,7 +377,7 @@ class Preprocessor:
     def encode_labels(
         self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
     ) -> np.ndarray:
-        from gpu_trainer.coremodel import CoreModel
+        from model.coremodel import CoreModel
 
         Preprocessor.instance()._logger.info(f"Transforming {y_column} into labels")
         y_train = self._le.fit_transform(train_df[y_column].values)
@@ -388,7 +392,7 @@ class Preprocessor:
         self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
     ) -> np.ndarray:
 
-        from gpu_trainer.coremodel import CoreModel
+        from model.coremodel import CoreModel
 
         Preprocessor.instance()._logger.info(f"Transforming {y_column} into 2D labels")
         y_train = train_df[y_column].apply(self._le.transform)

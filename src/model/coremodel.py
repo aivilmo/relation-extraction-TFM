@@ -116,7 +116,7 @@ class CoreModel:
                 )
         self._model = model
 
-    def start_train(self, X_train, X_test, y_train, y_test) -> None:
+    def start_train(self, X_train, X_test, y_train, y_test, model) -> None:
         from sklearn.svm import LinearSVC, SVC
         from sklearn.linear_model import Perceptron
         from sklearn.preprocessing import StandardScaler
@@ -136,9 +136,7 @@ class CoreModel:
             )
         )
         self.fit_model(X_train, y_train)
-        self.make_pipeline()
-        # self.train_model()
-        # self.train_best_model()
+        self.train_model()
         self.test_model(X_test, y_test)
 
     @staticmethod

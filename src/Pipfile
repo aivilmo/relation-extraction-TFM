@@ -8,16 +8,27 @@ plaidml-keras = "*"
 numpy = "*"
 scikit-learn = "0.21.2"
 tensorflow = "*"
-matplotlib = "*"
 tensorflow-addons = "*"
-imbalanced-learn = "*"
-gensim = "*"
-pandas = "*"
 tensorflow-hub = "*"
 tensorflow-text = "*"
 tensorflow-estimator = "2.6.0"
+matplotlib = "*"
+imbalanced-learn = "*"
+gensim = "*"
+pandas = "*"
+transformers = "*"
+torch = "*"
+torchvision = "*"
+torchaudio = "*"
+nltk = "*"
+unidecode = "*"
+dask = "*"
 
 [dev-packages]
+black = "*"
 
 [requires]
 python_version = "3.9"
+
+[pipenv]
+allow_prereleases = true

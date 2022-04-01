@@ -11,6 +11,8 @@ from logger.logger import Logger
 
 
 class Embedding:
+    _logger = Logger.instance()
+
     @staticmethod
     def prepare_text_to_train(df: pd.DataFrame) -> list:
         sentences = pd.DataFrame(data={"unique_sentences": df.sentence.unique()})
@@ -19,12 +21,13 @@ class Embedding:
     @staticmethod
     def trained() -> bool:
         return (
-                WordEmbedding.instance()._keyed_vectors is not None
-                or TransformerEmbedding.instance()._preprocess_layer is not None
+            WordEmbedding.instance()._keyed_vectors is not None
+            or TransformerEmbedding.instance()._preprocess_layer is not None
         )
 
 
 class TransformerEmbedding(Embedding):
+
     _instance = None
 
     @staticmethod
@@ -39,15 +42,14 @@ class TransformerEmbedding(Embedding):
 
         self._preprocess_layer = None
         self._encoder_layer = None
-        self._logger = Logger.instance()
         TransformerEmbedding._instance = self
 
     def build_transformer(self, type: str) -> None:
         if type == "":
             type = "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es"
 
-        self._logger.info(f"Building transformer model with preprocessor: {type}")
-        self._logger.info(f"Building transformer model from: {type}")
+        Embedding._logger.info(f"Building transformer model with preprocessor: {type}")
+        Embedding._logger.info(f"Building transformer model from: {type}")
 
         if "distil" in type:
             from transformers import DistilBertTokenizer, DistilBertModel
@@ -70,8 +72,8 @@ class TransformerEmbedding(Embedding):
             self._preprocess_layer = AutoTokenizer.from_pretrained(type)
             self._encoder_layer = AutoModel.from_pretrained(type)
 
-        self._logger.info(f"Transformer has built with preprocessor: {type}")
-        self._logger.info(f"Transformer has built from: {type}")
+        Embedding._logger.info(f"Transformer has built with preprocessor: {type}")
+        Embedding._logger.info(f"Transformer has built from: {type}")
 
     def word_vector(self, word: str) -> np.ndarray:
         word_preprocessed = self._preprocess_layer(word, return_tensors="pt")
@@ -83,7 +85,7 @@ class TransformerEmbedding(Embedding):
         bert_results = self._encoder_layer(**sentence_preprocessed)
         return bert_results.last_hidden_state.detach().numpy()[0]
 
-    def tokenize_input_ids(self, sentence: str) -> np.array:
+    def tokenize_input_ids(self, sentence: str) -> np.ndarray:
         sentence_preprocessed = self._preprocess_layer(sentence, return_tensors="pt")
         return sentence_preprocessed.input_ids.detach().numpy()[0]
 
@@ -93,11 +95,13 @@ class TransformerEmbedding(Embedding):
     def plot_model(self) -> None:
         filename = "images\\bert.png"
         tf.keras.utils.plot_model(self._model, to_file=filename)
-        self._logger.info(f"Ploted model to file: {filename}")
+        Embedding._logger.info(f"Ploted model to file: {filename}")
 
 
 class WordEmbedding(Embedding):
+
     _instance = None
+    _word2vec_file = "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4.bin"
 
     @staticmethod
     def instance():
@@ -111,16 +115,20 @@ class WordEmbedding(Embedding):
 
         self._model = None
         self._keyed_vectors = None
-        self._logger = Logger.instance()
+
         WordEmbedding._instance = self
 
-    def load_model(self, filename: str) -> None:
-        self._logger.info(f"Loading keyed vectors from: {filename}")
+    def load_model(self) -> None:
+        Embedding._logger.info(
+            f"Loading keyed vectors from: {WordEmbedding._word2vec_file}"
+        )
 
-        self._keyed_vectors = KeyedVectors.load_word2vec_format(filename, binary=True)
+        self._keyed_vectors = KeyedVectors.load_word2vec_format(
+            WordEmbedding._word2vec_file, binary=True
+        )
 
     def train_word_embedding(self, tokens: list) -> None:
-        self._logger.info("Training model word embedding...")
+        Embedding._logger.info("Training model word embedding...")
 
         self._model = Word2Vec(
             sentences=tokens,

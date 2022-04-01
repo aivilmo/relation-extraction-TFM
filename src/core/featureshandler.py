@@ -14,6 +14,7 @@ from logger.logger import Logger
 class FeaturesHandler:
 
     _instance = None
+    _logger = Logger.instance()
 
     @staticmethod
     def instance():
@@ -32,7 +33,6 @@ class FeaturesHandler:
         self._tk: Tokenizer = Tokenizer()
 
         self._features: list = ["PlanTL-GOB-ES/roberta-base-biomedical-clinical-es"]
-        self._logger = Logger.instance()
         FeaturesHandler._instance = self
 
     @property
@@ -44,7 +44,7 @@ class FeaturesHandler:
         self._features = features
 
     def handle_features(self, df: pd.DataFrame, test: bool = False) -> np.ndarray:
-        self._logger.info(f"Handling features: " + ", ".join(self.features))
+        FeaturesHandler._logger.info(f"Handling features: " + ", ".join(self.features))
         columns = []
 
         if "single_word_emb" in self._features:
@@ -87,14 +87,14 @@ class FeaturesHandler:
             columns += ["vector"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
-        self._logger.info(
+        FeaturesHandler._logger.info(
             f"Features matrix successfully generated, with data shape: {features.shape}"
         )
         return np.nan_to_num(features)
 
     def _feat_with_tags(self, df: pd.DataFrame, test: bool = False) -> None:
         if not test:
-            self._logger.info("Fitting word labels")
+            FeaturesHandler._logger.info("Fitting word labels")
             df["tag1"] = self._le.fit_transform(df.tag1.values)
             df["tag2"] = self._le.fit_transform(df.tag2.values)
             return
@@ -106,11 +106,8 @@ class FeaturesHandler:
     def _feat_word_emb(df: pd.DataFrame) -> None:
         if not Embedding.trained():
             tokens = Embedding.prepare_text_to_train(df)
-            WordEmbedding.instance().load_model(
-                "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4"
-                ".bin "
-            )
-            WordEmbedding.instance().train_word_emebdding(tokens)
+            WordEmbedding.instance().load_model()
+            WordEmbedding.instance().train_word_embedding(tokens)
 
         df["word1"] = df.word1.apply(
             lambda x: WordEmbedding.instance().words_to_vector(x.split())
@@ -123,11 +120,8 @@ class FeaturesHandler:
     def _feat_sent_emb(df: pd.DataFrame) -> None:
         if not Embedding.trained():
             tokens = Embedding.prepare_text_to_train(df)
-            WordEmbedding.instance().load_model(
-                "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4"
-                ".bin "
-            )
-            WordEmbedding.instance().train_word_emebdding(tokens)
+            WordEmbedding.instance().load_model()
+            WordEmbedding.instance().train_word_embedding(tokens)
 
         df["sentence"] = df.sentence.apply(
             lambda x: WordEmbedding.instance().words_to_vector(x.split())
@@ -137,9 +131,11 @@ class FeaturesHandler:
         self, df: pd.DataFrame, column: str = "word", test: bool = False
     ) -> None:
         if not test:
-            self._logger.info("Fitting words to bag of words")
+            FeaturesHandler._logger.info("Fitting words to bag of words")
             self._cv.fit(df[column].unique().tolist())
-            self._logger.info(f"Vocab size: {len(self._cv.vocabulary_.keys())}")
+            FeaturesHandler._logger.info(
+                f"Vocab size: {len(self._cv.vocabulary_.keys())}"
+            )
 
         df[column] = df[column].apply(
             lambda x: self._cv.transform([x]).toarray().reshape(-1)
@@ -148,10 +144,7 @@ class FeaturesHandler:
     @staticmethod
     def _feat_single_word_emb(df: pd.DataFrame) -> None:
         if not Embedding.trained():
-            WordEmbedding.instance().load_model(
-                "..\\dataset\\word-embeddings_fasttext\\EMEA+scielo-es_skipgram_w=10_dim=100_minfreq=1_neg=10_lr=1e-4"
-                ".bin "
-            )
+            WordEmbedding.instance().load_model()
 
         df["word"] = df.word.apply(lambda x: WordEmbedding.instance().word_vector(x))
 
@@ -159,9 +152,11 @@ class FeaturesHandler:
         self, df: pd.DataFrame, column: str = "word", test: bool = False
     ) -> None:
         if not test:
-            self._logger.info("Fitting words to tf idf")
+            FeaturesHandler._logger.info("Fitting words to tf idf")
             self._tf.fit(df[column].unique().tolist())
-            self._logger.info(f"Vocab size: {len(self._tf.vocabulary_.keys())}")
+            FeaturesHandler._logger.info(
+                f"Vocab size: {len(self._tf.vocabulary_.keys())}"
+            )
 
         df[column] = df[column].apply(
             lambda x: self._tf.transform([x]).toarray().reshape(-1)
@@ -171,21 +166,21 @@ class FeaturesHandler:
         if not test:
             self._ck.fit_on_texts(df.word)
             vocab_size = len(self._ck.word_index) + 1
-            self._logger.info(f"Vocab size: {vocab_size}")
+            FeaturesHandler._logger.info(f"Vocab size: {vocab_size}")
 
         df["word"] = df.word.apply(lambda x: self._ck.texts_to_sequences([x])[0])
         df["word"] = df.word.apply(lambda x: pad_sequences([x], maxlen=15)[0])
-        self._logger.info(f"Matriz features for emebdding: {df.word.shape}")
+        FeaturesHandler._logger.info(f"Matriz features for emebdding: {df.word.shape}")
 
     def _feat_tokens(self, df: pd.DataFrame, test: bool = False) -> None:
         if not test:
             self._tk.fit_on_texts(df.word)
             vocab_size = len(self._tk.word_index) + 1
-            self._logger.info(f"Vocab size: {vocab_size}")
+            FeaturesHandler._logger.info(f"Vocab size: {vocab_size}")
 
         df["word"] = df.word.apply(lambda x: self._tk.texts_to_sequences([x])[0])
         df["word"] = df.word.apply(lambda x: pad_sequences([x], maxlen=3)[0])
-        self._logger.info(f"Matriz features for emebdding: {df.word.shape}")
+        FeaturesHandler._logger.info(f"Matriz features for emebdding: {df.word.shape}")
 
     def _feat_transformer(self, df: pd.DataFrame, type) -> None:
         if not Embedding.trained():

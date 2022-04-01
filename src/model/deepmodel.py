@@ -16,6 +16,7 @@ tf.random.set_seed(seed)
 
 
 class DeepModel:
+
     _instance = None
     _epochs = 80
     _batch_size = 64
@@ -292,35 +293,34 @@ class DeepModel:
         resampler = SMOTETomek(random_state=DeepModel._random_state, n_jobs=-1)
         self._X, self._y = resampler.fit_resample(self._X, self._y)
 
-    def start_train(self) -> None:
-        from argsparser import ArgsParser
+    def start_train(self, X_train, X_test, y_train, y_test, model) -> None:
         import tensorflow_addons as tfa
+        from core.preprocess import Preprocessor
 
-        args = ArgsParser.get_args()
-        X_test, y_test = self._load_data(args.features)
+        y_train, y_test = Preprocessor.instance().prepare_labels(y_train, y_test)
 
-        if args.loss is None or "binary_crossentropy" in args.loss:
-            self._loss = tf.keras.losses.BinaryCrossentropy()
-        elif "sigmoid_focal_crossentropy" in args.loss:
-            self._loss = tfa.losses.SigmoidFocalCrossEntropy(alpha=0.20, gamma=2.0)
+        # if args.loss is None or "binary_crossentropy" in args.loss:
+        #     self._loss = tf.keras.losses.BinaryCrossentropy()
+        # elif "sigmoid_focal_crossentropy" in args.loss:
+        #     self._loss = tfa.losses.SigmoidFocalCrossEntropy(alpha=0.20, gamma=2.0)
 
-        self._optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+        # self._optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
-        if args.model is None or "basic_nn" in args.model:
-            self.create_simple_NN()
-        elif "gru" in args.model:
-            self.create_GRU_RNN(vocab_size=4846, input_length=3)
-        elif "lstm" in args.model:
-            pass
+        # if args.model is None or "basic_nn" in args.model:
+        #     self.create_simple_NN()
+        # elif "gru" in args.model:
+        #     self.create_GRU_RNN(vocab_size=4846, input_length=3)
+        # elif "lstm" in args.model:
+        #     pass
 
-        if args.imbalance_strategy is not None:
-            if "oversampling" in args.imbalance_strategy:
-                self.over_sample_data()
-            elif "undersampling" in args.imbalance_strategy:
-                self.under_sample_data()
-            elif "both" in args.imbalance_strategy:
-                self.combined_resample_data()
+        # if args.imbalance_strategy is not None:
+        #     if "oversampling" in args.imbalance_strategy:
+        #         self.over_sample_data()
+        #     elif "undersampling" in args.imbalance_strategy:
+        #         self.under_sample_data()
+        #     elif "both" in args.imbalance_strategy:
+        #         self.combined_resample_data()
 
-        self.train_NN()
-        self.evaluate_NN(X=X_test, y=y_test)
-        self.show_history()
+        # self.train_NN()
+        # self.evaluate_NN(X=X_test, y=y_test)
+        # self.show_history()
