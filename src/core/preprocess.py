@@ -5,9 +5,9 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import time
-from logger.logger import Logger
-
 import warnings
+
+from logger.logger import Logger
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 

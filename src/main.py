@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 import pandas as pd
-from pathlib import Path
 import argparse
+import numpy as np
+
 from core.featureshandler import FeaturesHandler
 from logger.logger import Logger
-import numpy as np
 
 
 class Main:

@@ -2,12 +2,12 @@
 
 import numpy as np
 import pandas as pd
-from core.embeddinghandler import Embedding, WordEmbedding, TransformerEmbedding
 from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 
+from core.embeddinghandler import Embedding, WordEmbedding, TransformerEmbedding
 from logger.logger import Logger
 
 

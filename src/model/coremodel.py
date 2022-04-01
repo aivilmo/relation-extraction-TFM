@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import numpy as np
-from logger.logger import Logger
 import time
+
+from logger.logger import Logger
 
 
 class CoreModel:

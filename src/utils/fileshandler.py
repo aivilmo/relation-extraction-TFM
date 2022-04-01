@@ -3,7 +3,6 @@
 from pathlib import Path
 import pandas as pd
 import numpy as np
-from core.featureshandler import FeaturesHandler
 
 from logger.logger import Logger
 from core.preprocess import Preprocessor
