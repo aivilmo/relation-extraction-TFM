@@ -37,7 +37,7 @@ class ArgsParser:
         )
 
         # Select kind of model
-        model = parser.add_mutually_exclusive_group(required=True)
+        model = parser.add_mutually_exclusive_group()
         model.add_argument(
             "--ml_model",
             nargs=1,
