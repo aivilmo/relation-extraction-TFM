@@ -16,12 +16,11 @@ gensim = "*"
 pandas = "*"
 transformers = "*"
 torch = "*"
-torchvision = "*"
-torchaudio = "*"
 nltk = "*"
 unidecode = "*"
 dask = "*"
 seaborn = "*"
+googletrans = "*"
 
 [dev-packages]
 black = "*"
