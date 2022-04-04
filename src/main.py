@@ -34,6 +34,7 @@ class Main:
         FeaturesHandler.instance().features = self._args.features
 
         X_train, X_test, y_train, y_test = self._get_datasets()
+
         if self._args.visualization:
             self._handle_visualizations()
         if self._args.train:
@@ -60,16 +61,20 @@ class Main:
         if self._args.dl_model is not None:
             model_instance = DeepModel.instance()
             model = self._args.dl_model
+        
+        if model_instance is None:
+            Main._logger.warning("Need select a model, with args '--ml_model' or '--dl_model'")
+            return
 
-        model_instance.start_train(X_train, X_test, y_train, y_test, model)
+        model_instance.start_training(X_train, X_test, y_train, y_test, model)
 
     def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
         from utils.fileshandler import FilesHandler
         from core.preprocess import Preprocessor
 
         features: str = "_".join(self._args.features)
-        features = features.replace("/", "_")
         transformer_type = features if "bert" in features else ""
+        features = features.replace("/", "_")
 
         self._dataset_train, self._dataset_test = FilesHandler.load_datasets(
             transformer_type=transformer_type

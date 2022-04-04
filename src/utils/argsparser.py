@@ -40,7 +40,6 @@ class ArgsParser:
         model = parser.add_mutually_exclusive_group()
         model.add_argument(
             "--ml_model",
-            nargs=1,
             action="store",
             choices=[
                 "svm",
@@ -53,8 +52,8 @@ class ArgsParser:
 
         model.add_argument(
             "--dl_model",
-            nargs=1,
             action="store",
+            default="dense",
             choices=[
                 "dense",
                 "gru",
@@ -95,9 +94,8 @@ class ArgsParser:
         # Select a loss function
         parser.add_argument(
             "--loss",
-            nargs=1,
             action="store",
-            default="sigmoid_focal_crossentropy",
+            default="binary_crossentropy",
             choices=["sigmoid_focal_crossentropy", "binary_crossentropy"],
             help="Select the loss function to load",
         )
@@ -105,7 +103,6 @@ class ArgsParser:
         # Select a imbalance strategy
         parser.add_argument(
             "--imbalance_strategy",
-            nargs=1,
             action="store",
             default=None,
             choices=["oversampling", "undersampling", "both"],

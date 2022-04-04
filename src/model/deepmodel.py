@@ -4,36 +4,24 @@ import random
 import numpy as np
 import tensorflow as tf
 
+from model.abstractmodel import AbstractModel
+
 seed = 6
 random.seed(seed)
 np.random.seed(seed)
 tf.random.set_seed(seed)
-
 
 # from os import environ
 
 # environ["KERAS_BACKEND"] = "plaidml.keras.backend"
 
 
-class DeepModel:
+class DeepModel(AbstractModel):
 
     _instance = None
     _epochs = 80
     _batch_size = 64
-    _n_classes = None
     _embedding_dims = 100
-    _random_state = 42
-    _labels = [
-        "B-Action",
-        "B-Concept",
-        "B-Predicate",
-        "B-Reference",
-        "I-Action",
-        "I-Concept",
-        "I-Predicate",
-        "I-Reference",
-        "O",
-    ]
 
     @staticmethod
     def instance():
@@ -42,18 +30,65 @@ class DeepModel:
         return DeepModel._instance
 
     def __init__(self) -> None:
+        super().__init__()  
         if DeepModel._instance is not None:
             raise Exception
-        self._model = None
+
         self._loss = None
         self._optimizer = None
         self._history = None
-        self._X = None
-        self._y = None
 
         DeepModel._instance = self
 
-    def create_simple_NN(
+    @classmethod
+    def start_training(self, X_train: np.ndarray, X_test: np.ndarray, y_train: np.ndarray, y_test:np.ndarray, model) -> None:
+        from core.preprocess import Preprocessor
+
+        y_train, y_test = Preprocessor.instance().prepare_labels(y_train, y_test)
+        super().start_training(X_train, X_test, y_train, y_test, model)
+
+
+    @classmethod
+    def build(self, X: np.ndarray, y: np.ndarray, model, **kwargs) -> None:
+        AbstractModel._n_classes = y.shape[1]
+        super().build(X, y)
+
+        if model == "dense":
+            self.build_dense()
+        if model == "gru":
+            self.build_gru()
+        self.compile()
+
+    @classmethod
+    def train(self) -> None:
+        from time import time
+
+        AbstractModel._logger.info("Training model...")
+        start: float = time()
+
+        self._history = self._model.fit(
+            self._X,
+            self._y,
+            epochs=DeepModel._epochs,
+            batch_size=DeepModel._batch_size,
+            validation_split=0.2,
+            callbacks=DeepModel.get_callbacks(),
+            class_weight=self.compute_class_weight_freq(),
+        )
+
+        end: float = time() - start
+        AbstractModel._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
+
+    @classmethod
+    def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
+        yhat = self._model.predict(X)
+        yhat = np.argmax(yhat, axis=1)
+        y = np.argmax(y, axis=1)
+
+        super().evaluate(yhat, y)
+
+    @classmethod
+    def build_dense(
         self,
         hidden_layers: int = 0,
         num_units: list = [768],
@@ -86,15 +121,8 @@ class DeepModel:
             tf.keras.layers.Dense(units=DeepModel._n_classes, activation="softmax")
         )
 
-        self._model.compile(
-            loss=self._loss,
-            optimizer=self._optimizer,
-            metrics=["accuracy"],
-        )
-
-        print(self._model.summary())
-
-    def create_GRU_RNN(self, vocab_size: int, input_length: int):
+    @classmethod
+    def build_gru(self, vocab_size: int = 0, input_length: int = 0):
         self._model = tf.keras.models.Sequential()
 
         self._model.add(
@@ -113,123 +141,30 @@ class DeepModel:
             )
         )
 
-        self._model.add(tf.keras.layers.Dense(units=DeepModel._n_classes))
+        self._model.add(tf.keras.layers.Dense(units=AbstractModel._n_classes))
+
+    @classmethod
+    def compile(self) -> None:
+        from main import Main
+
+        loss: str = Main.instance()._args.loss
+        if loss == "binary_crossentropy":
+            self._loss = tf.keras.losses.BinaryCrossentropy()
+        if loss == "sigmoid_focal_crossentropy":
+            import tensorflow_addons as tfa
+            self._loss = tfa.losses.SigmoidFocalCrossEntropy(alpha=0.20, gamma=2.0)
+
+        self._optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
         self._model.compile(
-            loss="binary_crossentropy",
-            optimizer="rmsprop",
+            loss=self._loss,
+            optimizer=self._optimizer,
             metrics=["accuracy"],
         )
 
         print(self._model.summary())
 
-    def train_NN(self):
-        self._history = self._model.fit(
-            self._X,
-            self._y,
-            epochs=DeepModel._epochs,
-            batch_size=DeepModel._batch_size,
-            validation_split=0.2,
-            callbacks=DeepModel.get_callbacks(),
-            class_weight=self.get_class_weight(),
-        )
-
-    def evaluate_NN(self, X, y):
-        from sklearn.metrics import (
-            classification_report,
-            confusion_matrix,
-            ConfusionMatrixDisplay,
-            precision_recall_fscore_support,
-        )
-        import matplotlib.pyplot as plt
-
-        print("Testing model...")
-
-        y_hat = self._model.predict(X)
-        y_hat = np.argmax(y_hat, axis=1)
-        y = np.argmax(y, axis=1)
-
-        print("Classification report:")
-        print(
-            classification_report(
-                y,
-                y_hat,
-                # target_names=DeepModel._labels,
-            )
-        )
-
-        precision, recall, f1score, _ = precision_recall_fscore_support(
-            y, y_hat, average="micro"
-        )
-        print(
-            f"MICRO: Precision: {round(precision, 2)}, Recall: {round(recall, 2)}, F1Score: {round(f1score, 2)}"
-        )
-
-        print("Confusion matrix:")
-        cm = confusion_matrix(y, y_hat)
-        disp = ConfusionMatrixDisplay(
-            confusion_matrix=cm  # , display_labels=DeepModel._labels
-        )
-        disp.plot()
-
-        plt.show()
-        # plt.savefig("confusion_matrix.png")
-
-    def evaluate_RNN(self, X, y) -> None:
-        print("Testing model...")
-
-        y_hat = self._model.predict(X)
-        samples = y_hat.shape[0]
-        timesteps = y_hat.shape[1]
-        dim_data = samples * timesteps
-        print(y_hat.shape)
-        print(y.shape)
-
-        errors = 0
-        for s in range(samples):
-            print(f"Sample {s}")
-            errors_sample = 0
-            for t in range(timesteps):
-                y_hat_s_t = np.argmax(y_hat[s][t], axis=0)
-                if y[s][t][0] != y_hat_s_t:
-                    errors += 1
-                    errors_sample += 1
-            print(f"Errors for sample {s}, {errors}")
-        print(f"Accuracy: {round(((dim_data - errors) / dim_data) * 100, 2)}%")
-
-    def get_class_weight(self) -> dict:
-        samples = self._y.shape[0]
-        unique, counts = np.unique(np.argmax(self._y, axis=1), return_counts=True)
-        return dict(zip(unique, 100 - (counts / samples) * 100))
-
-    # SOURCE: https://towardsdatascience.com/handling-class-imbalanced-data-using-a-loss-specifically-made-for-it
-    # -6e58fd65ffab
-    def get_class_weight_imbalanced(self, beta: float = 0.9) -> np.ndarray:
-        unique, samples_per_cls = np.unique(
-            np.argmax(self._y, axis=1), return_counts=True
-        )
-        effective_num = 1.0 - np.power(beta, samples_per_cls)
-        weights = (1.0 - beta) / np.array(effective_num)
-        weights = weights / np.sum(weights) * DeepModel._n_classes
-
-        return dict(zip(unique, weights))
-
-    @staticmethod
-    def get_callbacks() -> list:
-        accuracy = tf.keras.callbacks.EarlyStopping(
-            monitor="val_accuracy", patience=10, restore_best_weights=True
-        )
-        loss = tf.keras.callbacks.EarlyStopping(
-            monitor="val_loss", patience=10, restore_best_weights=True
-        )
-
-        # Create a callback that saves the model's weights
-        checkpoint_path = "training_1/cp.ckpt"
-        checkpoint = tf.keras.callbacks.ModelCheckpoint(
-            filepath=checkpoint_path, save_weights_only=True, verbose=1
-        )
-        return [accuracy, loss, checkpoint]
-
+    @classmethod
     def show_history(self) -> None:
         import matplotlib.pyplot as plt
 
@@ -255,72 +190,18 @@ class DeepModel:
         plt.show()
         # plt.savefig("history.png")
 
-    def _load_data(self, features: list) -> None:
-        feat = features[0].replace("/", "_")
-        self._X, X_test = np.load("..\\data\\X_ref_train_" + feat + ".npy"), np.load(
-            "..\\data\\X_eval_train_" + feat + ".npy"
+    @staticmethod
+    def get_callbacks() -> list:
+        accuracy = tf.keras.callbacks.EarlyStopping(
+            monitor="val_accuracy", patience=10, restore_best_weights=True
         )
-        self._y, y_test = np.load("..\\data\\y_ref_train_" + feat + ".npy"), np.load(
-            "..\\data\\y_eval_train_" + feat + ".npy"
+        loss = tf.keras.callbacks.EarlyStopping(
+            monitor="val_loss", patience=10, restore_best_weights=True
         )
-        DeepModel._n_classes = self._y.shape[1]
-        return X_test, y_test
 
-    def under_sample_data(self) -> None:
-        from imblearn.under_sampling import NearMiss
-
-        print("Undersampling data...")
-
-        under_sampler = NearMiss(
-            n_neighbors=1, n_neighbors_ver3=3, sampling_strategy="majority"
+        # Create a callback that saves the model's weights
+        checkpoint_path = "training_1/cp.ckpt"
+        checkpoint = tf.keras.callbacks.ModelCheckpoint(
+            filepath=checkpoint_path, save_weights_only=True, verbose=1
         )
-        self._X, self._y = under_sampler.fit_resample(self._X, self._y)
-
-    def over_sample_data(self) -> None:
-        from imblearn.over_sampling import RandomOverSampler, SMOTE
-
-        print("Oversampling data...")
-
-        over_sampler = RandomOverSampler(sampling_strategy="minority")
-
-        self._X, self._y = over_sampler.fit_resample(self._X, self._y)
-
-    def combined_resample_data(self) -> None:
-        from imblearn.combine import SMOTETomek, SMOTEENN
-
-        print("Combined oversampling and undersampling data...")
-
-        resampler = SMOTETomek(random_state=DeepModel._random_state, n_jobs=-1)
-        self._X, self._y = resampler.fit_resample(self._X, self._y)
-
-    def start_train(self, X_train, X_test, y_train, y_test, model) -> None:
-        import tensorflow_addons as tfa
-        from core.preprocess import Preprocessor
-
-        y_train, y_test = Preprocessor.instance().prepare_labels(y_train, y_test)
-
-        # if args.loss is None or "binary_crossentropy" in args.loss:
-        #     self._loss = tf.keras.losses.BinaryCrossentropy()
-        # elif "sigmoid_focal_crossentropy" in args.loss:
-        #     self._loss = tfa.losses.SigmoidFocalCrossEntropy(alpha=0.20, gamma=2.0)
-
-        # self._optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
-
-        # if args.model is None or "basic_nn" in args.model:
-        #     self.create_simple_NN()
-        # elif "gru" in args.model:
-        #     self.create_GRU_RNN(vocab_size=4846, input_length=3)
-        # elif "lstm" in args.model:
-        #     pass
-
-        # if args.imbalance_strategy is not None:
-        #     if "oversampling" in args.imbalance_strategy:
-        #         self.over_sample_data()
-        #     elif "undersampling" in args.imbalance_strategy:
-        #         self.under_sample_data()
-        #     elif "both" in args.imbalance_strategy:
-        #         self.combined_resample_data()
-
-        # self.train_NN()
-        # self.evaluate_NN(X=X_test, y=y_test)
-        # self.show_history()
+        return [accuracy, loss, checkpoint]

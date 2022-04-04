@@ -40,6 +40,7 @@ class FilesHandler:
                 df: pd.DataFrame = Preprocessor.process_content_as_sentences(
                     path, transformer_type=transformer_type
                 )
+                transformer_type = transformer_type.replace("/", "_")
                 output_file += "_" + transformer_type + ".pkl"
             elif as_IOB:
                 df: pd.DataFrame = Preprocessor.process_content_as_IOB_format(path)
@@ -79,9 +80,10 @@ class FilesHandler:
     @staticmethod
     def load_datasets(transformer_type="") -> tuple[pd.DataFrame, pd.DataFrame]:
         def load_dataset(filename: str, transformer_type="") -> pd.DataFrame:
-            filename = filename + "_IOB.pkl"
             if transformer_type != "":
                 filename = filename + "_" + transformer_type + ".pkl"
+            else:
+                filename = filename + "_IOB.pkl"
 
             try:
                 FilesHandler._logger.info(f"Loading DataFrame from: {filename}")
@@ -125,15 +127,22 @@ class FilesHandler:
 
     @staticmethod
     def save_training_data(
-        X_train: str,
-        y_train: str,
-        X_test: str,
-        y_test: str,
-        features: str,
+        X_train: np.ndarray,
+        X_test: np.ndarray,
+        y_train: np.ndarray,
+        y_test: np.ndarray,
+        features: np.ndarray,
     ) -> None:
-        np.save(FilesHandler._output_X_train + "_" + features + ".npy", X_train)
-        np.save(FilesHandler._output_y_train + "_" + features + ".npy", y_train)
-        np.save(FilesHandler._output_X_test + "_" + features + ".npy", X_test)
-        np.save(FilesHandler._output_y_test + "_" + features + ".npy", y_test)
+        try:
+            np.save(FilesHandler._output_X_train + "_" + features + ".npy", X_train)
+            np.save(FilesHandler._output_X_test + "_" + features + ".npy", X_test)
+            np.save(FilesHandler._output_y_train + "_" + features + ".npy", y_train)
+            np.save(FilesHandler._output_y_test + "_" + features + ".npy", y_test)
 
-        FilesHandler._logger.info("Data is successfully saved in dir \\data\\")
+            FilesHandler._logger.info("Data is successfully saved in dir \\data\\")
+
+        except OSError as e:
+            import sys
+
+            FilesHandler._logger.error(f'Cannot save file into a non-existent directory: {e.filename}')
+            sys.exit()
