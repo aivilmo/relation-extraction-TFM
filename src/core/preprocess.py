@@ -17,6 +17,8 @@ class Preprocessor:
     _instance = None
     _n_classes = None
 
+    _logger = Logger.instance()
+
     @staticmethod
     def instance():
         if Preprocessor._instance is None:
@@ -27,7 +29,6 @@ class Preprocessor:
         if Preprocessor._instance is not None:
             raise Exception
 
-        self._logger = Logger.instance()
         self._le = LabelEncoder()
         self._le.fit(
             [
@@ -44,14 +45,12 @@ class Preprocessor:
         )
         Preprocessor._instance = self
 
-    @staticmethod
-    def train_test_split(
-        train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
+    def train_test_split(self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
     ) -> np.ndarray:
         from core.featureshandler import FeaturesHandler
 
         # Transform labels
-        y_train, y_test = Preprocessor.instance().encode_labels(train_df, test_df)
+        y_train, y_test = self.encode_labels(train_df, test_df)
 
         train_df.drop(y_column, axis=1, inplace=True)
         test_df.drop(y_column, axis=1, inplace=True)
@@ -78,7 +77,7 @@ class Preprocessor:
         part_n = 1
         for part in ddf.to_delayed():
             df = part.compute()
-            Preprocessor.instance()._logger.info(
+            Preprocessor._logger.info(
                 f"Computing part of dataframe, part {part_n} of {partitions}"
             )
             part_n += 1
@@ -87,7 +86,7 @@ class Preprocessor:
 
         start = time.time()
         results = compute(*delayed_results, scheduler="threads")
-        Preprocessor.instance()._logger.info(
+        Preprocessor._logger.info(
             f"Parallel features handler: {(time.time() - start) / 60} minutes"
         )
         return results
@@ -121,7 +120,7 @@ class Preprocessor:
         from ehealth.anntools import Collection
 
         collection = Collection().load_dir(path)
-        Preprocessor.instance()._logger.info(
+        Preprocessor._logger.info(
             f"Loaded {len(collection)} sentences for fitting."
         )
 
@@ -148,7 +147,7 @@ class Preprocessor:
                 index += 1
                 df = df.append(relation)
 
-        Preprocessor.instance()._logger.info(
+        Preprocessor._logger.info(
             f"Training completed: Stored {index} relation pairs."
         )
         return df
@@ -158,10 +157,10 @@ class Preprocessor:
         from ehealth.anntools import Collection
 
         collection = Collection().load_dir(path)
-        Preprocessor.instance()._logger.info(
+        Preprocessor._logger.info(
             f"Loaded {len(collection)} sentences for fitting."
         )
-        Preprocessor.instance()._logger.info(f"process_content_as_IOB_format")
+        Preprocessor._logger.info(f"process_content_as_IOB_format")
 
         df: pd.DataFrame = pd.DataFrame()
         index: int = 0
@@ -190,7 +189,7 @@ class Preprocessor:
                 index += 1
                 df = df.append(word)
 
-        Preprocessor.instance()._logger.info(
+        Preprocessor._logger.info(
             f"Training completed: Stored {index} words."
         )
         return df
@@ -200,10 +199,10 @@ class Preprocessor:
         from ehealth.anntools import Collection
 
         collection = Collection().load_dir(path)
-        Preprocessor.instance()._logger.info(
+        Preprocessor._logger.info(
             f"Loaded {len(collection)} sentences for fitting."
         )
-        Preprocessor.instance()._logger.info(f"process_content_as_BILUOV_format")
+        Preprocessor._logger.info(f"process_content_as_BILUOV_format")
 
         df: pd.DataFrame = pd.DataFrame()
         index: int = 0
@@ -240,7 +239,7 @@ class Preprocessor:
                 index += 1
                 df = df.append(word)
 
-        Preprocessor.instance()._logger.info(
+        Preprocessor._logger.info(
             f"Training completed: Stored {index} words."
         )
         return df
@@ -253,10 +252,10 @@ class Preprocessor:
         from core.embeddinghandler import Embedding, TransformerEmbedding
 
         collection = Collection().load_dir(path)
-        Preprocessor.instance()._logger.info(
+        Preprocessor._logger.info(
             f"Loaded {len(collection)} sentences for fitting."
         )
-        Preprocessor.instance()._logger.info(f"process_content_as_sentences")
+        Preprocessor._logger.info(f"process_content_as_sentences")
 
         df: pd.DataFrame = pd.DataFrame()
         index: int = 0
@@ -296,11 +295,12 @@ class Preprocessor:
                 index += 1
                 df = df.append(word)
 
-        Preprocessor.instance()._logger.info(
+        Preprocessor._logger.info(
             f"Training completed: Stored {index} words."
         )
         return df
 
+    @staticmethod
     def process_content_as_sentences_tensor(
         path: Path, transformer_type: str
     ) -> pd.DataFrame:
@@ -308,10 +308,10 @@ class Preprocessor:
         from embeddinghandler import Embedding, TransformerEmbedding
 
         collection = Collection().load_dir(path)
-        Preprocessor.instance()._logger.info(
+        Preprocessor._logger.info(
             f"Loaded {len(collection)} sentences for fitting."
         )
-        Preprocessor.instance()._logger.info(f"process_content_as_sentences_tensor")
+        Preprocessor._logger.info(f"process_content_as_sentences_tensor")
 
         df: pd.DataFrame = pd.DataFrame()
         index: int = 0
@@ -348,7 +348,7 @@ class Preprocessor:
             index += 1
             df = df.append(serie)
 
-        Preprocessor.instance()._logger.info(
+        Preprocessor._logger.info(
             f"Training completed: Stored {index} sentences."
         )
         return df
@@ -377,13 +377,13 @@ class Preprocessor:
     def encode_labels(
         self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
     ) -> np.ndarray:
-        from model.coremodel import CoreModel
+        from model.coremodel import AbstractModel
 
-        Preprocessor.instance()._logger.info(f"Transforming {y_column} into labels")
+        Preprocessor._logger.info(f"Transforming {y_column} into labels")
         y_train = self._le.fit_transform(train_df[y_column].values)
         y_test = self._le.transform(test_df[y_column].values)
 
-        CoreModel.instance().set_labels(list(self._le.classes_))
+        AbstractModel.set_labels(list(self._le.classes_))
         Preprocessor._n_classes = len(list(self._le.classes_))
 
         return y_train, y_test
@@ -392,13 +392,13 @@ class Preprocessor:
         self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
     ) -> np.ndarray:
 
-        from model.coremodel import CoreModel
+        from model.coremodel import AbstractModel
 
-        Preprocessor.instance()._logger.info(f"Transforming {y_column} into 2D labels")
+        Preprocessor._logger.info(f"Transforming {y_column} into 2D labels")
         y_train = train_df[y_column].apply(self._le.transform)
         y_test = test_df[y_column].apply(self._le.transform)
 
-        CoreModel.instance().set_labels(list(self._le.classes_))
+        AbstractModel.instance().set_labels(list(self._le.classes_))
         Preprocessor._n_classes = len(list(self._le.classes_))
 
         return y_train, y_test
