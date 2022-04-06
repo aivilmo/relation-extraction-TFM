@@ -45,7 +45,8 @@ class Preprocessor:
         )
         Preprocessor._instance = self
 
-    def train_test_split(self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
+    def train_test_split(
+        self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
     ) -> np.ndarray:
         from core.featureshandler import FeaturesHandler
 
@@ -120,10 +121,7 @@ class Preprocessor:
         from ehealth.anntools import Collection
 
         collection = Collection().load_dir(path)
-        Preprocessor._logger.info(
-            f"Loaded {len(collection)} sentences for fitting."
-        )
-
+        Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
         df: pd.DataFrame = pd.DataFrame()
         index: int = 0
 
@@ -147,9 +145,7 @@ class Preprocessor:
                 index += 1
                 df = df.append(relation)
 
-        Preprocessor._logger.info(
-            f"Training completed: Stored {index} relation pairs."
-        )
+        Preprocessor._logger.info(f"Training completed: Stored {index} relation pairs.")
         return df
 
     @staticmethod
@@ -157,13 +153,12 @@ class Preprocessor:
         from ehealth.anntools import Collection
 
         collection = Collection().load_dir(path)
-        Preprocessor._logger.info(
-            f"Loaded {len(collection)} sentences for fitting."
-        )
+        Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
         Preprocessor._logger.info(f"process_content_as_IOB_format")
 
         df: pd.DataFrame = pd.DataFrame()
         index: int = 0
+        sentence_id: int = 0
 
         for sentence in collection.sentences:
             sentence_entities = {}
@@ -180,6 +175,7 @@ class Preprocessor:
                 tag = sentence_entities.get(word, ["O"])
                 word = pd.Series(
                     {
+                        "sentence_id": sentence_id,
                         "word": word,
                         "tag": max(set(tag), key=tag.count),
                         "sentence": sentence.text,
@@ -188,10 +184,9 @@ class Preprocessor:
                 )
                 index += 1
                 df = df.append(word)
+            sentence_id += 1
 
-        Preprocessor._logger.info(
-            f"Training completed: Stored {index} words."
-        )
+        Preprocessor._logger.info(f"Training completed: Stored {index} words.")
         return df
 
     @staticmethod
@@ -199,9 +194,7 @@ class Preprocessor:
         from ehealth.anntools import Collection
 
         collection = Collection().load_dir(path)
-        Preprocessor._logger.info(
-            f"Loaded {len(collection)} sentences for fitting."
-        )
+        Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
         Preprocessor._logger.info(f"process_content_as_BILUOV_format")
 
         df: pd.DataFrame = pd.DataFrame()
@@ -239,9 +232,7 @@ class Preprocessor:
                 index += 1
                 df = df.append(word)
 
-        Preprocessor._logger.info(
-            f"Training completed: Stored {index} words."
-        )
+        Preprocessor._logger.info(f"Training completed: Stored {index} words.")
         return df
 
     @staticmethod
@@ -252,9 +243,7 @@ class Preprocessor:
         from core.embeddinghandler import Embedding, TransformerEmbedding
 
         collection = Collection().load_dir(path)
-        Preprocessor._logger.info(
-            f"Loaded {len(collection)} sentences for fitting."
-        )
+        Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
         Preprocessor._logger.info(f"process_content_as_sentences")
 
         df: pd.DataFrame = pd.DataFrame()
@@ -295,9 +284,7 @@ class Preprocessor:
                 index += 1
                 df = df.append(word)
 
-        Preprocessor._logger.info(
-            f"Training completed: Stored {index} words."
-        )
+        Preprocessor._logger.info(f"Training completed: Stored {index} words.")
         return df
 
     @staticmethod
@@ -305,12 +292,10 @@ class Preprocessor:
         path: Path, transformer_type: str
     ) -> pd.DataFrame:
         from ehealth.anntools import Collection
-        from embeddinghandler import Embedding, TransformerEmbedding
+        from core.embeddinghandler import Embedding, TransformerEmbedding
 
         collection = Collection().load_dir(path)
-        Preprocessor._logger.info(
-            f"Loaded {len(collection)} sentences for fitting."
-        )
+        Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
         Preprocessor._logger.info(f"process_content_as_sentences_tensor")
 
         df: pd.DataFrame = pd.DataFrame()
@@ -348,9 +333,7 @@ class Preprocessor:
             index += 1
             df = df.append(serie)
 
-        Preprocessor._logger.info(
-            f"Training completed: Stored {index} sentences."
-        )
+        Preprocessor._logger.info(f"Training completed: Stored {index} sentences.")
         return df
 
     @staticmethod

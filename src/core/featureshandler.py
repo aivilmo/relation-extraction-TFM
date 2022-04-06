@@ -71,6 +71,9 @@ class FeaturesHandler:
         if "tokens" in self._features:
             self._feat_tokens(df, test=test)
             columns += ["word"]
+        if "seq2seq" in self._features:
+            self._feat_seq2seq(df)
+            return
         if (
             "distilbert-base-uncased" in self._features
             or "distilbert-base-cased" in self._features
@@ -181,6 +184,9 @@ class FeaturesHandler:
         df["word"] = df.word.apply(lambda x: self._tk.texts_to_sequences([x])[0])
         df["word"] = df.word.apply(lambda x: pad_sequences([x], maxlen=3)[0])
         FeaturesHandler._logger.info(f"Matriz features for emebdding: {df.word.shape}")
+
+    def _feat_seq2seq(self, df: pd.DataFrame) -> None:
+        df.rename(columns={"word": "words", "tag": "labels"}, inplace=True)
 
     def _feat_transformer(self, df: pd.DataFrame, type) -> None:
         if not Embedding.trained():

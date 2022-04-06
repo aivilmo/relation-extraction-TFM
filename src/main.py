@@ -48,6 +48,7 @@ class Main:
     def _handle_train(self, X_train, X_test, y_train, y_test) -> None:
         from model.coremodel import CoreModel
         from model.deepmodel import DeepModel
+        from model.coderencodermodel import CoderEncoderModel
 
         model_instance = None
         model = None
@@ -61,9 +62,17 @@ class Main:
         if self._args.dl_model is not None:
             model_instance = DeepModel.instance()
             model = self._args.dl_model
-        
+
+        # Train Sequence to Sequence Model
+        if self._args.s2s_model:
+            model_instance = CoderEncoderModel.instance()
+            model_instance.start_training(self._dataset_train, self._dataset_test)
+            return
+
         if model_instance is None:
-            Main._logger.warning("Need select a model, with args '--ml_model' or '--dl_model'")
+            Main._logger.warning(
+                "Need select a model, with args '--ml_model' or '--dl_model'"
+            )
             return
 
         model_instance.start_training(X_train, X_test, y_train, y_test, model)
@@ -90,7 +99,9 @@ class Main:
             )
 
         X_train, X_test, y_train, y_test = Preprocessor.instance().train_test_split(
-            self._dataset_train, self._dataset_test
+            self._dataset_train,
+            self._dataset_test,
+            y_column="sentence" if "seq2seq" in features else "tag",
         )
         FilesHandler.save_training_data(X_train, X_test, y_train, y_test, features)
         return X_train, X_test, y_train, y_test

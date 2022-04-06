@@ -53,12 +53,17 @@ class ArgsParser:
         model.add_argument(
             "--dl_model",
             action="store",
-            default="dense",
             choices=[
                 "dense",
                 "gru",
             ],
             help="Select DL model to train",
+        )
+
+        model.add_argument(
+            "--s2s_model",
+            action="store_true",
+            help="Select Sequence to Sequence model to train",
         )
 
         # Add a list of features to train the model
@@ -76,6 +81,7 @@ class ArgsParser:
                 "tf_idf",
                 "chars",
                 "tokens",
+                "seq2seq",
                 "distilbert-base-uncased",
                 "distilbert-base-cased",
                 "bert-base-uncased",

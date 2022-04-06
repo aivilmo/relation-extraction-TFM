@@ -53,7 +53,9 @@ class FilesHandler:
             # DEPRECATED
             else:
                 output_file += ".pkl"
-                df: pd.DataFrame = Preprocessor.process_content(path)
+                df: pd.DataFrame = Preprocessor.process_content(
+                    path, transformer_type=transformer_type
+                )
 
             df.to_pickle(output_file)
             print(df)
@@ -81,6 +83,7 @@ class FilesHandler:
     def load_datasets(transformer_type="") -> tuple[pd.DataFrame, pd.DataFrame]:
         def load_dataset(filename: str, transformer_type="") -> pd.DataFrame:
             if transformer_type != "":
+                transformer_type = transformer_type.replace("/", "_")
                 filename = filename + "_" + transformer_type + ".pkl"
             else:
                 filename = filename + "_IOB.pkl"
@@ -107,10 +110,20 @@ class FilesHandler:
         try:
             FilesHandler._logger.info(f"Loading training data...")
 
-            X_train = np.load(FilesHandler._output_X_train + "_" + features + ".npy")
-            X_test = np.load(FilesHandler._output_X_test + "_" + features + ".npy")
-            y_train = np.load(FilesHandler._output_y_train + "_" + features + ".npy")
-            y_test = np.load(FilesHandler._output_y_test + "_" + features + ".npy")
+            X_train = np.load(
+                FilesHandler._output_X_train + "_" + features + ".npy",
+                allow_pickle=True,
+            )
+            X_test = np.load(
+                FilesHandler._output_X_test + "_" + features + ".npy", allow_pickle=True
+            )
+            y_train = np.load(
+                FilesHandler._output_y_train + "_" + features + ".npy",
+                allow_pickle=True,
+            )
+            y_test = np.load(
+                FilesHandler._output_y_test + "_" + features + ".npy", allow_pickle=True
+            )
 
             FilesHandler._logger.info("Training data succesfully loaded")
             return X_train, X_test, y_train, y_test
@@ -144,5 +157,7 @@ class FilesHandler:
         except OSError as e:
             import sys
 
-            FilesHandler._logger.error(f'Cannot save file into a non-existent directory: {e.filename}')
+            FilesHandler._logger.error(
+                f"Cannot save file into a non-existent directory: {e.filename}"
+            )
             sys.exit()

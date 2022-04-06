@@ -21,6 +21,9 @@ unidecode = "*"
 dask = "*"
 seaborn = "*"
 googletrans = "*"
+black = "*"
+sentencepiece = "*"
+simpletransformers = "*"
 
 [dev-packages]
 black = "*"
