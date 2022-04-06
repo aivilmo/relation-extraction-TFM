@@ -24,9 +24,11 @@ googletrans = "*"
 black = "*"
 sentencepiece = "*"
 simpletransformers = "*"
+wandb = "*"
 
 [dev-packages]
 black = "*"
+torch-tb-profiler = "*"
 
 [requires]
 python_version = "3.9"

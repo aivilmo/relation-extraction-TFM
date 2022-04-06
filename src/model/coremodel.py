@@ -3,6 +3,7 @@ import numpy as np
 import time
 from model.abstractmodel import AbstractModel
 
+
 class CoreModel(AbstractModel):
 
     _instance = None
@@ -17,8 +18,38 @@ class CoreModel(AbstractModel):
         super().__init__()
         if CoreModel._instance is not None:
             raise Exception
-      
+
         CoreModel._instance = self
+
+    @classmethod
+    def start_training(
+        self,
+        X_train: np.ndarray,
+        X_test: np.ndarray,
+        y_train: np.ndarray,
+        y_test: np.ndarray,
+        model,
+    ) -> None:
+        import wandb
+
+        wandb.init(project="visualize-sklearn")
+
+        self.build(X=X_train, y=y_train, model=model)
+        self.train()
+        yhat = self._model.predict(X_test)
+
+        wandb.sklearn.plot_classifier(
+            self._model,
+            X_train,
+            X_test,
+            y_train,
+            y_test,
+            y_test,
+            yhat,
+            self._labels,
+            model_name=model,
+            feature_names=None,
+        )
 
     @classmethod
     def build(self, X: np.ndarray, y: np.ndarray, model, **kwargs) -> None:
@@ -26,22 +57,33 @@ class CoreModel(AbstractModel):
 
         if model == "svm":
             from sklearn.svm import LinearSVC
+
             self._model = LinearSVC(kwargs) if kwargs != {} else LinearSVC()
         if model == "perceptron":
             from sklearn.linear_model import Perceptron
+
             self._model = Perceptron(kwargs) if kwargs != {} else Perceptron()
         if model == "decisiontree":
             from sklearn.tree import DecisionTreeClassifier
-            self._model = DecisionTreeClassifier(kwargs) if kwargs != {} else DecisionTreeClassifier()
+
+            self._model = (
+                DecisionTreeClassifier(kwargs)
+                if kwargs != {}
+                else DecisionTreeClassifier()
+            )
         if model == "randomforest":
             from sklearn.ensemble import RandomForestClassifier
-            self._model = RandomForestClassifier(kwargs) if kwargs != {} else RandomForestClassifier()
 
+            self._model = (
+                RandomForestClassifier(kwargs)
+                if kwargs != {}
+                else RandomForestClassifier()
+            )
 
     @classmethod
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
         yhat = self._model.predict(X)
-        
+
         super().evaluate(yhat, y)
 
     @classmethod
