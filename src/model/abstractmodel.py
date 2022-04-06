@@ -5,6 +5,7 @@ import numpy as np
 
 from logger.logger import Logger
 
+
 class AbstractModel:
 
     _instance = None
@@ -27,7 +28,14 @@ class AbstractModel:
         AbstractModel._instance = self
 
     @classmethod
-    def start_training(self, X_train: np.ndarray, X_test: np.ndarray, y_train: np.ndarray, y_test:np.ndarray, model) -> None:
+    def start_training(
+        self,
+        X_train: np.ndarray,
+        X_test: np.ndarray,
+        y_train: np.ndarray,
+        y_test: np.ndarray,
+        model,
+    ) -> None:
         self.build(X=X_train, y=y_train, model=model)
         self.train()
         self.evaluate(X=X_test, y=y_test)
@@ -38,21 +46,19 @@ class AbstractModel:
         self._X = X
         self._y = y
         AbstractModel._logger.info(f"Model has built successfully")
-    
+
     @classmethod
     def train(self, **kwargs) -> None:
         self._logger.info("Training model...")
         start: float = time()
 
-        self._model.fit(
-            X=self._X, y=self._y
-        )
+        self._model.fit(X=self._X, y=self._y)
 
         end: float = time() - start
         self._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
 
     @classmethod
-    def evaluate(self, yhat: np.ndarray, y: np.ndarray) ->None:
+    def evaluate(self, yhat: np.ndarray, y: np.ndarray) -> None:
         from sklearn.metrics import (
             classification_report,
             confusion_matrix,
@@ -86,7 +92,7 @@ class AbstractModel:
         )
         return dict(zip(train_classes, class_weight))
 
-    # SOURCE: 
+    # SOURCE:
     # https://towardsdatascience.com/handling-class-imbalanced-data-using-a-loss-specifically-made-for-it-6e58fd65ffab
     @classmethod
     def compute_class_weight_imbalanced(self, beta: float = 0.9) -> np.ndarray:
