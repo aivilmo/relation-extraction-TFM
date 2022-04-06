@@ -1,10 +1,5 @@
 #!/usr/bin/env python
 
-from cgi import test
-from distutils.command.build import build
-from tkinter.tix import Tree
-from turtle import pen
-import numpy as np
 import pandas as pd
 
 from model.abstractmodel import AbstractModel
@@ -62,7 +57,7 @@ class CoderEncoderModel(AbstractModel):
 
         self._model = NERModel(
             model_type=model,
-            model_name=model + "-base",
+            model_name="outputs",
             args=model_args,
             use_cuda=False,
         )
@@ -85,7 +80,4 @@ class CoderEncoderModel(AbstractModel):
         self._logger.info(f"Testing model {self._model}")
 
         result, model_outputs, preds_list = self._model.eval_model(self._test_data)
-        print(model_outputs[0])
-        print(len(model_outputs))
-        print(preds_list[0])
-        print(result)
+        self._logger.info(result)
