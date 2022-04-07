@@ -35,18 +35,18 @@ class CoderEncoderModel(AbstractModel):
         test_df.rename(columns={"word": "words", "tag": "labels"}, inplace=True)
         self._labels = list(train_df.labels.unique())
 
-        self.build(train_df, test_df, model="roberta-base")
+        self.build(train_df, test_df)
         self.train()
         self.evaluate()
 
     @classmethod
-    def build(self, train_df: pd.DataFrame, test_df: pd.DataFrame, model: str) -> None:
+    def build(self, train_df: pd.DataFrame, test_df: pd.DataFrame) -> None:
         from simpletransformers.ner import NERArgs, NERModel
 
         self._train_data = train_df
         self._test_data = test_df
 
-        AbstractModel._logger.info(f"Building model {model}...")
+        AbstractModel._logger.info("Building model bert-base-multilingual-cased...")
 
         model_args = NERArgs()
         model_args.train_batch_size = 16
