@@ -35,7 +35,7 @@ class CoderEncoderModel(AbstractModel):
         test_df.rename(columns={"word": "words", "tag": "labels"}, inplace=True)
         self._labels = list(train_df.labels.unique())
 
-        self.build(train_df, test_df, model="roberta")
+        self.build(train_df, test_df, model="roberta-base")
         self.train()
         self.evaluate()
 
@@ -54,10 +54,15 @@ class CoderEncoderModel(AbstractModel):
         model_args.labels_list = self._labels
         model_args.save_best_model = True
         model_args.classification_report = True
+        model_args.num_train_epochs = 10
+        model_args.use_early_stopping = True
+        model_args.early_stopping_patience = 3
+        model_args.n_gpu = 8
+        model_args.overwrite_output_dir = True
 
         self._model = NERModel(
-            model_type=model,
-            model_name="outputs",
+            model_type="bert",
+            model_name="bert-base-multilingual-cased",
             args=model_args,
             use_cuda=False,
         )
@@ -79,5 +84,4 @@ class CoderEncoderModel(AbstractModel):
     def evaluate(self) -> None:
         self._logger.info(f"Testing model {self._model}")
 
-        result, model_outputs, preds_list = self._model.eval_model(self._test_data)
-        self._logger.info(result)
+        self._model.eval_model(self._test_data)
