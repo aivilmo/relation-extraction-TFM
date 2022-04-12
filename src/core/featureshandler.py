@@ -47,18 +47,13 @@ class FeaturesHandler:
         FeaturesHandler._logger.info(f"Handling features: " + ", ".join(self.features))
         columns = []
 
+        # NER features
         if "single_word_emb" in self._features:
             self._feat_single_word_emb(df)
             columns += ["word"]
         if "tf_idf" in self._features:
             self._feat_tf_idf(df, test=test)
             columns += ["word"]
-        if "with_entities" in self._features:
-            self._feat_with_tags(df, test)
-            columns += ["tag1"] + ["tag2"]
-        if "word_emb" in self._features:
-            self._feat_word_emb(df)
-            columns += ["word1"] + ["word2"]
         if "sent_emb" in self._features:
             self._feat_sent_emb(df)
             columns += ["sentence"]
@@ -88,6 +83,13 @@ class FeaturesHandler:
             or "gpt2" in self._features
         ):
             columns += ["vector"]
+        # RE fearures
+        if "with_entities" in self._features:
+            self._feat_with_tags(df, test)
+            columns += ["tag1"] + ["tag2"]
+        if "word_emb" in self._features:
+            self._feat_word_emb(df)
+            columns += ["word1"] + ["word2"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
         FeaturesHandler._logger.info(
@@ -108,9 +110,9 @@ class FeaturesHandler:
     @staticmethod
     def _feat_word_emb(df: pd.DataFrame) -> None:
         if not Embedding.trained():
-            tokens = Embedding.prepare_text_to_train(df)
+            # tokens = Embedding.prepare_text_to_train(df)
             WordEmbedding.instance().load_model()
-            WordEmbedding.instance().train_word_embedding(tokens)
+            # WordEmbedding.instance().train_word_embedding(tokens)
 
         df["word1"] = df.word1.apply(
             lambda x: WordEmbedding.instance().words_to_vector(x.split())

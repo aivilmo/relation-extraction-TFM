@@ -71,7 +71,7 @@ class ArgsParser:
             "--features",
             nargs="+",
             action="store",
-            default="PlanTL-GOB-ES/roberta-base-biomedical-clinical-es",
+            default=["PlanTL-GOB-ES/roberta-base-biomedical-clinical-es"],
             choices=[
                 "with_entities",
                 "sent_emb",
@@ -113,6 +113,15 @@ class ArgsParser:
             default=None,
             choices=["oversampling", "undersampling", "both"],
             help="Select the sampling strategy for fight against imbalance of data.",
+        )
+
+        # Select NER, RE or both
+        parser.add_argument(
+            "--task",
+            action="store",
+            default="RE",  # Now we are goingo to train with task B
+            choices=["both", "NER", "RE"],
+            help="Select the task you want to do",
         )
 
         return parser.parse_args()

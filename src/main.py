@@ -81,6 +81,13 @@ class Main:
         from utils.fileshandler import FilesHandler
         from core.preprocess import Preprocessor
 
+        def get_y_column() -> str:
+            if self._args.task == "RE":
+                return "relation"
+            if self._args.s2s_model:
+                return "sentence"
+            return "tag"
+
         features: str = "_".join(self._args.features)
         transformer_type = features if "bert" in features else ""
         features = features.replace("/", "_")
@@ -101,7 +108,7 @@ class Main:
         X_train, X_test, y_train, y_test = Preprocessor.instance().train_test_split(
             self._dataset_train,
             self._dataset_test,
-            y_column="sentence" if "seq2seq" in features else "tag",
+            y_column=get_y_column(),
         )
         FilesHandler.save_training_data(X_train, X_test, y_train, y_test, features)
         return X_train, X_test, y_train, y_test

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from pathlib import Path
+from click import password_option
 import pandas as pd
 import numpy as np
 
@@ -18,6 +19,7 @@ class FilesHandler:
     _output_X_test: str = "data\\X_dev_train"
     _output_y_train: str = "data\\y_ref_train"
     _output_y_test: str = "data\\y_dev_train"
+    _task: str = "scenario3-taskB"
 
     _logger = Logger.instance()
 
@@ -36,12 +38,20 @@ class FilesHandler:
         ) -> pd.DataFrame:
 
             FilesHandler._logger.info("Generating DataFrame...")
-            if transformer_type != "":
+            if as_IOB and transformer_type != "":
+                df: pd.DataFrame = Preprocessor.process_content_as_IOB_with_relations(
+                    path, transformer_type=transformer_type
+                )
+                transformer_type = transformer_type.replace("/", "_")
+                output_file += "_" + transformer_type + "_sent.pkl"
+
+            elif transformer_type != "":
                 df: pd.DataFrame = Preprocessor.process_content_as_sentences(
                     path, transformer_type=transformer_type
                 )
                 transformer_type = transformer_type.replace("/", "_")
                 output_file += "_" + transformer_type + ".pkl"
+
             elif as_IOB:
                 df: pd.DataFrame = Preprocessor.process_content_as_IOB_format(path)
                 output_file += "_IOB.pkl"
@@ -50,12 +60,6 @@ class FilesHandler:
             elif as_BILUOV:
                 df: pd.DataFrame = Preprocessor.process_content_as_BILUOV_format(path)
                 output_file += "_BILUOV.pkl"
-            # DEPRECATED
-            else:
-                output_file += ".pkl"
-                df: pd.DataFrame = Preprocessor.process_content(
-                    path, transformer_type=transformer_type
-                )
 
             df.to_pickle(output_file)
             print(df)
@@ -72,7 +76,9 @@ class FilesHandler:
             as_BILUOV=as_BILUOV,
             transformer_type=transformer_type,
         ), generate_dataset(
-            path=Path(FilesHandler._path_eval + "\\training\\scenario2-taskA\\"),
+            path=Path(
+                FilesHandler._path_eval + "\\training\\" + FilesHandler._task + "\\"
+            ),
             output_file=FilesHandler._output_test,
             as_IOB=as_IOB,
             as_BILUOV=as_BILUOV,
@@ -81,10 +87,15 @@ class FilesHandler:
 
     @staticmethod
     def load_datasets(transformer_type="") -> tuple[pd.DataFrame, pd.DataFrame]:
-        def load_dataset(filename: str, transformer_type="") -> pd.DataFrame:
+        def load_dataset(
+            filename: str, transformer_type="", as_IOB: bool = True
+        ) -> pd.DataFrame:
             if transformer_type != "":
                 transformer_type = transformer_type.replace("/", "_")
-                filename = filename + "_" + transformer_type + ".pkl"
+                if as_IOB:
+                    filename = filename + "_" + transformer_type + "_sent.pkl"
+                else:
+                    filename = filename + "_" + transformer_type + ".pkl"
             else:
                 filename = filename + "_IOB.pkl"
 

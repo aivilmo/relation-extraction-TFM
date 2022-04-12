@@ -30,19 +30,7 @@ class Preprocessor:
             raise Exception
 
         self._le = LabelEncoder()
-        self._le.fit(
-            [
-                "B-Action",
-                "B-Concept",
-                "B-Predicate",
-                "B-Reference",
-                "I-Action",
-                "I-Concept",
-                "I-Predicate",
-                "I-Reference",
-                "O",
-            ]
-        )
+
         Preprocessor._instance = self
 
     def train_test_split(
@@ -51,7 +39,7 @@ class Preprocessor:
         from core.featureshandler import FeaturesHandler
 
         # Transform labels
-        y_train, y_test = self.encode_labels(train_df, test_df)
+        y_train, y_test = self.encode_labels(train_df, test_df, y_column=y_column)
 
         train_df.drop(y_column, axis=1, inplace=True)
         test_df.drop(y_column, axis=1, inplace=True)
@@ -146,6 +134,84 @@ class Preprocessor:
                 df = df.append(relation)
 
         Preprocessor._logger.info(f"Training completed: Stored {index} relation pairs.")
+        return df
+
+    @staticmethod
+    def process_content_as_IOB_with_relations(
+        path: Path,
+        transformer_type: str,
+    ) -> pd.DataFrame:
+        from ehealth.anntools import Collection
+        from core.embeddinghandler import Embedding, TransformerEmbedding
+        import itertools
+
+        collection = Collection().load_dir(path)
+        Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
+        Preprocessor._logger.info(f"process_content_as_IOB_with_relations")
+
+        df: pd.DataFrame = pd.DataFrame()
+        index: int = 0
+        sent: int = 1
+
+        if not Embedding.trained():
+            TransformerEmbedding.instance().build_transformer(type=transformer_type)
+
+        for sentence in collection.sentences:
+            prep_sent = Preprocessor.preprocess(sentence.text).split()
+            relation_pairs = {}
+            sentence_entities = {}
+            for relation in sentence.relations:
+                from_relation = Preprocessor.preprocess(
+                    relation.from_phrase.text
+                ).split()
+                for i in range(len(from_relation)):
+                    tag = "B-" if i == 0 else "I-"
+                    tag = tag + relation.from_phrase.label
+                    if i != 0:
+                        break
+                    from_word = from_relation[i]
+                    from_entity = tag
+                    sentence_entities[from_relation[i]] = tag
+
+                to_relation = Preprocessor.preprocess(relation.to_phrase.text).split()
+                for i in range(len(to_relation)):
+                    tag = "B-" if i == 0 else "I-"
+                    tag = tag + relation.to_phrase.label
+                    if i != 0:
+                        break
+                    to_word = to_relation[i]
+                    to_entity = tag
+                    sentence_entities[to_relation[i]] = tag
+
+                relation_pairs[
+                    (from_word, from_entity, to_word, to_entity)
+                ] = relation.label
+
+            for i, j in itertools.permutations([i for i in range(len(prep_sent))], 2):
+                from_word, to_word = prep_sent[i], prep_sent[j]
+                from_entity = sentence_entities.get(from_word, "O")
+                to_entity = sentence_entities.get(to_word, "O")
+                relation = relation_pairs.get(
+                    (from_word, from_entity, to_word, to_entity), "O"
+                )
+                relation = pd.Series(
+                    {
+                        "word1": from_word,
+                        "tag1": from_entity,
+                        "word2": to_word,
+                        "tag2": to_entity,
+                        "relation": relation,
+                    },
+                    name=index,
+                )
+                index += 1
+                df = df.append(relation)
+
+            sent += 1
+            Preprocessor._logger.info(f"Finished sentence {sent} of {len(collection)}")
+
+        print(df.relation.value_counts())
+        Preprocessor._logger.info(f"Training completed: Stored {index} words.")
         return df
 
     @staticmethod
