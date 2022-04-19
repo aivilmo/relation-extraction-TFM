@@ -88,7 +88,7 @@ class Preprocessor:
         import unidecode
 
         unaccented_string = unidecode.unidecode(text)
-        alphanumeric_text = re.sub("[^0-9a-zA-Z]+", " ", unaccented_string)
+        alphanumeric_text = re.sub("[^0-9a-zA-Z-/:]+", " ", unaccented_string)
         tokens = alphanumeric_text.lower().split()
 
         if without_stopwords:
@@ -243,6 +243,7 @@ class Preprocessor:
                     {
                         "sentence_id": sentence_id,
                         "word": word,
+                        "original_token": word,
                         "tag": max(set(tag), key=tag.count),
                         "sentence": sentence.text,
                     },
@@ -319,7 +320,12 @@ class Preprocessor:
             TransformerEmbedding.instance().build_transformer(type=transformer_type)
 
         for sentence in collection.sentences:
-            prep_sent = Preprocessor.preprocess(sentence.text)
+            prep_sent = (
+                (Preprocessor.preprocess(sentence.text))
+                .replace(".", "")
+                .replace(",", "")
+                .strip()
+            )
             if as_id:
                 sent = TransformerEmbedding.instance().tokenize_input_ids(prep_sent)
             else:
@@ -336,14 +342,24 @@ class Preprocessor:
                         if j != 0:
                             break
                         sentence_entities[entity_word[j]] = tag
+
+            token_pos: int = 0
+            original_sent: list = (
+                sentence.text.replace(".", " ").replace(",", " ").split()
+            )
             for i in range(len(tokenized_sent)):
-                tag = sentence_entities.get(tokenized_sent[i], "O")
+                token: str = tokenized_sent[i]
+                if token.startswith("Ġ"):
+                    original_token: str = original_sent[token_pos]
+                    token_pos += 1
+                tag = sentence_entities.get(token, "O")
                 word = pd.Series(
                     {
-                        "token": tokenized_sent[i],
+                        "token": token,
+                        "original_token": original_token,
                         "vector": sent[i + 1],
                         "tag": tag,
-                        "sentence": prep_sent,
+                        "sentence": sentence.text,
                     },
                     name=index,
                 )

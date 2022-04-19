@@ -39,6 +39,8 @@ class Main:
             self._handle_visualizations()
         if self._args.train:
             self._handle_train(X_train, X_test, y_train, y_test)
+        if self._args.export:
+            self._handle_export()
 
     def _handle_visualizations(self) -> None:
         from utils.visualizationhandler import VisualizationHandler
@@ -76,6 +78,20 @@ class Main:
             return
 
         model_instance.start_training(X_train, X_test, y_train, y_test, model)
+
+    def _handle_export(self) -> None:
+        from utils.postprocess import PostProcessor
+        from utils.fileshandler import FilesHandler
+
+        features: str = "_".join(self._args.features)
+        transformer_type = features if "bert" in features else ""
+        features = features.replace("/", "_")
+
+        _, self._dataset_test = FilesHandler.load_datasets(
+            transformer_type=transformer_type
+        )
+
+        PostProcessor.export_data_to_file(self._dataset_test)
 
     def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
         from utils.fileshandler import FilesHandler

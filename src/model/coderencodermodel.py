@@ -38,6 +38,7 @@ class CoderEncoderModel(AbstractModel):
         self.build(train_df, test_df)
         self.train()
         self.evaluate()
+        self.export_results()
 
     @classmethod
     def build(self, train_df: pd.DataFrame, test_df: pd.DataFrame) -> None:

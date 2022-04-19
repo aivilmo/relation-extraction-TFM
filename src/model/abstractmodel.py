@@ -24,6 +24,7 @@ class AbstractModel:
 
         self._X: np.ndarray = None
         self._y: np.ndarray = None
+        self._yhat: np.ndarray = None
 
         AbstractModel._instance = self
 
@@ -39,6 +40,7 @@ class AbstractModel:
         self.build(X=X_train, y=y_train, model=model)
         self.train()
         self.evaluate(X=X_test, y=y_test)
+        self.export_results()
 
     @classmethod
     def build(self, X: np.ndarray, y: np.ndarray) -> None:
@@ -67,15 +69,32 @@ class AbstractModel:
         import matplotlib.pyplot as plt
 
         self._logger.info(f"Testing model {self._model}")
+        self._yhat = yhat
 
         self._logger.info("Classification report:")
-        print(classification_report(y, yhat))
+        print(classification_report(y, self._yhat))
 
         self._logger.info("Confusion matrix:")
-        cm = confusion_matrix(y, yhat)
+        cm = confusion_matrix(y, self._yhat)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot()
         plt.show()
+
+    @classmethod
+    def export_results(self) -> None:
+        from sklearn.preprocessing import LabelEncoder
+        import pandas as pd
+        from utils.fileshandler import FilesHandler
+        from main import Main
+
+        transformer: str = "_".join(Main.instance()._args.features)
+        train, test = FilesHandler.load_datasets(transformer_type=transformer)
+
+        le = LabelEncoder()
+        le.fit(test.tag.values)
+        test["predicted_tag"] = le.inverse_transform(self._yhat)
+
+        FilesHandler.save_datasets(train, test, transformer_type=transformer)
 
     @classmethod
     def compute_sample_weight(self) -> dict:
@@ -129,7 +148,6 @@ class AbstractModel:
         print("Oversampling data...")
 
         over_sampler = RandomOverSampler(sampling_strategy="minority")
-
         self._X, self._y = over_sampler.fit_resample(self._X, self._y)
 
     @classmethod

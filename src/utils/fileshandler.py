@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from msilib.schema import File
 from pathlib import Path
 from click import password_option
 import pandas as pd
@@ -19,7 +20,7 @@ class FilesHandler:
     _output_X_test: str = "data\\X_dev_train"
     _output_y_train: str = "data\\y_ref_train"
     _output_y_test: str = "data\\y_dev_train"
-    _task: str = "scenario3-taskB"
+    _task: str = "scenario2-taskA"
 
     _logger = Logger.instance()
 
@@ -38,7 +39,7 @@ class FilesHandler:
         ) -> pd.DataFrame:
 
             FilesHandler._logger.info("Generating DataFrame...")
-            if as_IOB and transformer_type != "":
+            if "taskB" in FilesHandler._task:
                 df: pd.DataFrame = Preprocessor.process_content_as_IOB_with_relations(
                     path, transformer_type=transformer_type
                 )
@@ -92,7 +93,7 @@ class FilesHandler:
         ) -> pd.DataFrame:
             if transformer_type != "":
                 transformer_type = transformer_type.replace("/", "_")
-                if as_IOB:
+                if "taskB" in FilesHandler._task:
                     filename = filename + "_" + transformer_type + "_sent.pkl"
                 else:
                     filename = filename + "_" + transformer_type + ".pkl"
@@ -112,6 +113,22 @@ class FilesHandler:
         return load_dataset(FilesHandler._output_train, transformer_type), load_dataset(
             FilesHandler._output_test, transformer_type
         )
+
+    @staticmethod
+    def save_datasets(
+        train_dataset: pd.DataFrame,
+        test_dataset: pd.DataFrame,
+        transformer_type: str = "",
+    ) -> None:
+        if transformer_type != "":
+            transformer_type = transformer_type.replace("/", "_")
+            train_dataset.to_pickle(
+                FilesHandler._output_train + "_" + transformer_type + ".pkl"
+            )
+            test_dataset.to_pickle(
+                FilesHandler._output_test + "_" + transformer_type + ".pkl"
+            )
+        FilesHandler._logger.info(f"Datasets successfully saved")
 
     @staticmethod
     def load_training_data(

@@ -124,4 +124,11 @@ class ArgsParser:
             help="Select the task you want to do",
         )
 
+        # Export results to ann file
+        parser.add_argument(
+            "--export",
+            action="store_true",
+            help="Select if you want to export results to ann file",
+        )
+
         return parser.parse_args()
