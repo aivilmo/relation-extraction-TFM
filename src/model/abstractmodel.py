@@ -83,18 +83,19 @@ class AbstractModel:
     @classmethod
     def export_results(self) -> None:
         from sklearn.preprocessing import LabelEncoder
-        import pandas as pd
         from utils.fileshandler import FilesHandler
         from main import Main
 
         transformer: str = "_".join(Main.instance()._args.features)
-        train, test = FilesHandler.load_datasets(transformer_type=transformer)
+        train, test = FilesHandler.instance().load_datasets(
+            transformer_type=transformer
+        )
 
         le = LabelEncoder()
         le.fit(test.tag.values)
         test["predicted_tag"] = le.inverse_transform(self._yhat)
 
-        FilesHandler.save_datasets(train, test, transformer_type=transformer)
+        FilesHandler.instance().save_datasets(train, test, transformer_type=transformer)
 
     @classmethod
     def compute_sample_weight(self) -> dict:

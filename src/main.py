@@ -5,11 +5,13 @@ import numpy as np
 
 from core.featureshandler import FeaturesHandler
 from logger.logger import Logger
+from utils.fileshandler import FilesHandler
 
 
 class Main:
 
     _instance = None
+
     _logger = Logger.instance()
 
     @staticmethod
@@ -32,6 +34,7 @@ class Main:
 
     def main(self) -> None:
         FeaturesHandler.instance().features = self._args.features
+        FilesHandler(self._args.task)
 
         X_train, X_test, y_train, y_test = self._get_datasets()
 
@@ -81,20 +84,18 @@ class Main:
 
     def _handle_export(self) -> None:
         from utils.postprocess import PostProcessor
-        from utils.fileshandler import FilesHandler
 
         features: str = "_".join(self._args.features)
         transformer_type = features if "bert" in features else ""
         features = features.replace("/", "_")
 
-        _, self._dataset_test = FilesHandler.load_datasets(
+        _, self._dataset_test = FilesHandler.instance().load_datasets(
             transformer_type=transformer_type
         )
 
         PostProcessor.export_data_to_file(self._dataset_test)
 
     def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
-        from utils.fileshandler import FilesHandler
         from core.preprocess import Preprocessor
 
         def get_y_column() -> str:
@@ -108,16 +109,19 @@ class Main:
         transformer_type = features if "bert" in features else ""
         features = features.replace("/", "_")
 
-        self._dataset_train, self._dataset_test = FilesHandler.load_datasets(
+        self._dataset_train, self._dataset_test = FilesHandler.instance().load_datasets(
             transformer_type=transformer_type
         )
 
         if self._args.load:
-            return FilesHandler.load_training_data(features)
+            return FilesHandler.instance().load_training_data(features)
 
         if self._dataset_train is None:
             Main._logger.warning(f"Datasets not found, generating for {features}")
-            self._dataset_train, self._dataset_test = FilesHandler.generate_datasets(
+            (
+                self._dataset_train,
+                self._dataset_test,
+            ) = FilesHandler.instance().generate_datasets(
                 transformer_type=transformer_type
             )
 
@@ -126,7 +130,9 @@ class Main:
             self._dataset_test,
             y_column=get_y_column(),
         )
-        FilesHandler.save_training_data(X_train, X_test, y_train, y_test, features)
+        FilesHandler.instance().save_training_data(
+            X_train, X_test, y_train, y_test, features
+        )
         return X_train, X_test, y_train, y_test
 
 

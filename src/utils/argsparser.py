@@ -119,8 +119,8 @@ class ArgsParser:
         parser.add_argument(
             "--task",
             action="store",
-            default="RE",  # Now we are goingo to train with task B
-            choices=["both", "NER", "RE"],
+            default="scenario2-taskA",  # Now we are goingo to train with task B
+            choices=["scenario1-main", "scenario2-taskA", "scenario3-taskB"],
             help="Select the task you want to do",
         )
 
