@@ -89,7 +89,14 @@ class Preprocessor:
 
         unaccented_string = unidecode.unidecode(text)
         alphanumeric_text = re.sub("[^0-9a-zA-Z-/:]+", " ", unaccented_string)
-        tokens = alphanumeric_text.lower().split()
+        without_accents = (
+            alphanumeric_text.replace("á", "a")
+            .replace("é", "e")
+            .replace("í", "i")
+            .replace("ó", "o")
+            .replace("ú", "u")
+        )
+        tokens = without_accents.lower().split()
 
         if without_stopwords:
             stop_words = set(stopwords.words("spanish"))
@@ -303,11 +310,11 @@ class Preprocessor:
         return df
 
     @staticmethod
-    def process_content_as_sentences(
-        path: Path, transformer_type: str, as_id: bool = False
-    ) -> pd.DataFrame:
+    def process_content_as_sentences(path: Path, transformer_type: str) -> pd.DataFrame:
         from ehealth.anntools import Collection
         from core.embeddinghandler import Embedding, TransformerEmbedding
+
+        from collections import defaultdict
 
         collection = Collection().load_dir(path)
         Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
@@ -326,33 +333,38 @@ class Preprocessor:
                 .replace(",", "")
                 .strip()
             )
-            if as_id:
-                sent = TransformerEmbedding.instance().tokenize_input_ids(prep_sent)
-            else:
-                sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
+
+            sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
             tokenized_sent = TransformerEmbedding.instance().tokenize(prep_sent)
-            sentence_entities = {}
+            sentence_entities = defaultdict(lambda: [])
+            if sentence.keyphrases == []:
+                continue
             for keyphrase in sentence.keyphrases:
                 entities = keyphrase.text.split()
                 for i in range(len(entities)):
-                    entity_word = TransformerEmbedding.instance().tokenize(entities[i])
+                    prep_entity = Preprocessor.preprocess(entities[i])
+                    entity_word = TransformerEmbedding.instance().tokenize(prep_entity)
                     tag = "B-" if i == 0 else "I-"
                     tag = tag + keyphrase.label
                     for j in range(len(entity_word)):
                         if j != 0:
                             break
-                        sentence_entities[entity_word[j]] = tag
+                        sentence_entities[entity_word[j]].append(tag)
 
             token_pos: int = 0
             original_sent: list = (
                 sentence.text.replace(".", " ").replace(",", " ").split()
             )
+
             for i in range(len(tokenized_sent)):
                 token: str = tokenized_sent[i]
                 if token.startswith("Ġ"):
                     original_token: str = original_sent[token_pos]
                     token_pos += 1
-                tag = sentence_entities.get(token, "O")
+                if sentence_entities[token] == []:
+                    tag = "O"
+                else:
+                    tag = sentence_entities[token].pop(0)
                 word = pd.Series(
                     {
                         "token": token,

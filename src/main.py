@@ -93,7 +93,7 @@ class Main:
             transformer_type=transformer_type
         )
 
-        PostProcessor.export_data_to_file(self._dataset_test)
+        PostProcessor.instance().export_data_to_file(self._dataset_test)
 
     def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
         from core.preprocess import Preprocessor

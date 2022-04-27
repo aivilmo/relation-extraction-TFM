@@ -44,6 +44,8 @@ class FilesHandler:
     def try_to_save_dataframe(df: pd.DataFrame, output_file: str) -> bool:
         try:
             df.to_pickle(output_file)
+            to_csv = df.drop("vector", axis=1, inplace=False)
+            to_csv.to_csv(output_file.replace(".pkl", ".csv"), sep="\t")
         except OSError as e:
             FilesHandler._logger.error(e)
             return False
@@ -65,14 +67,13 @@ class FilesHandler:
             FilesHandler._logger.error("Creation of directory has failed")
             sys.exit()
 
-    @staticmethod
-    def catch_error_loading_data(features: str, e: Exception) -> None:
+    def catch_error_loading_data(self, features: str, e: Exception) -> None:
         FilesHandler._logger.error(e)
         FilesHandler._logger.error(
             f"Need to generate training files for features: {features}"
         )
         FilesHandler._logger.error(
-            f"Run: 'python .\main.py --generate --features {features} --task {FilesHandler._task}'"
+            f"Run: 'python .\main.py --generate --features {features} --task {self._task}'"
         )
         sys.exit()
 
@@ -200,7 +201,7 @@ class FilesHandler:
             return X_train, X_test, y_train, y_test
 
         except (FileNotFoundError, OSError) as e:
-            FilesHandler.catch_error_loading_data(features, e)
+            self.catch_error_loading_data(features, e)
 
     def save_training_data(
         self,
