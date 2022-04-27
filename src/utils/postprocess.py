@@ -57,37 +57,27 @@ class PostProcessor:
         sentence_offset: int = 0
         pos_end: int = 0
 
-        sentences: list = [dataset_test.sentence.values[0]]
+        last_sentence: str = dataset_test.sentence.values[0]
+        sentences: list = [last_sentence]
         last_words: list = []
         last_positions: list = []
 
         last_token: str = dataset_test.original_token.values[0]
-        pos_init: int = dataset_test.sentence.values[0].find(last_token)
+        pos_init: int = last_sentence.find(last_token)
         last_pos: str = str(pos_init) + " " + str(pos_init + len(last_token))
         last_tag: str = (
             dataset_test.predicted_tag.values[0].replace("I-", "").replace("B-", "")
         )
 
-        j = 0
         for i, row in dataset_test.iterrows():
             if i == 0:
                 continue
             if row.sentence not in sentences:
                 sentences.append(row.sentence)
-                sentence_offset += len(row.sentence)
-                j += 1
-                if j == 2:
-                    break
+                sentence_offset += len(last_sentence) + 1
             tag: str = row.predicted_tag.replace("I-", "").replace("B-", "")
-            pos_init: int = (
-                row.sentence.find(row.original_token, pos_end) + sentence_offset
-            )
-
-            print(row.sentence)
-            print(last_token)
-            print(row.sentence.find(row.original_token, pos_end) + sentence_offset)
-
-            pos_end: int = pos_init + len(row.original_token)
+            pos_init: int = row.sentence.find(row.original_token) + sentence_offset
+            pos_end = pos_init + len(row.original_token)
             pos: str = str(pos_init) + " " + str(pos_end)
 
             # If the last part was fist part the current part too, we clean our parts
@@ -106,6 +96,7 @@ class PostProcessor:
             last_token = row.original_token
             last_pos = pos
             last_tag = tag
+            last_sentence = row.sentence
             last_words, last_positions = [], []
 
         print(df[0:40])
