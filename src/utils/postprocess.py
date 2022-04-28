@@ -47,7 +47,7 @@ class PostProcessor:
         df: pd.DataFrame = pd.DataFrame()
 
         dataset_test = dataset_test[dataset_test.predicted_tag != "O"]
-        print(dataset_test[0:55])
+        print(dataset_test)
         dataset_test = dataset_test.append(dataset_test.iloc[-1])
 
         PostProcessor._logger.info(
@@ -59,7 +59,6 @@ class PostProcessor:
         pos_end: int = 0
 
         last_sentence: str = dataset_test.sentence.values[0]
-        sentences: list = [last_sentence]
         last_words: list = []
         last_positions: list = []
 
@@ -73,13 +72,18 @@ class PostProcessor:
         for i, row in dataset_test.iterrows():
             if i == 0:
                 continue
-            if row.sentence not in sentences:
-                sentences.append(row.sentence)
+            if row.sentence != last_sentence:
                 sentence_offset += len(last_sentence) + 1
+                pos_end = 0
+
             tag: str = row.predicted_tag.replace("I-", "").replace("B-", "")
-            pos_init: int = row.sentence.find(row.original_token) + sentence_offset
+            pos_init: int = (
+                row.sentence.find(row.original_token, pos_end) + sentence_offset
+            )
+
             pos_end = pos_init + len(row.original_token)
             pos: str = str(pos_init) + " " + str(pos_end)
+            pos_end = pos_end - sentence_offset
 
             # If the last part was fist part the current part too, we clean our parts
             current_is_first_part: bool = "B-" in row.predicted_tag
@@ -100,7 +104,7 @@ class PostProcessor:
             last_sentence = row.sentence
             last_words, last_positions = [], []
 
-        print(df[0:40])
+        print(df)
 
         PostProcessor._logger.info("Output data successfully exported")
         PostProcessor.save_output_file(df)
