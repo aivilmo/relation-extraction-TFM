@@ -48,6 +48,7 @@ class PostProcessor:
 
         dataset_test = dataset_test[dataset_test.predicted_tag != "O"]
         print(dataset_test[0:55])
+        dataset_test = dataset_test.append(dataset_test.iloc[-1])
 
         PostProcessor._logger.info(
             f"Exporting output.ann data for task {PostProcessor._task}, run {PostProcessor._run} and dataset {PostProcessor._dataset}"
