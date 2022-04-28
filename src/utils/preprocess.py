@@ -54,7 +54,7 @@ class Preprocessor:
     def data_iterator(
         df: pd.DataFrame, chunk_size: int = 1500, y_column: str = "tag"
     ) -> np.ndarray:
-        from featureshandler import FeaturesHandler
+        from core.featureshandler import FeaturesHandler
         import dask.dataframe as dd
         from dask import delayed, compute
 
@@ -515,7 +515,7 @@ class Preprocessor:
                 synsets += synset.lemma_names("fra")
             return synsets
 
-        from embeddinghandler import Embedding, TransformerEmbedding
+        from core.embeddinghandler import Embedding, TransformerEmbedding
 
         Logger.instance().info(
             f"Starting data augmentation for the {last_n_classes}th least represented classes"
