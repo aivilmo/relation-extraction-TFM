@@ -8,8 +8,6 @@ from logger.logger import Logger
 class PostProcessor:
 
     _instance = None
-    _run = "run1"
-    _task = "scenario2-taskA"
     _dataset = "training"
 
     _logger = Logger.instance()
@@ -20,9 +18,12 @@ class PostProcessor:
             PostProcessor()
         return PostProcessor._instance
 
-    def __init__(self) -> None:
+    def __init__(self, run: int, task: str) -> None:
         if PostProcessor._instance is not None:
             raise Exception
+
+        self._run = "run" + run
+        self._task = task
 
         PostProcessor._instance = self
 
@@ -51,7 +52,7 @@ class PostProcessor:
         dataset_test = dataset_test.append(dataset_test.iloc[-1])
 
         PostProcessor._logger.info(
-            f"Exporting output.ann data for task {PostProcessor._task}, run {PostProcessor._run} and dataset {PostProcessor._dataset}"
+            f"Exporting output.ann data for task {self._task}, run {self._run} and dataset {PostProcessor._dataset}"
         )
 
         index: int = 1
@@ -107,19 +108,18 @@ class PostProcessor:
         print(df)
 
         PostProcessor._logger.info("Output data successfully exported")
-        PostProcessor.save_output_file(df)
+        self.save_output_file(df)
 
-    @staticmethod
-    def save_output_file(df: pd.DataFrame) -> None:
+    def save_output_file(self, df: pd.DataFrame) -> None:
         from pathlib import Path
 
         output_dir = Path(
             "C:\\Users\\Aitana V\\Desktop\\UNIVERSIDAD\\UNED\\TFM\\relation-extraction-TFM\\dataset\\ehealthkd_CONCEPT_ACT_PRED_relaciones\\2021\\submissions\\baseline\\"
             + PostProcessor._dataset
             + "\\"
-            + PostProcessor._run
+            + self._run
             + "\\"
-            + PostProcessor._task
+            + self._task
             + "\\"
         )
         output_dir.mkdir(parents=True, exist_ok=True)

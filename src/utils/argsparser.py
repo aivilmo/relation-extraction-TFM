@@ -124,6 +124,15 @@ class ArgsParser:
             help="Select the task you want to do",
         )
 
+        # Select directory on save the output file
+        parser.add_argument(
+            "--run",
+            action="store",
+            default="1",
+            choices=["1", "2", "3"],
+            help="Select the directory number to export the ann file results",
+        )
+
         # Export results to ann file
         parser.add_argument(
             "--export",

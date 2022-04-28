@@ -93,6 +93,7 @@ class Main:
             transformer_type=transformer_type
         )
 
+        PostProcessor(self._args.run, self._args.task)
         PostProcessor.instance().export_data_to_file(self._dataset_test)
 
     def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
