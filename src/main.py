@@ -96,7 +96,7 @@ class Main:
         PostProcessor.instance().export_data_to_file(self._dataset_test)
 
     def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
-        from core.preprocess import Preprocessor
+        from utils.preprocess import Preprocessor
 
         def get_y_column() -> str:
             if self._args.task == "RE":

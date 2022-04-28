@@ -30,7 +30,7 @@ class DeepModel(AbstractModel):
         return DeepModel._instance
 
     def __init__(self) -> None:
-        super().__init__()  
+        super().__init__()
         if DeepModel._instance is not None:
             raise Exception
 
@@ -41,12 +41,18 @@ class DeepModel(AbstractModel):
         DeepModel._instance = self
 
     @classmethod
-    def start_training(self, X_train: np.ndarray, X_test: np.ndarray, y_train: np.ndarray, y_test:np.ndarray, model) -> None:
-        from core.preprocess import Preprocessor
+    def start_training(
+        self,
+        X_train: np.ndarray,
+        X_test: np.ndarray,
+        y_train: np.ndarray,
+        y_test: np.ndarray,
+        model,
+    ) -> None:
+        from utils.preprocess import Preprocessor
 
         y_train, y_test = Preprocessor.instance().prepare_labels(y_train, y_test)
         super().start_training(X_train, X_test, y_train, y_test, model)
-
 
     @classmethod
     def build(self, X: np.ndarray, y: np.ndarray, model, **kwargs) -> None:
@@ -152,6 +158,7 @@ class DeepModel(AbstractModel):
             self._loss = tf.keras.losses.BinaryCrossentropy()
         if loss == "sigmoid_focal_crossentropy":
             import tensorflow_addons as tfa
+
             self._loss = tfa.losses.SigmoidFocalCrossEntropy(alpha=0.20, gamma=2.0)
 
         self._optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)

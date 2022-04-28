@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 
 from logger.logger import Logger
-from core.preprocess import Preprocessor
+from utils.preprocess import Preprocessor
 
 
 class FilesHandler:
