@@ -150,7 +150,6 @@ class Preprocessor:
     ) -> pd.DataFrame:
         from ehealth.anntools import Collection
         from core.embeddinghandler import Embedding, TransformerEmbedding
-        import itertools
 
         collection = Collection().load_dir(path)
         Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
@@ -158,19 +157,28 @@ class Preprocessor:
 
         df: pd.DataFrame = pd.DataFrame()
         index: int = 0
-        sent: int = 1
+        sent_id: int = 1
 
         if not Embedding.trained():
             TransformerEmbedding.instance().build_transformer(type=transformer_type)
 
         for sentence in collection.sentences:
-            prep_sent = Preprocessor.preprocess(sentence.text).split()
+            prep_sent = (
+                (Preprocessor.preprocess(sentence.text))
+                .replace(".", "")
+                .replace(",", "")
+                .strip()
+            )
+
+            sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
+            tokenized_sent = TransformerEmbedding.instance().tokenize(prep_sent)
             relation_pairs = {}
             sentence_entities = {}
+            if sentence.relations == []:
+                continue
             for relation in sentence.relations:
-                from_relation = Preprocessor.preprocess(
-                    relation.from_phrase.text
-                ).split()
+                from_relation = Preprocessor.preprocess(relation.from_phrase.text)
+                from_relation = TransformerEmbedding.instance().tokenize(from_relation)
                 for i in range(len(from_relation)):
                     tag = "B-" if i == 0 else "I-"
                     tag = tag + relation.from_phrase.label
@@ -178,9 +186,10 @@ class Preprocessor:
                         break
                     from_word = from_relation[i]
                     from_entity = tag
-                    sentence_entities[from_relation[i]] = tag
+                    sentence_entities[from_word] = tag
 
-                to_relation = Preprocessor.preprocess(relation.to_phrase.text).split()
+                to_relation = Preprocessor.preprocess(relation.to_phrase.text)
+                to_relation = TransformerEmbedding.instance().tokenize(to_relation)
                 for i in range(len(to_relation)):
                     tag = "B-" if i == 0 else "I-"
                     tag = tag + relation.to_phrase.label
@@ -188,37 +197,60 @@ class Preprocessor:
                         break
                     to_word = to_relation[i]
                     to_entity = tag
-                    sentence_entities[to_relation[i]] = tag
+                    sentence_entities[to_word] = tag
 
                 relation_pairs[
                     (from_word, from_entity, to_word, to_entity)
                 ] = relation.label
 
-            for i, j in itertools.permutations([i for i in range(len(prep_sent))], 2):
-                from_word, to_word = prep_sent[i], prep_sent[j]
-                from_entity = sentence_entities.get(from_word, "O")
-                to_entity = sentence_entities.get(to_word, "O")
-                relation = relation_pairs.get(
-                    (from_word, from_entity, to_word, to_entity), "O"
-                )
-                relation = pd.Series(
-                    {
-                        "word1": from_word,
-                        "tag1": from_entity,
-                        "word2": to_word,
-                        "tag2": to_entity,
-                        "relation": relation,
-                    },
-                    name=index,
-                )
-                index += 1
-                df = df.append(relation)
+            token1_pos: int = 0
+            token2_pos: int = 0
+            original_sent: list = (
+                sentence.text.replace(".", " ").replace(",", " ").split()
+            )
+            for i in range(len(tokenized_sent)):
+                from_word = tokenized_sent[i]
+                if from_word.startswith("Ġ"):
+                    original_token1: str = original_sent[token1_pos]
+                    token1_pos += 1
+                for j in range(len(tokenized_sent)):
+                    to_word = tokenized_sent[j]
+                    if to_word.startswith("Ġ"):
+                        original_token2: str = original_sent[token2_pos]
+                        token2_pos += 1
+                    from_entity = sentence_entities.get(from_word, "O")
+                    to_entity = sentence_entities.get(to_word, "O")
+                    relation = relation_pairs.get(
+                        (from_word, from_entity, to_word, to_entity), "O"
+                    )
+                    relation = pd.Series(
+                        {
+                            "token1": from_word,
+                            "original_token1": original_token1,
+                            "vector1": sent[i + 1],
+                            "tag1": from_entity,
+                            "token2": to_word,
+                            "original_token2": original_token2,
+                            "vector2": sent[j + 1],
+                            "tag2": to_entity,
+                            "relation": relation,
+                        },
+                        name=index,
+                    )
+                    index += 1
+                    df = df.append(relation)
 
-            sent += 1
-            Preprocessor._logger.info(f"Finished sentence {sent} of {len(collection)}")
+                token2_pos = 0
 
+            sent_id += 1
+            Preprocessor._logger.info(
+                f"Finished sentence {sent_id} of {len(collection)}"
+            )
+
+        print(df)
         print(df.relation.value_counts())
-        Preprocessor._logger.info(f"Training completed: Stored {index} words.")
+
+        Preprocessor._logger.info(f"Training completed: Stored {index} word pairs.")
         return df
 
     @staticmethod
