@@ -44,11 +44,11 @@ class FilesHandler:
     def try_to_save_dataframe(df: pd.DataFrame, output_file: str) -> bool:
         try:
             df.to_pickle(output_file)
-            to_csv = df.drop("vector", axis=1, inplace=False)
-            to_csv.to_csv(output_file.replace(".pkl", ".csv"), sep="\t")
-        except OSError as e:
+            df.to_csv(output_file.replace(".pkl", ".csv"), sep="\t")
+        except (OSError, KeyError) as e:
             FilesHandler._logger.error(e)
             return False
+
         FilesHandler._logger.info(
             f"DataFrame successfully generated and saved at: {output_file}"
         )
