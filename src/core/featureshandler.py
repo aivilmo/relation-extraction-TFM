@@ -16,15 +16,44 @@ class FeaturesHandler:
     _instance = None
     _logger = Logger.instance()
 
+    _transformers: list = [
+        "distilbert-base-uncased",
+        "distilbert-base-cased",
+        "bert-base-uncased",
+        "bert-base-cased",
+        "bert-base-multilingual-uncased",
+        "bert-base-multilingual-cased",
+        "dccuchile/bert-base-spanish-wwm-uncased",
+        "dccuchile/bert-base-spanish-wwm-cased",
+        "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es",
+        "ixa-ehu/ixambert-base-cased",
+        "gpt2",
+    ]
+    _features_for_task: dict = {
+        "scenario2-taskA": [
+            "sent_emb",
+            "bag_of_words",
+            "single_word_emb",
+            "tf_idf",
+            "chars",
+            "tokens",
+            "seq2seq",
+        ]
+        + _transformers,
+        "scenario3-taskB": ["with_entities", "word_emb"] + _transformers,
+    }
+
     @staticmethod
     def instance():
         if FeaturesHandler._instance is None:
             FeaturesHandler()
         return FeaturesHandler._instance
 
-    def __init__(self) -> None:
+    def __init__(self, task: str, features: list) -> None:
         if FeaturesHandler._instance is not None:
-            raise Exception
+            return
+
+        self._task: str = task
 
         self._le: LabelEncoder = LabelEncoder()
         self._cv: CountVectorizer = CountVectorizer()
@@ -33,6 +62,8 @@ class FeaturesHandler:
         self._tk: Tokenizer = Tokenizer()
 
         self._features: list = ["PlanTL-GOB-ES/roberta-base-biomedical-clinical-es"]
+        self._is_transformer: bool = False
+
         FeaturesHandler._instance = self
 
     @property
@@ -42,64 +73,78 @@ class FeaturesHandler:
     @features.setter
     def features(self, features: str) -> None:
         self._features = features
+        self._is_transformer = (
+            list(
+                filter(
+                    lambda x: x in features,
+                    self._transformers,
+                )
+            )
+            != []
+        )
+
+    def check_features_for_task(self) -> None:
+        for feat in self._features:
+            if feat not in self._features_for_task[self._task]:
+                import sys
+
+                self._logger.info(f"Feature {feat} don't match with task {self._task}")
+                self._logger.info(
+                    f"Available features for task {self._task}: {self._features_for_task[self._task]}"
+                )
+                sys.exit()
 
     def handle_features(self, df: pd.DataFrame, test: bool = False) -> np.ndarray:
-        FeaturesHandler._logger.info(f"Handling features: " + ", ".join(self.features))
         columns = []
+        self._logger.info(
+            "Handling features: " + ", ".join(self.features) + f" for task {self._task}"
+        )
+        self.check_features_for_task()
 
         # NER features
         if "single_word_emb" in self._features:
             self._feat_single_word_emb(df)
-            columns += ["word"]
+            columns += ["token"]
         if "tf_idf" in self._features:
             self._feat_tf_idf(df, test=test)
-            columns += ["word"]
+            columns += ["token"]
         if "sent_emb" in self._features:
             self._feat_sent_emb(df)
             columns += ["sentence"]
         if "bag_of_words" in self._features:
             self._feat_bag_of_words(df, test=test)
-            columns += ["word"]
+            columns += ["token"]
         if "chars" in self._features:
             self._feat_chars(df, test=test)
-            columns += ["word"]
+            columns += ["token"]
         if "tokens" in self._features:
             self._feat_tokens(df, test=test)
-            columns += ["word"]
+            columns += ["token"]
         if "seq2seq" in self._features:
             self._feat_seq2seq(df)
             return
-        if (
-            "distilbert-base-uncased" in self._features
-            or "distilbert-base-cased" in self._features
-            or "bert-base-uncased" in self._features
-            or "bert-base-cased" in self._features
-            or "bert-base-multilingual-uncased" in self._features
-            or "bert-base-multilingual-cased" in self._features
-            or "dccuchile/bert-base-spanish-wwm-uncased" in self._features
-            or "dccuchile/bert-base-spanish-wwm-cased" in self._features
-            or "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es" in self._features
-            or "ixa-ehu/ixambert-base-cased" in self._features
-            or "gpt2" in self._features
-        ):
-            columns += ["vector"]
+        if self._is_transformer:
+            columns += (
+                ["vector"] if "taskA" in self._task else ["vector1"] + ["vector2"]
+            )
+
         # RE fearures
         if "with_entities" in self._features:
             self._feat_with_tags(df, test)
             columns += ["tag1"] + ["tag2"]
         if "word_emb" in self._features:
             self._feat_word_emb(df)
-            columns += ["word1"] + ["word2"]
+            columns += ["token1"] + ["token2"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
-        FeaturesHandler._logger.info(
+        self._logger.info(
             f"Features matrix successfully generated, with data shape: {features.shape}"
         )
         return np.nan_to_num(features)
 
     def _feat_with_tags(self, df: pd.DataFrame, test: bool = False) -> None:
         if not test:
-            FeaturesHandler._logger.info("Fitting word labels")
+            self._logger.info("Fitting word labels")
             df["tag1"] = self._le.fit_transform(df.tag1.values)
             df["tag2"] = self._le.fit_transform(df.tag2.values)
             return
@@ -114,10 +159,10 @@ class FeaturesHandler:
             WordEmbedding.instance().load_model()
             # WordEmbedding.instance().train_word_embedding(tokens)
 
-        df["word1"] = df.word1.apply(
+        df["token1"] = df.token1.apply(
             lambda x: WordEmbedding.instance().words_to_vector(x.split())
         )
-        df["word2"] = df.word2.apply(
+        df["token2"] = df.token2.apply(
             lambda x: WordEmbedding.instance().words_to_vector(x.split())
         )
 
@@ -133,14 +178,12 @@ class FeaturesHandler:
         )
 
     def _feat_bag_of_words(
-        self, df: pd.DataFrame, column: str = "word", test: bool = False
+        self, df: pd.DataFrame, column: str = "token", test: bool = False
     ) -> None:
         if not test:
-            FeaturesHandler._logger.info("Fitting words to bag of words")
+            self._logger.info("Fitting words to bag of words")
             self._cv.fit(df[column].unique().tolist())
-            FeaturesHandler._logger.info(
-                f"Vocab size: {len(self._cv.vocabulary_.keys())}"
-            )
+            self._logger.info(f"Vocab size: {len(self._cv.vocabulary_.keys())}")
 
         df[column] = df[column].apply(
             lambda x: self._cv.transform([x]).toarray().reshape(-1)
@@ -151,17 +194,15 @@ class FeaturesHandler:
         if not Embedding.trained():
             WordEmbedding.instance().load_model()
 
-        df["word"] = df.word.apply(lambda x: WordEmbedding.instance().word_vector(x))
+        df["token"] = df.token.apply(lambda x: WordEmbedding.instance().word_vector(x))
 
     def _feat_tf_idf(
-        self, df: pd.DataFrame, column: str = "word", test: bool = False
+        self, df: pd.DataFrame, column: str = "token", test: bool = False
     ) -> None:
         if not test:
-            FeaturesHandler._logger.info("Fitting words to tf idf")
+            self._logger.info("Fitting words to tf idf")
             self._tf.fit(df[column].unique().tolist())
-            FeaturesHandler._logger.info(
-                f"Vocab size: {len(self._tf.vocabulary_.keys())}"
-            )
+            self._logger.info(f"Vocab size: {len(self._tf.vocabulary_.keys())}")
 
         df[column] = df[column].apply(
             lambda x: self._tf.transform([x]).toarray().reshape(-1)
@@ -169,32 +210,32 @@ class FeaturesHandler:
 
     def _feat_chars(self, df: pd.DataFrame, test: bool = False) -> None:
         if not test:
-            self._ck.fit_on_texts(df.word)
+            self._ck.fit_on_texts(df.token)
             vocab_size = len(self._ck.word_index) + 1
-            FeaturesHandler._logger.info(f"Vocab size: {vocab_size}")
+            self._logger.info(f"Vocab size: {vocab_size}")
 
-        df["word"] = df.word.apply(lambda x: self._ck.texts_to_sequences([x])[0])
-        df["word"] = df.word.apply(lambda x: pad_sequences([x], maxlen=15)[0])
-        FeaturesHandler._logger.info(f"Matriz features for emebdding: {df.word.shape}")
+        df["token"] = df.token.apply(lambda x: self._ck.texts_to_sequences([x])[0])
+        df["token"] = df.token.apply(lambda x: pad_sequences([x], maxlen=15)[0])
+        self._logger.info(f"Matriz features for emebdding: {df.token.shape}")
 
     def _feat_tokens(self, df: pd.DataFrame, test: bool = False) -> None:
         if not test:
-            self._tk.fit_on_texts(df.word)
+            self._tk.fit_on_texts(df.token)
             vocab_size = len(self._tk.word_index) + 1
-            FeaturesHandler._logger.info(f"Vocab size: {vocab_size}")
+            self._logger.info(f"Vocab size: {vocab_size}")
 
-        df["word"] = df.word.apply(lambda x: self._tk.texts_to_sequences([x])[0])
-        df["word"] = df.word.apply(lambda x: pad_sequences([x], maxlen=3)[0])
-        FeaturesHandler._logger.info(f"Matriz features for emebdding: {df.word.shape}")
+        df["token"] = df.token.apply(lambda x: self._tk.texts_to_sequences([x])[0])
+        df["token"] = df.token.apply(lambda x: pad_sequences([x], maxlen=3)[0])
+        self._logger.info(f"Matriz features for emebdding: {df.token.shape}")
 
     def _feat_seq2seq(self, df: pd.DataFrame) -> None:
-        df.rename(columns={"word": "words", "tag": "labels"}, inplace=True)
+        df.rename(columns={"token": "words", "tag": "labels"}, inplace=True)
 
     def _feat_transformer(self, df: pd.DataFrame, type) -> None:
         if not Embedding.trained():
             TransformerEmbedding.instance().build_transformer(type=type)
 
-        df["word"] = df.word.apply(
+        df["token"] = df.token.apply(
             lambda x: TransformerEmbedding.instance().word_vector(x)
         )
 
@@ -212,35 +253,3 @@ class FeaturesHandler:
         df["features"] = df.features.apply(lambda x: stack_vectors(x))
         df.drop(columns_to_delete, axis=1, inplace=True)
         return np.vstack(df.values.tolist())
-
-    @staticmethod
-    def _combine_2D_features(df: pd.DataFrame, columns: list) -> np.ndarray:
-        columns_to_delete = df.columns
-
-        def stack_vectors(list_of_vect: list) -> np.ndarray:
-            full_vector = np.hstack(list_of_vect)
-            dim_features = full_vector.shape[0]
-            # For 2D features vectors
-            dim_of_features = full_vector.shape[1]
-            full_vector.reshape(1, dim_features, dim_of_features)
-            return full_vector
-
-        def pad_vector(vector: np.ndarray, n_rows: int = 100) -> np.ndarray:
-            for _ in range(n_rows - vector.shape[0]):
-                vector = np.concatenate((vector, np.zeros((1, vector.shape[1]))))
-            return vector
-
-        df["features"] = df[columns].values.tolist()
-        df["features"] = df.features.apply(lambda x: stack_vectors(x))
-        df.drop(columns_to_delete, axis=1, inplace=True)
-        vectors = df.values.tolist()
-
-        global_vector = np.zeros(
-            (len(vectors), 100, vectors[0][0].shape[1])
-        )  # (1500, 100, 768)
-        first_vector = pad_vector(vectors[0][0])
-
-        global_vector[0] = first_vector
-        for i in range(1, len(vectors) - 1):
-            global_vector[i] = pad_vector(vectors[i][0])
-        return global_vector

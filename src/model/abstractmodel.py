@@ -78,7 +78,7 @@ class AbstractModel:
         cm = confusion_matrix(y, self._yhat)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot()
-        plt.show()
+        # plt.show()
 
     @classmethod
     def export_results(self) -> None:
@@ -86,13 +86,14 @@ class AbstractModel:
         from utils.fileshandler import FilesHandler
         from main import Main
 
-        transformer: str = "_".join(Main.instance()._args.features)
-        train, test = FilesHandler.instance().load_datasets(
-            transformer_type=transformer
-        )
+        self._logger.info("Exporting results to dataframe...")
+
+        transformer, _ = Main.instance().get_features()
+        train, test = FilesHandler.instance().load_datasets(transformer)
+        y_column = Main.instance().get_y_column()
 
         le = LabelEncoder()
-        le.fit(test.tag.values)
+        le.fit(test[y_column].values)
         test["predicted_tag"] = le.inverse_transform(self._yhat)
 
         FilesHandler.instance().save_datasets(train, test, transformer_type=transformer)

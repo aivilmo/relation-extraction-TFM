@@ -48,12 +48,22 @@ class PostProcessor:
         df: pd.DataFrame = pd.DataFrame()
 
         dataset_test = dataset_test[dataset_test.predicted_tag != "O"]
-        print(dataset_test)
         dataset_test = dataset_test.append(dataset_test.iloc[-1])
 
         PostProcessor._logger.info(
             f"Exporting output.ann data for task {self._task}, run {self._run} and dataset {PostProcessor._dataset}"
         )
+
+        if "taskA" in self._task:
+            df = self.export_taskA(dataset_test)
+        if "taskB" in self._task:
+            df = self.export_taskB(dataset_test)
+
+        PostProcessor._logger.info("Output data successfully exported")
+        self.save_output_file(df)
+
+    def export_taskA(self, dataset_test: pd.DataFrame) -> pd.DataFrame:
+        df: pd.DataFrame = pd.DataFrame()
 
         index: int = 1
         sentence_offset: int = 0
@@ -105,10 +115,10 @@ class PostProcessor:
             last_sentence = row.sentence
             last_words, last_positions = [], []
 
-        print(df)
+        return df
 
-        PostProcessor._logger.info("Output data successfully exported")
-        self.save_output_file(df)
+    def export_taskB(self, dataset_test: pd.DataFrame) -> pd.DataFrame:
+        return pd.DataFrame()
 
     def save_output_file(self, df: pd.DataFrame) -> None:
         from pathlib import Path

@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 
 from logger.logger import Logger
-from utils.preprocess import Preprocessor
 
 
 class FilesHandler:
@@ -26,7 +25,7 @@ class FilesHandler:
 
     def __init__(self, task: str) -> None:
         if FilesHandler._instance is not None:
-            raise Exception
+            return
 
         self._task: str = task
         self._path_output: str = "data\\" + task
@@ -40,85 +39,37 @@ class FilesHandler:
 
         FilesHandler._instance = self
 
-    @staticmethod
-    def try_to_save_dataframe(df: pd.DataFrame, output_file: str) -> bool:
-        try:
-            df.to_pickle(output_file)
-            df.to_csv(output_file.replace(".pkl", ".csv"), sep="\t")
-        except (OSError, KeyError) as e:
-            FilesHandler._logger.error(e)
-            return False
-
-        FilesHandler._logger.info(
-            f"DataFrame successfully generated and saved at: {output_file}"
-        )
-        print(df)
-        return True
-
-    def try_to_create_directory(self) -> None:
-        import os
-
-        try:
-            FilesHandler._logger.warning(f"Creating directory {self._path_output}...")
-            os.makedirs(self._path_output, exist_ok=True, mode=0o777)
-            FilesHandler._logger.info("Directory created successfully")
-        except Exception as e:
-            FilesHandler._logger.error(e)
-            FilesHandler._logger.error("Creation of directory has failed")
-            sys.exit()
-
-    def catch_error_loading_data(self, features: str, e: Exception) -> None:
-        FilesHandler._logger.error(e)
-        FilesHandler._logger.error(
-            f"Need to generate training files for features: {features}"
-        )
-        FilesHandler._logger.error(
-            f"Run: 'python .\main.py --generate --features {features} --task {self._task}'"
-        )
-        sys.exit()
-
     def generate_datasets(
         self,
-        as_IOB: bool = True,
-        as_BILUOV: bool = False,
         transformer_type: str = "",
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         def generate_dataset(
             path: Path,
             output_file: str,
-            as_IOB: bool = True,
-            as_BILUOV: bool = False,
             transformer_type: str = "",
         ) -> pd.DataFrame:
+            from utils.preprocess import REPreprocessor, NERPreprocessor
 
-            FilesHandler._logger.info("Generating DataFrame...")
+            self._logger.info("Generating DataFrame...")
 
-            if transformer_type != "":
-                if "taskB" in self._task:
-                    df: pd.DataFrame = (
-                        Preprocessor.process_content_as_IOB_with_relations(
-                            path, transformer_type=transformer_type
-                        )
-                    )
-                else:
-                    df: pd.DataFrame = Preprocessor.process_content_as_sentences(
-                        path, transformer_type=transformer_type
-                    )
-                transformer_type = transformer_type.replace("/", "_")
-                output_file += "_" + transformer_type + ".pkl"
+            prep_instance = None
+            if "taskA" in self._task:
+                prep_instance = NERPreprocessor.instance()
+            if "taskB" in self._task:
+                prep_instance = REPreprocessor.instance()
 
-            elif as_IOB:
-                df: pd.DataFrame = Preprocessor.process_content_as_IOB_format(path)
+            if transformer_type == "":
+                df: pd.DataFrame = prep_instance.process_content(path)
                 output_file += "_IOB.pkl"
+            else:
+                df: pd.DataFrame = prep_instance.process_content_cased_transformer(
+                    path, transformer_type
+                )
+                output_file += "_" + transformer_type.replace("/", "_") + ".pkl"
 
-            # DEPRECATED
-            elif as_BILUOV:
-                df: pd.DataFrame = Preprocessor.process_content_as_BILUOV_format(path)
-                output_file += "_BILUOV.pkl"
-
-            if not FilesHandler.try_to_save_dataframe(df, output_file):
+            if not self.try_to_save_dataframe(df, output_file):
                 self.try_to_create_directory()
-                if not FilesHandler.try_to_save_dataframe(df, output_file):
+                if not self.try_to_save_dataframe(df, output_file):
                     sys.exit()
 
             return df
@@ -126,34 +77,29 @@ class FilesHandler:
         return generate_dataset(
             path=Path(self._path_ref + "\\training\\"),
             output_file=self._output_train,
-            as_IOB=as_IOB,
             transformer_type=transformer_type,
         ), generate_dataset(
             path=Path(self._path_eval + "\\training\\" + self._task + "\\"),
             output_file=self._output_test,
-            as_IOB=as_IOB,
             transformer_type=transformer_type,
         )
 
     def load_datasets(self, transformer_type="") -> tuple[pd.DataFrame, pd.DataFrame]:
-        def load_dataset(
-            filename: str, transformer_type="", as_IOB: bool = True
-        ) -> pd.DataFrame:
-            if transformer_type != "":
-                transformer_type = transformer_type.replace("/", "_")
-                filename = filename + "_" + transformer_type + ".pkl"
-            elif as_IOB:
+        def load_dataset(filename: str, transformer_type="") -> pd.DataFrame:
+            if transformer_type == "":
                 filename = filename + "_IOB.pkl"
+            else:
+                filename = filename + "_" + transformer_type.replace("/", "_") + ".pkl"
 
             try:
-                FilesHandler._logger.info(f"Loading DataFrame from: {filename}")
+                self._logger.info(f"Loading DataFrame from: {filename}")
                 df: pd.DataFrame = pd.read_pickle(filename)
 
             except (FileNotFoundError, OSError) as e:
-                FilesHandler._logger.error(e)
+                self._logger.error(e)
                 return None
 
-            FilesHandler._logger.info("DataFrame succesfully loaded")
+            self._logger.info("DataFrame succesfully loaded")
             return df
 
         return load_dataset(self._output_train, transformer_type), load_dataset(
@@ -166,13 +112,17 @@ class FilesHandler:
         test_dataset: pd.DataFrame,
         transformer_type: str = "",
     ) -> None:
-        if transformer_type != "":
-            transformer_type = transformer_type.replace("/", "_")
+        if transformer_type == "":
+            train_dataset.to_pickle(self._output_train + "_IOB.pkl")
+            test_dataset.to_pickle(self._output_test + "_IOB.pkl")
+        else:
             train_dataset.to_pickle(
-                self._output_train + "_" + transformer_type + ".pkl"
+                self._output_train + "_" + transformer_type.replace("/", "_") + ".pkl"
             )
-            test_dataset.to_pickle(self._output_test + "_" + transformer_type + ".pkl")
-        FilesHandler._logger.info("Datasets successfully saved")
+            test_dataset.to_pickle(
+                self._output_test + "_" + transformer_type.replace("/", "_") + ".pkl"
+            )
+        self._logger.info("Datasets successfully saved")
 
     def load_training_data(
         self,
@@ -180,7 +130,7 @@ class FilesHandler:
     ) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
 
         try:
-            FilesHandler._logger.info(f"Loading training data...")
+            self._logger.info(f"Loading training data...")
 
             X_train = np.load(
                 self._output_X_train + "_" + features + ".npy",
@@ -197,7 +147,7 @@ class FilesHandler:
                 self._output_y_test + "_" + features + ".npy", allow_pickle=True
             )
 
-            FilesHandler._logger.info("Training data succesfully loaded")
+            self._logger.info("Training data succesfully loaded")
             return X_train, X_test, y_train, y_test
 
         except (FileNotFoundError, OSError) as e:
@@ -217,10 +167,42 @@ class FilesHandler:
             np.save(self._output_y_train + "_" + features + ".npy", y_train)
             np.save(self._output_y_test + "_" + features + ".npy", y_test)
 
-            FilesHandler._logger.info(
-                f"Data is successfully saved in dir \\data\\{self._task}"
-            )
+            self._logger.info(f"Data is successfully saved in dir \\data\\{self._task}")
 
         except OSError as e:
-            FilesHandler._logger.error(e)
+            self._logger.error(e)
             sys.exit()
+
+    def try_to_save_dataframe(self, df: pd.DataFrame, output_file: str) -> bool:
+        try:
+            df.to_pickle(output_file)
+            df.to_csv(output_file.replace(".pkl", ".csv"), sep="\t")
+        except (OSError, KeyError) as e:
+            self._logger.error(e)
+            return False
+
+        self._logger.info(
+            f"DataFrame successfully generated and saved at: {output_file}"
+        )
+        print(df)
+        return True
+
+    def try_to_create_directory(self) -> None:
+        import os
+
+        try:
+            self._logger.warning(f"Creating directory {self._path_output}...")
+            os.makedirs(self._path_output, exist_ok=True, mode=0o777)
+            self._logger.info("Directory created successfully")
+        except Exception as e:
+            self._logger.error(e)
+            self._logger.error("Creation of directory has failed")
+            sys.exit()
+
+    def catch_error_loading_data(self, features: str, e: Exception) -> None:
+        self._logger.error(e)
+        self._logger.error(f"Need to generate training files for features: {features}")
+        self._logger.error(
+            f"Run: 'python .\main.py --generate --features {features} --task {self._task}'"
+        )
+        sys.exit()

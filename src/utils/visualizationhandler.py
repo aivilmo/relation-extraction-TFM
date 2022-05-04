@@ -37,22 +37,22 @@ class VisualizationHandler:
         _, ax = plt.subplots(1, 2)
 
         count1 = sns.countplot(
-            x="word1",
+            x="token1",
             data=df,
-            order=df.word1.value_counts().index[:n_words],
+            order=df.token1.value_counts().index[:n_words],
             ax=ax[0],
             palette=VisualizationHandler._palette,
         )
         count2 = sns.countplot(
-            x="word2",
+            x="token2",
             data=df,
-            order=df.word2.value_counts().index[:n_words],
+            order=df.token2.value_counts().index[:n_words],
             ax=ax[1],
             palette=VisualizationHandler._palette,
         )
 
-        count1.set_title("Word1 frecuencies")
-        count2.set_title("Word2 frecuencies")
+        count1.set_title("token1 frecuencies")
+        count2.set_title("token2 frecuencies")
 
         count1.set_xticklabels(count1.get_xticklabels(), rotation=45)
         count2.set_xticklabels(count2.get_xticklabels(), rotation=45)
@@ -62,10 +62,10 @@ class VisualizationHandler:
     def visualice_most_common_relations(
         df: pd.DataFrame, n_relation: int, with_relation: bool = False
     ) -> None:
-        relations = df.word1 + "-"
+        relations = df.token1 + "-"
         if with_relation:
             relations += df.relation + "-"
-        df["relations"] = relations + df.word2
+        df["relations"] = relations + df.token2
 
         sns.set(font_scale=0.90)
         sns.countplot(

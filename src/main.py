@@ -30,11 +30,13 @@ class Main:
         self._dataset_test: pd.DataFrame = None
         self._args: argparse.Namespace = ArgsParser.get_args()
 
+        FilesHandler(self._args.task)
+        FeaturesHandler(self._args.task)
+
         Main._instance = self
 
     def main(self) -> None:
         FeaturesHandler.instance().features = self._args.features
-        FilesHandler(self._args.task)
 
         X_train, X_test, y_train, y_test = self._get_datasets()
 
@@ -85,30 +87,30 @@ class Main:
     def _handle_export(self) -> None:
         from utils.postprocess import PostProcessor
 
-        features: str = "_".join(self._args.features)
-        transformer_type = features if "bert" in features else ""
-        features = features.replace("/", "_")
-
-        _, self._dataset_test = FilesHandler.instance().load_datasets(
-            transformer_type=transformer_type
-        )
+        transformer_type, _ = self.get_features()
+        _, self._dataset_test = FilesHandler.instance().load_datasets(transformer_type)
 
         PostProcessor(self._args.run, self._args.task)
         PostProcessor.instance().export_data_to_file(self._dataset_test)
 
-    def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
-        from utils.preprocess import Preprocessor
-
-        def get_y_column() -> str:
-            if self._args.task == "RE":
-                return "relation"
-            if self._args.s2s_model:
-                return "sentence"
-            return "tag"
-
+    def get_features(self) -> tuple[str, str]:
         features: str = "_".join(self._args.features)
         transformer_type = features if "bert" in features else ""
         features = features.replace("/", "_")
+        return transformer_type, features
+
+    def get_y_column(self) -> str:
+        if "taskB" in self._args.task:
+            return "relation"
+        if self._args.s2s_model:
+            return "sentence"
+        return "tag"
+
+    def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
+        from utils.preprocess import Preprocessor
+
+        transformer_type, features = self.get_features()
+        FeaturesHandler.instance().check_features_for_task()
 
         self._dataset_train, self._dataset_test = FilesHandler.instance().load_datasets(
             transformer_type=transformer_type
@@ -117,7 +119,7 @@ class Main:
         if self._args.load:
             return FilesHandler.instance().load_training_data(features)
 
-        if self._dataset_train is None:
+        if self._dataset_train is None or self._dataset_test is None:
             Main._logger.warning(f"Datasets not found, generating for {features}")
             (
                 self._dataset_train,
@@ -129,7 +131,7 @@ class Main:
         X_train, X_test, y_train, y_test = Preprocessor.instance().train_test_split(
             self._dataset_train,
             self._dataset_test,
-            y_column=get_y_column(),
+            y_column=self.get_y_column(),
         )
         FilesHandler.instance().save_training_data(
             X_train, X_test, y_train, y_test, features

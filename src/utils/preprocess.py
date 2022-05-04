@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import time
 import warnings
+from abc import abstractmethod
 
 from logger.logger import Logger
 
@@ -32,6 +33,22 @@ class Preprocessor:
         self._le = LabelEncoder()
 
         Preprocessor._instance = self
+
+    @abstractmethod
+    def process_content(self, path: Path) -> pd.DataFrame:
+        pass
+
+    @abstractmethod
+    def process_content_cased_transformer(
+        self, path: Path, transformer_type: str
+    ) -> pd.DataFrame:
+        pass
+
+    @abstractmethod
+    def process_content_uncased_transformer(
+        self, path: Path, transformer_type: str
+    ) -> pd.DataFrame:
+        pass
 
     def train_test_split(
         self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
@@ -112,357 +129,6 @@ class Preprocessor:
         return " ".join(tokens_stemmed)
 
     @staticmethod
-    def process_content(path: Path) -> pd.DataFrame:
-        from ehealth.anntools import Collection
-
-        collection = Collection().load_dir(path)
-        Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
-        df: pd.DataFrame = pd.DataFrame()
-        index: int = 0
-
-        for sentence in collection.sentences:
-            for relation in sentence.relations:
-                relation = pd.Series(
-                    {
-                        "word1": Preprocessor.preprocess(
-                            relation.from_phrase.text.lower()
-                        ),
-                        "tag1": relation.from_phrase.label,
-                        "word2": Preprocessor.preprocess(
-                            relation.to_phrase.text.lower()
-                        ),
-                        "tag2": relation.to_phrase.label,
-                        "relation": relation.label,
-                        "sentence": Preprocessor.preprocess(sentence.text),
-                    },
-                    name=index,
-                )
-                index += 1
-                df = df.append(relation)
-
-        Preprocessor._logger.info(f"Training completed: Stored {index} relation pairs.")
-        return df
-
-    @staticmethod
-    def process_content_as_IOB_with_relations(
-        path: Path,
-        transformer_type: str,
-    ) -> pd.DataFrame:
-        from ehealth.anntools import Collection
-        from core.embeddinghandler import Embedding, TransformerEmbedding
-
-        collection = Collection().load_dir(path)
-        Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
-        Preprocessor._logger.info(f"process_content_as_IOB_with_relations")
-
-        df: pd.DataFrame = pd.DataFrame()
-        index: int = 0
-        sent_id: int = 1
-
-        if not Embedding.trained():
-            TransformerEmbedding.instance().build_transformer(type=transformer_type)
-
-        for sentence in collection.sentences:
-            prep_sent = (
-                (Preprocessor.preprocess(sentence.text))
-                .replace(".", "")
-                .replace(",", "")
-                .strip()
-            )
-
-            sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
-            tokenized_sent = TransformerEmbedding.instance().tokenize(prep_sent)
-            relation_pairs = {}
-            sentence_entities = {}
-            if sentence.relations == []:
-                continue
-            for relation in sentence.relations:
-                from_relation = Preprocessor.preprocess(relation.from_phrase.text)
-                from_relation = TransformerEmbedding.instance().tokenize(from_relation)
-                for i in range(len(from_relation)):
-                    tag = "B-" if i == 0 else "I-"
-                    tag = tag + relation.from_phrase.label
-                    if i != 0:
-                        break
-                    from_word = from_relation[i]
-                    from_entity = tag
-                    sentence_entities[from_word] = tag
-
-                to_relation = Preprocessor.preprocess(relation.to_phrase.text)
-                to_relation = TransformerEmbedding.instance().tokenize(to_relation)
-                for i in range(len(to_relation)):
-                    tag = "B-" if i == 0 else "I-"
-                    tag = tag + relation.to_phrase.label
-                    if i != 0:
-                        break
-                    to_word = to_relation[i]
-                    to_entity = tag
-                    sentence_entities[to_word] = tag
-
-                relation_pairs[
-                    (from_word, from_entity, to_word, to_entity)
-                ] = relation.label
-
-            token1_pos: int = 0
-            token2_pos: int = 0
-            original_sent: list = (
-                sentence.text.replace(".", " ").replace(",", " ").split()
-            )
-            for i in range(len(tokenized_sent)):
-                from_word = tokenized_sent[i]
-                if from_word.startswith("Ġ"):
-                    original_token1: str = original_sent[token1_pos]
-                    token1_pos += 1
-                for j in range(len(tokenized_sent)):
-                    to_word = tokenized_sent[j]
-                    if to_word.startswith("Ġ"):
-                        original_token2: str = original_sent[token2_pos]
-                        token2_pos += 1
-                    from_entity = sentence_entities.get(from_word, "O")
-                    to_entity = sentence_entities.get(to_word, "O")
-                    relation = relation_pairs.get(
-                        (from_word, from_entity, to_word, to_entity), "O"
-                    )
-                    relation = pd.Series(
-                        {
-                            "token1": from_word,
-                            "original_token1": original_token1,
-                            "vector1": sent[i + 1],
-                            "tag1": from_entity,
-                            "token2": to_word,
-                            "original_token2": original_token2,
-                            "vector2": sent[j + 1],
-                            "tag2": to_entity,
-                            "relation": relation,
-                        },
-                        name=index,
-                    )
-                    index += 1
-                    df = df.append(relation)
-
-                token2_pos = 0
-
-            sent_id += 1
-            Preprocessor._logger.info(
-                f"Finished sentence {sent_id} of {len(collection)}"
-            )
-
-        print(df)
-        print(df.relation.value_counts())
-
-        Preprocessor._logger.info(f"Training completed: Stored {index} word pairs.")
-        return df
-
-    @staticmethod
-    def process_content_as_IOB_format(path: Path) -> pd.DataFrame:
-        from ehealth.anntools import Collection
-
-        collection = Collection().load_dir(path)
-        Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
-        Preprocessor._logger.info(f"process_content_as_IOB_format")
-
-        df: pd.DataFrame = pd.DataFrame()
-        index: int = 0
-        sentence_id: int = 0
-
-        for sentence in collection.sentences:
-            sentence_entities = {}
-            for keyphrases in sentence.keyphrases:
-                entities = keyphrases.text.split()
-                for i in range(len(entities)):
-                    tag = "B-" if i == 0 else "I-"
-                    old_entity = sentence_entities.get(entities[i], [])
-                    old_entity.append(tag + keyphrases.label)
-                    sentence_entities[entities[i]] = old_entity
-
-            words = sentence.text.split()
-            for word in words:
-                tag = sentence_entities.get(word, ["O"])
-                word = pd.Series(
-                    {
-                        "sentence_id": sentence_id,
-                        "word": word,
-                        "original_token": word,
-                        "tag": max(set(tag), key=tag.count),
-                        "sentence": sentence.text,
-                    },
-                    name=index,
-                )
-                index += 1
-                df = df.append(word)
-            sentence_id += 1
-
-        Preprocessor._logger.info(f"Training completed: Stored {index} words.")
-        return df
-
-    @staticmethod
-    def process_content_as_BILUOV_format(path: Path) -> pd.DataFrame:
-        from ehealth.anntools import Collection
-
-        collection = Collection().load_dir(path)
-        Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
-        Preprocessor._logger.info(f"process_content_as_BILUOV_format")
-
-        df: pd.DataFrame = pd.DataFrame()
-        index: int = 0
-
-        for sentence in collection.sentences:
-            sentence_entities = {}
-            for keyphrases in sentence.keyphrases:
-                entities = Preprocessor.preprocess(keyphrases.text).split()
-                for i in range(len(entities)):
-                    # 1 word entity
-                    if len(entities) == 1:
-                        tag = "U-"
-                    # More than 1 word entities
-                    elif i == 0:
-                        tag = "B-"
-                    # Last word in entity
-                    elif i == len(entities) - 1:
-                        tag = "L-"
-                    # Inner word
-                    else:
-                        tag = "I-"
-                    # Overlapped word
-                    if sentence_entities.get(entities[i], -1) != -1:
-                        tag = "V-"
-                    sentence_entities[entities[i]] = tag + keyphrases.label
-
-            words = Preprocessor.preprocess(sentence.text).split()
-            for word in words:
-                tag = sentence_entities.get(word, "O")
-                word = pd.Series(
-                    {"word": word, "tag": tag},
-                    name=index,
-                )
-                index += 1
-                df = df.append(word)
-
-        Preprocessor._logger.info(f"Training completed: Stored {index} words.")
-        return df
-
-    @staticmethod
-    def process_content_as_sentences(path: Path, transformer_type: str) -> pd.DataFrame:
-        from ehealth.anntools import Collection
-        from core.embeddinghandler import Embedding, TransformerEmbedding
-
-        from collections import defaultdict
-
-        collection = Collection().load_dir(path)
-        Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
-        Preprocessor._logger.info(f"process_content_as_sentences")
-
-        df: pd.DataFrame = pd.DataFrame()
-        index: int = 0
-
-        if not Embedding.trained():
-            TransformerEmbedding.instance().build_transformer(type=transformer_type)
-
-        for sentence in collection.sentences:
-            prep_sent = (
-                (Preprocessor.preprocess(sentence.text))
-                .replace(".", "")
-                .replace(",", "")
-                .strip()
-            )
-
-            sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
-            tokenized_sent = TransformerEmbedding.instance().tokenize(prep_sent)
-            sentence_entities = defaultdict(lambda: [])
-            if sentence.keyphrases == []:
-                continue
-            for keyphrase in sentence.keyphrases:
-                entities = keyphrase.text.split()
-                for i in range(len(entities)):
-                    prep_entity = Preprocessor.preprocess(entities[i])
-                    entity_word = TransformerEmbedding.instance().tokenize(prep_entity)
-                    tag = "B-" if i == 0 else "I-"
-                    tag = tag + keyphrase.label
-                    for j in range(len(entity_word)):
-                        if j != 0:
-                            break
-                        sentence_entities[entity_word[j]].append(tag)
-
-            token_pos: int = 0
-            original_sent: list = (
-                sentence.text.replace(".", " ").replace(",", " ").split()
-            )
-
-            for i in range(len(tokenized_sent)):
-                token: str = tokenized_sent[i]
-                if token.startswith("Ġ"):
-                    original_token: str = original_sent[token_pos]
-                    token_pos += 1
-                if sentence_entities[token] == []:
-                    tag = "O"
-                else:
-                    tag = sentence_entities[token].pop(0)
-                word = pd.Series(
-                    {
-                        "token": token,
-                        "original_token": original_token,
-                        "vector": sent[i + 1],
-                        "tag": tag,
-                        "sentence": sentence.text,
-                    },
-                    name=index,
-                )
-                index += 1
-                df = df.append(word)
-
-        Preprocessor._logger.info(f"Training completed: Stored {index} words.")
-        return df
-
-    @staticmethod
-    def process_content_as_sentences_tensor(
-        path: Path, transformer_type: str
-    ) -> pd.DataFrame:
-        from ehealth.anntools import Collection
-        from core.embeddinghandler import Embedding, TransformerEmbedding
-
-        collection = Collection().load_dir(path)
-        Preprocessor._logger.info(f"Loaded {len(collection)} sentences for fitting.")
-        Preprocessor._logger.info(f"process_content_as_sentences_tensor")
-
-        df: pd.DataFrame = pd.DataFrame()
-        index: int = 0
-
-        if not Embedding.trained():
-            TransformerEmbedding.instance().build_transformer(type=transformer_type)
-
-        for sentence in collection.sentences:
-            sent = TransformerEmbedding.instance().sentence_vector(sentence.text)
-            tokenized_sent = TransformerEmbedding.instance().tokenize(sentence.text)
-            sentence_entities = {}
-            labels_vector = []
-            for keyphrase in sentence.keyphrases:
-                entities = keyphrase.text.split()
-                for i in range(len(entities)):
-                    entity_word = TransformerEmbedding.instance().tokenize(entities[i])
-                    tag = "B-" if i == 0 else "I-"
-                    tag = tag + keyphrase.label
-                    for j in range(len(entity_word)):
-                        if j != 0:
-                            break
-                        sentence_entities[entity_word[j]] = tag
-            for i in range(len(tokenized_sent)):
-                tag = sentence_entities.get(tokenized_sent[i], "O")
-                labels_vector.append(tag)
-            serie = pd.Series(
-                {
-                    "sentence": sentence.text,
-                    "vector": sent,
-                    "tag": labels_vector,
-                },
-                name=index,
-            )
-            index += 1
-            df = df.append(serie)
-
-        Preprocessor._logger.info(f"Training completed: Stored {index} sentences.")
-        return df
-
-    @staticmethod
     def prepare_labels(y_train: np.ndarray, y_test: np.ndarray) -> np.ndarray:
         from keras.utils.np_utils import to_categorical
 
@@ -488,7 +154,7 @@ class Preprocessor:
     ) -> np.ndarray:
         from model.coremodel import AbstractModel
 
-        Preprocessor._logger.info(f"Transforming {y_column} into labels")
+        self._logger.info(f"Transforming {y_column} into labels")
         y_train = self._le.fit_transform(train_df[y_column].values)
         y_test = self._le.transform(test_df[y_column].values)
 
@@ -503,12 +169,12 @@ class Preprocessor:
 
         from model.coremodel import AbstractModel
 
-        Preprocessor._logger.info(f"Transforming {y_column} into 2D labels")
+        self._logger.info(f"Transforming {y_column} into 2D labels")
         y_train = train_df[y_column].apply(self._le.transform)
         y_test = test_df[y_column].apply(self._le.transform)
 
         AbstractModel.instance().set_labels(list(self._le.classes_))
-        Preprocessor._n_classes = len(list(self._le.classes_))
+        self._n_classes = len(list(self._le.classes_))
 
         return y_train, y_test
 
@@ -598,3 +264,345 @@ class Preprocessor:
             f"Finished data augmentation, added {index - df.iloc[-1].name} new synsets"
         )
         return augmented_df
+
+
+class NERPreprocessor(Preprocessor):
+
+    _instance = None
+
+    @staticmethod
+    def instance():
+        if NERPreprocessor._instance is None:
+            NERPreprocessor()
+        return NERPreprocessor._instance
+
+    def __init__(self) -> None:
+        if NERPreprocessor._instance is not None:
+            raise Exception
+
+        NERPreprocessor._instance = self
+
+    def process_content(self, path: Path) -> pd.DataFrame:
+        print("NERPreprocessor process_content")
+        from ehealth.anntools import Collection
+
+        collection = Collection().load_dir(path)
+        self._logger.info(f"Loaded {len(collection)} sentences for fitting.")
+        self._logger.info(f"process_content")
+
+        df: pd.DataFrame = pd.DataFrame()
+        index: int = 0
+        sentence_id: int = 0
+
+        for sentence in collection.sentences:
+            sentence_entities = {}
+            for keyphrases in sentence.keyphrases:
+                entities = keyphrases.text.split()
+                for i in range(len(entities)):
+                    tag = "B-" if i == 0 else "I-"
+                    old_entity = sentence_entities.get(entities[i], [])
+                    old_entity.append(tag + keyphrases.label)
+                    sentence_entities[entities[i]] = old_entity
+
+            for word in sentence.text.split():
+                tag = sentence_entities.get(word, ["O"])
+                word = pd.Series(
+                    {
+                        "token": word,
+                        "original_token": word,
+                        "tag": max(set(tag), key=tag.count),
+                        "sentence": sentence.text,
+                    },
+                    name=index,
+                )
+                index += 1
+                df = df.append(word)
+            sentence_id += 1
+
+        self._logger.info(f"Training completed: Stored {index} words.")
+        return df
+
+    def process_content_cased_transformer(
+        self, path: Path, transformer_type: str
+    ) -> pd.DataFrame:
+        print("NERPreprocessor process_content_cased_transformer")
+        from ehealth.anntools import Collection
+        from core.embeddinghandler import Embedding, TransformerEmbedding
+
+        from collections import defaultdict
+
+        collection = Collection().load_dir(path)
+        self._logger.info(f"Loaded {len(collection)} sentences for fitting.")
+        self._logger.info(f"process_content_cased_transformer")
+
+        df: pd.DataFrame = pd.DataFrame()
+        index: int = 0
+
+        if not Embedding.trained():
+            TransformerEmbedding.instance().build_transformer(type=transformer_type)
+
+        for sentence in collection.sentences:
+            prep_sent = (
+                (Preprocessor.preprocess(sentence.text))
+                .replace(".", "")
+                .replace(",", "")
+                .strip()
+            )
+
+            sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
+            tokenized_sent = TransformerEmbedding.instance().tokenize(prep_sent)
+            sentence_entities = defaultdict(lambda: [])
+            if sentence.keyphrases == []:
+                continue
+            for keyphrase in sentence.keyphrases:
+                entities = keyphrase.text.split()
+                for i in range(len(entities)):
+                    prep_entity = Preprocessor.preprocess(entities[i])
+                    entity_word = TransformerEmbedding.instance().tokenize(prep_entity)
+                    tag = "B-" if i == 0 else "I-"
+                    tag = tag + keyphrase.label
+                    for j in range(len(entity_word)):
+                        if j != 0:
+                            break
+                        sentence_entities[entity_word[j]].append(tag)
+
+            token_pos: int = 0
+            original_sent: list = (
+                sentence.text.replace(".", " ").replace(",", " ").split()
+            )
+
+            for i in range(len(tokenized_sent)):
+                token: str = tokenized_sent[i]
+                if token.startswith("Ġ"):
+                    original_token: str = original_sent[token_pos]
+                    token_pos += 1
+                if sentence_entities[token] == []:
+                    tag = "O"
+                else:
+                    tag = sentence_entities[token].pop(0)
+                word = pd.Series(
+                    {
+                        "token": token,
+                        "original_token": original_token,
+                        "vector": sent[i + 1],
+                        "tag": tag,
+                        "sentence": sentence.text,
+                    },
+                    name=index,
+                )
+                index += 1
+                df = df.append(word)
+
+        self._logger.info(f"Training completed: Stored {index} words.")
+        return df
+
+    def process_content_uncased_transformer(
+        self, path: Path, transformer_type: str
+    ) -> pd.DataFrame:
+        print("NERPreprocessor process_content_uncased_transformer")
+
+
+class REPreprocessor(Preprocessor):
+
+    _instance = None
+
+    @staticmethod
+    def instance():
+        if REPreprocessor._instance is None:
+            REPreprocessor()
+        return REPreprocessor._instance
+
+    def __init__(self) -> None:
+        if REPreprocessor._instance is not None:
+            raise Exception
+
+        REPreprocessor._instance = self
+
+    def process_content(self, path: Path) -> pd.DataFrame:
+        print("REPreprocessor process_content")
+        from ehealth.anntools import Collection
+
+        collection = Collection().load_dir(path)
+        self._logger.info(f"Loaded {len(collection)} sentences for fitting.")
+        self._logger.info(f"process_content")
+
+        df: pd.DataFrame = pd.DataFrame()
+        index: int = 0
+        sent_id: int = 1
+
+        for sentence in collection.sentences:
+            relation_pairs = {}
+            sentence_entities = {}
+            for relation in sentence.relations:
+                from_relation = relation.from_phrase.text.split()
+                for i in range(len(from_relation)):
+                    tag = "B-" if i == 0 else "I-"
+                    tag = tag + relation.from_phrase.label
+                    if i != 0:
+                        break
+                    from_word = from_relation[i]
+                    from_entity = tag
+                    sentence_entities[from_word] = tag
+
+                to_relation = relation.to_phrase.text.split()
+                for i in range(len(to_relation)):
+                    tag = "B-" if i == 0 else "I-"
+                    tag = tag + relation.to_phrase.label
+                    if i != 0:
+                        break
+                    to_word = to_relation[i]
+                    to_entity = tag
+                    sentence_entities[to_word] = tag
+
+                relation_pairs[
+                    (from_word, from_entity, to_word, to_entity)
+                ] = relation.label
+
+            for from_word in sentence.text.split():
+                for to_word in sentence.text.split():
+                    from_entity = sentence_entities.get(from_word, "O")
+                    to_entity = sentence_entities.get(to_word, "O")
+                    relation = relation_pairs.get(
+                        (from_word, from_entity, to_word, to_entity), "O"
+                    )
+                    relation = pd.Series(
+                        {
+                            "token1": from_word,
+                            "original_token1": from_word,
+                            "tag1": from_entity,
+                            "token2": to_word,
+                            "original_token2": to_word,
+                            "tag2": to_entity,
+                            "relation": relation,
+                            "sentence": sentence.text,
+                        },
+                        name=index,
+                    )
+                    index += 1
+                    df = df.append(relation)
+
+            sent_id += 1
+            self._logger.info(f"Finished sentence {sent_id} of {len(collection)}")
+
+        print(df)
+        print(df.relation.value_counts())
+
+        self._logger.info(f"Training completed: Stored {index} word pairs.")
+        return df
+
+    def process_content_cased_transformer(
+        self, path: Path, transformer_type: str
+    ) -> pd.DataFrame:
+        print("REPreprocessor process_content_cased_transformer")
+        from ehealth.anntools import Collection
+        from core.embeddinghandler import Embedding, TransformerEmbedding
+
+        collection = Collection().load_dir(path)
+        self._logger.info(f"Loaded {len(collection)} sentences for fitting.")
+        self._logger.info(f"process_content_cased_transformer")
+
+        df: pd.DataFrame = pd.DataFrame()
+        index: int = 0
+        sent_id: int = 1
+        sentences = []
+
+        if not Embedding.trained():
+            TransformerEmbedding.instance().build_transformer(type=transformer_type)
+
+        for sentence in collection.sentences:
+            prep_sent = (
+                (Preprocessor.preprocess(sentence.text))
+                .replace(".", "")
+                .replace(",", "")
+                .strip()
+            )
+
+            if sentence.text in sentences:
+                print("duplicated")
+                continue
+            sentences.append(sentence.text)
+
+            sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
+            tokenized_sent = TransformerEmbedding.instance().tokenize(prep_sent)
+            relation_pairs = {}
+            sentence_entities = {}
+            for relation in sentence.relations:
+                from_relation = Preprocessor.preprocess(relation.from_phrase.text)
+                from_relation = TransformerEmbedding.instance().tokenize(from_relation)
+                for i in range(len(from_relation)):
+                    tag = "B-" if i == 0 else "I-"
+                    tag = tag + relation.from_phrase.label
+                    if i != 0:
+                        break
+                    from_word = from_relation[i]
+                    from_entity = tag
+                    sentence_entities[from_word] = tag
+
+                to_relation = Preprocessor.preprocess(relation.to_phrase.text)
+                to_relation = TransformerEmbedding.instance().tokenize(to_relation)
+                for i in range(len(to_relation)):
+                    tag = "B-" if i == 0 else "I-"
+                    tag = tag + relation.to_phrase.label
+                    if i != 0:
+                        break
+                    to_word = to_relation[i]
+                    to_entity = tag
+                    sentence_entities[to_word] = tag
+
+                relation_pairs[
+                    (from_word, from_entity, to_word, to_entity)
+                ] = relation.label
+
+            token1_pos: int = 0
+            token2_pos: int = 0
+            original_sent: list = (
+                sentence.text.replace(".", " ").replace(",", " ").split()
+            )
+            for i in range(len(tokenized_sent)):
+                from_word = tokenized_sent[i]
+                if from_word.startswith("Ġ"):
+                    original_token1: str = original_sent[token1_pos]
+                    token1_pos += 1
+                for j in range(len(tokenized_sent)):
+                    to_word = tokenized_sent[j]
+                    if to_word.startswith("Ġ"):
+                        original_token2: str = original_sent[token2_pos]
+                        token2_pos += 1
+                    from_entity = sentence_entities.get(from_word, "O")
+                    to_entity = sentence_entities.get(to_word, "O")
+                    relation = relation_pairs.get(
+                        (from_word, from_entity, to_word, to_entity), "O"
+                    )
+                    relation = pd.Series(
+                        {
+                            "token1": from_word,
+                            "original_token1": original_token1,
+                            "vector1": sent[i + 1],
+                            "tag1": from_entity,
+                            "token2": to_word,
+                            "original_token2": original_token2,
+                            "vector2": sent[j + 1],
+                            "tag2": to_entity,
+                            "relation": relation,
+                            "sentence": sentence.text,
+                        },
+                        name=index,
+                    )
+                    index += 1
+                    df = df.append(relation)
+
+                token2_pos = 0
+
+            sent_id += 1
+            self._logger.info(f"Finished sentence {sent_id} of {len(collection)}")
+
+        print(df)
+        print(df.relation.value_counts())
+
+        self._logger.info(f"Training completed: Stored {index} word pairs.")
+        return df
+
+    def process_content_uncased_transformer(
+        self, path: Path, transformer_type: str
+    ) -> pd.DataFrame:
+        print("REPreprocessor process_content_uncased_transformer")
