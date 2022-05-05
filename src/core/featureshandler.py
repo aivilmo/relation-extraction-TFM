@@ -49,7 +49,7 @@ class FeaturesHandler:
             FeaturesHandler()
         return FeaturesHandler._instance
 
-    def __init__(self, task: str, features: list) -> None:
+    def __init__(self, task: str) -> None:
         if FeaturesHandler._instance is not None:
             return
 
