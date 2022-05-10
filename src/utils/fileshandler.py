@@ -15,6 +15,8 @@ class FilesHandler:
     _path_ref: str = "..\\dataset\\ehealthkd_CONCEPT_ACT_PRED_relaciones\\2021\\ref"
     _path_eval: str = "..\\dataset\\ehealthkd_CONCEPT_ACT_PRED_relaciones\\2021\\eval"
 
+    _IOB_output = "_IOB.pkl"
+
     _logger = Logger.instance()
 
     @staticmethod
@@ -39,6 +41,12 @@ class FilesHandler:
 
         FilesHandler._instance = self
 
+    def transformer_filename(self, transformer: str) -> str:
+        return "_" + transformer.replace("/", "_") + ".pkl"
+
+    def features_filename(self, features: str) -> str:
+        return "_" + features + ".npy"
+
     def generate_datasets(
         self,
         transformer_type: str = "",
@@ -60,12 +68,12 @@ class FilesHandler:
 
             if transformer_type == "":
                 df: pd.DataFrame = prep_instance.process_content(path)
-                output_file += "_IOB.pkl"
+                output_file += self._IOB_output
             else:
                 df: pd.DataFrame = prep_instance.process_content_cased_transformer(
                     path, transformer_type
                 )
-                output_file += "_" + transformer_type.replace("/", "_") + ".pkl"
+                output_file += self.transformer_filename(transformer_type)
 
             if not self.try_to_save_dataframe(df, output_file):
                 self.try_to_create_directory()
@@ -87,9 +95,9 @@ class FilesHandler:
     def load_datasets(self, transformer_type="") -> tuple[pd.DataFrame, pd.DataFrame]:
         def load_dataset(filename: str, transformer_type="") -> pd.DataFrame:
             if transformer_type == "":
-                filename = filename + "_IOB.pkl"
+                filename = filename + self._IOB_output
             else:
-                filename = filename + "_" + transformer_type.replace("/", "_") + ".pkl"
+                filename = filename + self.transformer_filename(transformer_type)
 
             try:
                 self._logger.info(f"Loading DataFrame from: {filename}")
@@ -112,16 +120,13 @@ class FilesHandler:
         test_dataset: pd.DataFrame,
         transformer_type: str = "",
     ) -> None:
+        transformer_filename = self.transformer_filename(transformer_type)
         if transformer_type == "":
-            train_dataset.to_pickle(self._output_train + "_IOB.pkl")
-            test_dataset.to_pickle(self._output_test + "_IOB.pkl")
+            train_dataset.to_pickle(self._output_train + self._IOB_output)
+            test_dataset.to_pickle(self._output_test + self._IOB_output)
         else:
-            train_dataset.to_pickle(
-                self._output_train + "_" + transformer_type.replace("/", "_") + ".pkl"
-            )
-            test_dataset.to_pickle(
-                self._output_test + "_" + transformer_type.replace("/", "_") + ".pkl"
-            )
+            train_dataset.to_pickle(self._output_train + transformer_filename)
+            test_dataset.to_pickle(self._output_test + transformer_filename)
         self._logger.info("Datasets successfully saved")
 
     def load_training_data(
@@ -131,20 +136,23 @@ class FilesHandler:
 
         try:
             self._logger.info(f"Loading training data...")
+            filename = self.features_filename(features)
 
             X_train = np.load(
-                self._output_X_train + "_" + features + ".npy",
+                self._output_X_train + filename,
                 allow_pickle=True,
             )
             X_test = np.load(
-                self._output_X_test + "_" + features + ".npy", allow_pickle=True
+                self._output_X_test + filename,
+                allow_pickle=True,
             )
             y_train = np.load(
-                self._output_y_train + "_" + features + ".npy",
+                self._output_y_train + filename,
                 allow_pickle=True,
             )
             y_test = np.load(
-                self._output_y_test + "_" + features + ".npy", allow_pickle=True
+                self._output_y_test + filename,
+                allow_pickle=True,
             )
 
             self._logger.info("Training data succesfully loaded")
@@ -162,10 +170,12 @@ class FilesHandler:
         features: np.ndarray,
     ) -> None:
         try:
-            np.save(self._output_X_train + "_" + features + ".npy", X_train)
-            np.save(self._output_X_test + "_" + features + ".npy", X_test)
-            np.save(self._output_y_train + "_" + features + ".npy", y_train)
-            np.save(self._output_y_test + "_" + features + ".npy", y_test)
+            filename = self.features_filename(features)
+
+            np.save(self._output_X_train + filename, X_train)
+            np.save(self._output_X_test + filename, X_test)
+            np.save(self._output_y_train + filename, y_train)
+            np.save(self._output_y_test + filename, y_test)
 
             self._logger.info(f"Data is successfully saved in dir \\data\\{self._task}")
 

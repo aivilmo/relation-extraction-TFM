@@ -22,36 +22,6 @@ class CoreModel(AbstractModel):
         CoreModel._instance = self
 
     @classmethod
-    def start_training(
-        self,
-        X_train: np.ndarray,
-        X_test: np.ndarray,
-        y_train: np.ndarray,
-        y_test: np.ndarray,
-        model,
-    ) -> None:
-        import wandb
-
-        wandb.init(project="visualize-sklearn")
-
-        self.build(X=X_train, y=y_train, model=model)
-        self.train()
-        yhat = self._model.predict(X_test)
-
-        wandb.sklearn.plot_classifier(
-            self._model,
-            X_train,
-            X_test,
-            y_train,
-            y_test,
-            y_test,
-            yhat,
-            self._labels,
-            model_name=model,
-            feature_names=None,
-        )
-
-    @classmethod
     def build(self, X: np.ndarray, y: np.ndarray, model, **kwargs) -> None:
         super().build(X, y)
 
