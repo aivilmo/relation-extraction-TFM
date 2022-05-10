@@ -78,10 +78,10 @@ class Preprocessor:
         df.drop(y_column, axis=1, inplace=True)
 
         delayed_results = []
-        ddf = dd.from_pandas(df, chunksize=chunk_size)
-        partitions = len(ddf.to_delayed())
+        dask_df = dd.from_pandas(df, chunksize=chunk_size)
+        partitions = len(dask_df.to_delayed())
         part_n = 1
-        for part in ddf.to_delayed():
+        for part in dask_df.to_delayed():
             df = part.compute()
             Preprocessor._logger.info(
                 f"Computing part of dataframe, part {part_n} of {partitions}"
@@ -215,7 +215,7 @@ class Preprocessor:
 
         from core.embeddinghandler import Embedding, TransformerEmbedding
 
-        Logger.instance().info(
+        Preprocessor._logger.info(
             f"Starting data augmentation for the {last_n_classes}th least represented classes"
         )
 
@@ -227,13 +227,13 @@ class Preprocessor:
         if classes_to_augment:
             tags = classes_to_augment
 
-        Logger.instance().info(
+        Preprocessor._logger.info(
             "Data augmentation for classes: " + ", ".join(classes_to_augment)
         )
 
         index: int = df.iloc[-1].name
         for tag in tags:
-            Logger.instance().info(f"Data augmentation for class {tag}")
+            Preprocessor._logger.info(f"Data augmentation for class {tag}")
             for value in df.query("tag=='" + tag + "'")["token"].values:
                 sentences = df[(df.tag == tag) & (df.token == value)]["sentence"].values
                 for sent in sentences:
@@ -260,7 +260,7 @@ class Preprocessor:
                         index += 1
                         augmented_df = augmented_df.append(word)
 
-        Logger.instance().info(
+        Preprocessor._logger.info(
             f"Finished data augmentation, added {index - df.iloc[-1].name} new synsets"
         )
         return augmented_df
@@ -283,7 +283,6 @@ class NERPreprocessor(Preprocessor):
         NERPreprocessor._instance = self
 
     def process_content(self, path: Path) -> pd.DataFrame:
-        print("NERPreprocessor process_content")
         from ehealth.anntools import Collection
 
         collection = Collection().load_dir(path)
@@ -325,7 +324,6 @@ class NERPreprocessor(Preprocessor):
     def process_content_cased_transformer(
         self, path: Path, transformer_type: str
     ) -> pd.DataFrame:
-        print("NERPreprocessor process_content_cased_transformer")
         from ehealth.anntools import Collection
         from core.embeddinghandler import Embedding, TransformerEmbedding
 
@@ -419,7 +417,6 @@ class REPreprocessor(Preprocessor):
         REPreprocessor._instance = self
 
     def process_content(self, path: Path) -> pd.DataFrame:
-        print("REPreprocessor process_content")
         from ehealth.anntools import Collection
 
         collection = Collection().load_dir(path)
@@ -433,26 +430,29 @@ class REPreprocessor(Preprocessor):
         for sentence in collection.sentences:
             relation_pairs = {}
             sentence_entities = {}
+            if sentence.relations == []:
+                continue
             for relation in sentence.relations:
                 from_relation = relation.from_phrase.text.split()
                 for i in range(len(from_relation)):
                     tag = "B-" if i == 0 else "I-"
                     tag = tag + relation.from_phrase.label
-                    if i != 0:
-                        break
-                    from_word = from_relation[i]
+                    if i == 0:
+                        from_word = from_relation[i]
                     from_entity = tag
-                    sentence_entities[from_word] = tag
+                    sentence_entities[from_relation[i]] = (
+                        tag,
+                        relation.from_phrase.text,
+                    )
 
                 to_relation = relation.to_phrase.text.split()
                 for i in range(len(to_relation)):
                     tag = "B-" if i == 0 else "I-"
                     tag = tag + relation.to_phrase.label
-                    if i != 0:
-                        break
-                    to_word = to_relation[i]
+                    if i == 0:
+                        to_word = to_relation[i]
                     to_entity = tag
-                    sentence_entities[to_word] = tag
+                    sentence_entities[to_relation[i]] = (tag, relation.to_phrase.text)
 
                 relation_pairs[
                     (from_word, from_entity, to_word, to_entity)
@@ -460,18 +460,22 @@ class REPreprocessor(Preprocessor):
 
             for from_word in sentence.text.split():
                 for to_word in sentence.text.split():
-                    from_entity = sentence_entities.get(from_word, "O")
-                    to_entity = sentence_entities.get(to_word, "O")
+                    from_entity, original_token1 = sentence_entities.get(
+                        from_word, ("O", from_word)
+                    )
+                    to_entity, original_token2 = sentence_entities.get(
+                        to_word, ("O", to_word)
+                    )
                     relation = relation_pairs.get(
                         (from_word, from_entity, to_word, to_entity), "O"
                     )
                     relation = pd.Series(
                         {
                             "token1": from_word,
-                            "original_token1": from_word,
+                            "original_token1": original_token1,
                             "tag1": from_entity,
                             "token2": to_word,
-                            "original_token2": to_word,
+                            "original_token2": original_token2,
                             "tag2": to_entity,
                             "relation": relation,
                             "sentence": sentence.text,
@@ -480,12 +484,8 @@ class REPreprocessor(Preprocessor):
                     )
                     index += 1
                     df = df.append(relation)
-
             sent_id += 1
             self._logger.info(f"Finished sentence {sent_id} of {len(collection)}")
-
-        print(df)
-        print(df.relation.value_counts())
 
         self._logger.info(f"Training completed: Stored {index} word pairs.")
         return df
@@ -493,7 +493,6 @@ class REPreprocessor(Preprocessor):
     def process_content_cased_transformer(
         self, path: Path, transformer_type: str
     ) -> pd.DataFrame:
-        print("REPreprocessor process_content_cased_transformer")
         from ehealth.anntools import Collection
         from core.embeddinghandler import Embedding, TransformerEmbedding
 
@@ -518,7 +517,6 @@ class REPreprocessor(Preprocessor):
             )
 
             if sentence.text in sentences:
-                print("duplicated")
                 continue
             sentences.append(sentence.text)
 
@@ -527,8 +525,10 @@ class REPreprocessor(Preprocessor):
             relation_pairs = {}
             sentence_entities = {}
             for relation in sentence.relations:
-                from_relation = Preprocessor.preprocess(relation.from_phrase.text)
-                from_relation = TransformerEmbedding.instance().tokenize(from_relation)
+                prep_from_relation = Preprocessor.preprocess(relation.from_phrase.text)
+                from_relation = TransformerEmbedding.instance().tokenize(
+                    prep_from_relation
+                )
                 for i in range(len(from_relation)):
                     tag = "B-" if i == 0 else "I-"
                     tag = tag + relation.from_phrase.label
@@ -536,10 +536,10 @@ class REPreprocessor(Preprocessor):
                         break
                     from_word = from_relation[i]
                     from_entity = tag
-                    sentence_entities[from_word] = tag
+                    sentence_entities[from_word] = (tag, prep_from_relation)
 
-                to_relation = Preprocessor.preprocess(relation.to_phrase.text)
-                to_relation = TransformerEmbedding.instance().tokenize(to_relation)
+                prep_to_relation = Preprocessor.preprocess(relation.to_phrase.text)
+                to_relation = TransformerEmbedding.instance().tokenize(prep_to_relation)
                 for i in range(len(to_relation)):
                     tag = "B-" if i == 0 else "I-"
                     tag = tag + relation.to_phrase.label
@@ -547,7 +547,7 @@ class REPreprocessor(Preprocessor):
                         break
                     to_word = to_relation[i]
                     to_entity = tag
-                    sentence_entities[to_word] = tag
+                    sentence_entities[to_word] = (tag, prep_to_relation)
 
                 relation_pairs[
                     (from_word, from_entity, to_word, to_entity)
@@ -563,13 +563,17 @@ class REPreprocessor(Preprocessor):
                 if from_word.startswith("Ġ"):
                     original_token1: str = original_sent[token1_pos]
                     token1_pos += 1
+                from_entity, original_token1 = sentence_entities.get(
+                    from_word, ("O", original_token1)
+                )
                 for j in range(len(tokenized_sent)):
                     to_word = tokenized_sent[j]
                     if to_word.startswith("Ġ"):
                         original_token2: str = original_sent[token2_pos]
                         token2_pos += 1
-                    from_entity = sentence_entities.get(from_word, "O")
-                    to_entity = sentence_entities.get(to_word, "O")
+                    to_entity, original_token2 = sentence_entities.get(
+                        to_word, ("O", original_token2)
+                    )
                     relation = relation_pairs.get(
                         (from_word, from_entity, to_word, to_entity), "O"
                     )
@@ -592,7 +596,6 @@ class REPreprocessor(Preprocessor):
                     df = df.append(relation)
 
                 token2_pos = 0
-
             sent_id += 1
             self._logger.info(f"Finished sentence {sent_id} of {len(collection)}")
 
