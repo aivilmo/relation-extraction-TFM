@@ -1,9 +1,20 @@
 #!/usr/bin/env python
 
+import imp
 from time import time
 import numpy as np
+from enum import Enum
 
 from logger.logger import Logger
+
+
+class ModelType(Enum):
+    SVM = "svm"
+    PRECEPTRON = "perceptron"
+    DECISIONTREE = "decisiontree"
+    RANDOMFOREST = "randomforest"
+    DENSE = "dense"
+    GRU = "gru"
 
 
 class AbstractModel:

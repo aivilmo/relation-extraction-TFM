@@ -4,7 +4,7 @@ import random
 import numpy as np
 import tensorflow as tf
 
-from model.abstractmodel import AbstractModel
+from model.abstractmodel import AbstractModel, ModelType
 
 seed = 6
 random.seed(seed)
@@ -19,6 +19,7 @@ tf.random.set_seed(seed)
 class DeepModel(AbstractModel):
 
     _instance = None
+
     _epochs = 80
     _batch_size = 64
     _embedding_dims = 100
@@ -55,13 +56,13 @@ class DeepModel(AbstractModel):
         super().start_training(X_train, X_test, y_train, y_test, model)
 
     @classmethod
-    def build(self, X: np.ndarray, y: np.ndarray, model, **kwargs) -> None:
+    def build(self, X: np.ndarray, y: np.ndarray, model) -> None:
         AbstractModel._n_classes = y.shape[1]
         super().build(X, y)
 
-        if model == "dense":
+        if ModelType(model) is ModelType.DENSE:
             self.build_dense()
-        if model == "gru":
+        if ModelType(model) is ModelType.GRU:
             self.build_gru()
         self.compile()
 

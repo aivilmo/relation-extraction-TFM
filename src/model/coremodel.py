@@ -1,12 +1,20 @@
 #!/usr/bin/env python
 import numpy as np
 import time
-from model.abstractmodel import AbstractModel
+from model.abstractmodel import AbstractModel, ModelType
+from sklearn import svm, linear_model, tree, ensemble
 
 
 class CoreModel(AbstractModel):
 
     _instance = None
+
+    _available_models: dict = {
+        ModelType.SVM: svm.LinearSVC(),
+        ModelType.PRECEPTRON: linear_model.Perceptron(),
+        ModelType.DECISIONTREE: tree.DecisionTreeClassifier(),
+        ModelType.RANDOMFOREST: ensemble.RandomForestClassifier(),
+    }
 
     @staticmethod
     def instance():
@@ -24,31 +32,7 @@ class CoreModel(AbstractModel):
     @classmethod
     def build(self, X: np.ndarray, y: np.ndarray, model, **kwargs) -> None:
         super().build(X, y)
-
-        if model == "svm":
-            from sklearn.svm import LinearSVC
-
-            self._model = LinearSVC(kwargs) if kwargs != {} else LinearSVC()
-        if model == "perceptron":
-            from sklearn.linear_model import Perceptron
-
-            self._model = Perceptron(kwargs) if kwargs != {} else Perceptron()
-        if model == "decisiontree":
-            from sklearn.tree import DecisionTreeClassifier
-
-            self._model = (
-                DecisionTreeClassifier(kwargs)
-                if kwargs != {}
-                else DecisionTreeClassifier()
-            )
-        if model == "randomforest":
-            from sklearn.ensemble import RandomForestClassifier
-
-            self._model = (
-                RandomForestClassifier(kwargs)
-                if kwargs != {}
-                else RandomForestClassifier()
-            )
+        self._model = self._available_models[ModelType(model)]
 
     @classmethod
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
