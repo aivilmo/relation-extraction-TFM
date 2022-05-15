@@ -516,7 +516,7 @@ class REPreprocessor(Preprocessor):
                 .strip()
             )
 
-            if sentence.text in sentences:
+            if sentence.text in sentences or sentence.relations == []:
                 continue
             sentences.append(sentence.text)
 
@@ -596,11 +596,9 @@ class REPreprocessor(Preprocessor):
                     df = df.append(relation)
 
                 token2_pos = 0
+
             sent_id += 1
             self._logger.info(f"Finished sentence {sent_id} of {len(collection)}")
-
-        print(df)
-        print(df.relation.value_counts())
 
         self._logger.info(f"Training completed: Stored {index} word pairs.")
         return df

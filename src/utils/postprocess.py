@@ -37,8 +37,8 @@ class PostProcessor:
         self, df: pd.DataFrame, index: int, words: list, positions: list, tag: str
     ) -> pd.DataFrame:
         entities: str = " ".join(words)
-        positions: str = ";".join(positions)
-        entity_pos: str = tag + " " + positions
+        pos: str = ";".join(positions)
+        entity_pos: str = tag + " " + pos
 
         if "word" in list(df.columns) and entity_pos in df.entity_pos.unique():
             return df, False
@@ -69,13 +69,20 @@ class PostProcessor:
         return df
 
     def get_pos(self, sentence: str, token: str, offset: int) -> str:
-        pos_init1: int = sentence.find(token) + offset
-        pos_end1 = pos_init1 + len(token)
+        positions = []
+        for t in token.split():
+            pos_init1: int = sentence.find(t) + offset
+            pos_end1 = pos_init1 + len(t)
+            positions.append(str(pos_init1) + " " + str(pos_end1))
 
-        return str(pos_init1) + " " + str(pos_end1)
+        return positions
 
     def export_data_to_file(self, dataset_test: pd.DataFrame) -> None:
         df: pd.DataFrame = pd.DataFrame()
+
+        if "predicted_tag" not in list(dataset_test.columns):
+            self._logger.error(f"Dataset must be trained with any model before export")
+            return
 
         self._logger.info(
             f"Exporting output.ann data for task {self._task}, run {self._run} and dataset {self._dataset}"
@@ -170,27 +177,26 @@ class PostProcessor:
                 pos2 = self.get_pos(row.sentence, row.original_token2, sentence_offset)
 
                 df, has_inserted = self.append_entity_row(
-                    df, entity_index, [row.token1], [pos1], tag1
+                    df, entity_index, [row.original_token1], pos1, tag1
                 )
                 if has_inserted:
                     entity_index += 1
                 df, has_inserted = self.append_entity_row(
-                    df, entity_index, [row.token2], [pos2], tag2
+                    df, entity_index, [row.original_token2], pos2, tag2
                 )
                 if has_inserted:
                     entity_index += 1
 
-                T1 = df.loc[df.word == row.token1]["index"].values[0][1:]
-                T2 = df.loc[df.word == row.token2]["index"].values[0][1:]
+                T1 = df.loc[df.word == row.original_token1]["index"].values[0][1:]
+                T2 = df.loc[df.word == row.original_token2]["index"].values[0][1:]
                 relations.append((T1, T2))
 
             # Fill relations
             for _, row in sent_df.iterrows():
-                relation: str = row.predicted_tag
                 df = self.append_entity_relation(
                     df,
                     relation_index,
-                    relation,
+                    row.predicted_tag,
                     relations[relation_index][0],
                     relations[relation_index][1],
                 )

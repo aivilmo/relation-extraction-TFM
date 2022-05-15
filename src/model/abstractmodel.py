@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import imp
 from time import time
 import numpy as np
 from enum import Enum
@@ -105,7 +104,11 @@ class AbstractModel:
 
         le = LabelEncoder()
         le.fit(test[y_column].values)
-        test["predicted_tag"] = le.inverse_transform(self._yhat)
+        try:
+            test["predicted_tag"] = le.inverse_transform(self._yhat)
+        except ValueError as e:
+            self._logger.error(e)
+            return
 
         FilesHandler.instance().save_datasets(train, test, transformer_type=transformer)
 
