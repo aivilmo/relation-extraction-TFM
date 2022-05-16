@@ -102,18 +102,18 @@ class FeaturesHandler:
         self.check_features_for_task()
 
         # NER features
-        if "single_word_emb" in self._features:
-            self._feat_single_word_emb(df)
-            columns += ["token"]
         if "tf_idf" in self._features:
             self._feat_tf_idf(df, test=test)
+            columns += ["token"]
+        if "bag_of_words" in self._features:
+            self._feat_bag_of_words(df, test=test)
+            columns += ["token"]
+        if "single_word_emb" in self._features:
+            self._feat_single_word_emb(df)
             columns += ["token"]
         if "sent_emb" in self._features:
             self._feat_sent_emb(df)
             columns += ["sentence"]
-        if "bag_of_words" in self._features:
-            self._feat_bag_of_words(df, test=test)
-            columns += ["token"]
         if "chars" in self._features:
             self._feat_chars(df, test=test)
             columns += ["token"]
@@ -142,15 +142,78 @@ class FeaturesHandler:
         )
         return np.nan_to_num(features)
 
-    def _feat_with_tags(self, df: pd.DataFrame, test: bool = False) -> None:
+    def _fit_on_feature_extraction(
+        self, df: pd.DataFrame, object, column: str, test: bool = False
+    ) -> pd.DataFrame:
         if not test:
-            self._logger.info("Fitting word labels")
-            df["tag1"] = self._le.fit_transform(df.tag1.values)
-            df["tag2"] = self._le.fit_transform(df.tag2.values)
-            return
+            self._logger.info(f"Fitting words to {object}")
+            object.fit(df[column].unique().tolist())
+            self._logger.info(f"Vocab size: {len(object.vocabulary_.keys())}")
 
-        df["tag1"] = self._le.transform(df.tag1.values)
-        df["tag2"] = self._le.transform(df.tag2.values)
+        df[column] = df[column].apply(
+            lambda x: object.transform([x]).toarray().reshape(-1)
+        )
+        return df
+
+    def _feat_tf_idf(
+        self, df: pd.DataFrame, column: str = "token", test: bool = False
+    ) -> None:
+        df = self._fit_on_feature_extraction(df, self._tf, column, test)
+
+    def _feat_bag_of_words(
+        self, df: pd.DataFrame, column: str = "token", test: bool = False
+    ) -> None:
+        df = self._fit_on_feature_extraction(df, self._cv, column, test)
+
+    @staticmethod
+    def _feat_single_word_emb(df: pd.DataFrame) -> None:
+        if not Embedding.trained():
+            WordEmbedding.instance().load_model()
+
+        df["token"] = df.token.apply(lambda x: WordEmbedding.instance().word_vector(x))
+
+    @staticmethod
+    def _feat_sent_emb(df: pd.DataFrame) -> None:
+        if not Embedding.trained():
+            tokens = Embedding.prepare_text_to_train(df)
+            WordEmbedding.instance().load_model()
+            WordEmbedding.instance().train_word_embedding(tokens)
+
+        df["sentence"] = df.sentence.apply(
+            lambda x: WordEmbedding.instance().words_to_vector(x.split())
+        )
+
+    def _fit_on_texts(
+        self, df: pd.DataFrame, object, maxlen: int, test: bool = False
+    ) -> pd.DataFrame:
+        if not test:
+            object.fit_on_texts(df.token)
+            vocab_size = len(object.word_index) + 1
+            self._logger.info(f"Vocab size: {vocab_size}")
+
+        df["token"] = df.token.apply(lambda x: object.texts_to_sequences([x])[0])
+        df["token"] = df.token.apply(lambda x: pad_sequences([x], maxlen=maxlen)[0])
+        self._logger.info(f"Matriz features for emebdding: {df.token.shape}")
+        return df
+
+    def _feat_chars(self, df: pd.DataFrame, test: bool = False) -> None:
+        df = self._fit_on_texts(df, self._ck, 15, test)
+
+    def _feat_tokens(self, df: pd.DataFrame, test: bool = False) -> None:
+        df = self._fit_on_texts(df, self._tk, 3, test)
+
+    def _feat_seq2seq(self, df: pd.DataFrame) -> None:
+        df.rename(columns={"token": "words", "tag": "labels"}, inplace=True)
+
+    def _feat_with_tags(self, df: pd.DataFrame, test: bool = False) -> None:
+        def _fit_transform(df, tag, values, test):
+            if not test:
+                df[tag] = self._le.fit_transform(values)
+            df[tag] = self._le.transform(values)
+            return df
+
+        df = _fit_transform(df, "tag1", df.tag1.values, test)
+        df = _fit_transform(df, "tag2", df.tag2.values, test)
 
     @staticmethod
     def _feat_word_emb(df: pd.DataFrame) -> None:
@@ -164,79 +227,6 @@ class FeaturesHandler:
         )
         df["token2"] = df.token2.apply(
             lambda x: WordEmbedding.instance().words_to_vector(x.split())
-        )
-
-    @staticmethod
-    def _feat_sent_emb(df: pd.DataFrame) -> None:
-        if not Embedding.trained():
-            tokens = Embedding.prepare_text_to_train(df)
-            WordEmbedding.instance().load_model()
-            WordEmbedding.instance().train_word_embedding(tokens)
-
-        df["sentence"] = df.sentence.apply(
-            lambda x: WordEmbedding.instance().words_to_vector(x.split())
-        )
-
-    def _feat_bag_of_words(
-        self, df: pd.DataFrame, column: str = "token", test: bool = False
-    ) -> None:
-        if not test:
-            self._logger.info("Fitting words to bag of words")
-            self._cv.fit(df[column].unique().tolist())
-            self._logger.info(f"Vocab size: {len(self._cv.vocabulary_.keys())}")
-
-        df[column] = df[column].apply(
-            lambda x: self._cv.transform([x]).toarray().reshape(-1)
-        )
-
-    @staticmethod
-    def _feat_single_word_emb(df: pd.DataFrame) -> None:
-        if not Embedding.trained():
-            WordEmbedding.instance().load_model()
-
-        df["token"] = df.token.apply(lambda x: WordEmbedding.instance().word_vector(x))
-
-    def _feat_tf_idf(
-        self, df: pd.DataFrame, column: str = "token", test: bool = False
-    ) -> None:
-        if not test:
-            self._logger.info("Fitting words to tf idf")
-            self._tf.fit(df[column].unique().tolist())
-            self._logger.info(f"Vocab size: {len(self._tf.vocabulary_.keys())}")
-
-        df[column] = df[column].apply(
-            lambda x: self._tf.transform([x]).toarray().reshape(-1)
-        )
-
-    def _feat_chars(self, df: pd.DataFrame, test: bool = False) -> None:
-        if not test:
-            self._ck.fit_on_texts(df.token)
-            vocab_size = len(self._ck.word_index) + 1
-            self._logger.info(f"Vocab size: {vocab_size}")
-
-        df["token"] = df.token.apply(lambda x: self._ck.texts_to_sequences([x])[0])
-        df["token"] = df.token.apply(lambda x: pad_sequences([x], maxlen=15)[0])
-        self._logger.info(f"Matriz features for emebdding: {df.token.shape}")
-
-    def _feat_tokens(self, df: pd.DataFrame, test: bool = False) -> None:
-        if not test:
-            self._tk.fit_on_texts(df.token)
-            vocab_size = len(self._tk.word_index) + 1
-            self._logger.info(f"Vocab size: {vocab_size}")
-
-        df["token"] = df.token.apply(lambda x: self._tk.texts_to_sequences([x])[0])
-        df["token"] = df.token.apply(lambda x: pad_sequences([x], maxlen=3)[0])
-        self._logger.info(f"Matriz features for emebdding: {df.token.shape}")
-
-    def _feat_seq2seq(self, df: pd.DataFrame) -> None:
-        df.rename(columns={"token": "words", "tag": "labels"}, inplace=True)
-
-    def _feat_transformer(self, df: pd.DataFrame, type) -> None:
-        if not Embedding.trained():
-            TransformerEmbedding.instance().build_transformer(type=type)
-
-        df["token"] = df.token.apply(
-            lambda x: TransformerEmbedding.instance().word_vector(x)
         )
 
     @staticmethod
