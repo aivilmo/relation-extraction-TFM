@@ -432,6 +432,11 @@ class REPreprocessor(Preprocessor):
         entities[relation] = (phrase.label, vector.mean(axis=0))
         return relation, entities
 
+    def append_relations(self, sentence: list, relation: str) -> list:
+        if relation not in sentence:
+            sentence.append(relation)
+        return sentence
+
     def process_content(self, path: Path) -> pd.DataFrame:
         collection = Collection().load_dir(path)
         self._logger.info(f"Loaded {len(collection)} sentences for fitting.")
@@ -458,13 +463,10 @@ class REPreprocessor(Preprocessor):
 
                 relation_pairs[(relation_from.text, relation_to.text)] = relation.label
 
-                sent = sent.replace(relation_from.text, "").replace(
-                    relation_to.text, ""
-                )
-                if relation_from.text not in sentence_ent:
-                    sentence_ent.append(relation_from.text)
-                if relation_to.text not in sentence_ent:
-                    sentence_ent.append(relation_to.text)
+                sent = sent.replace(relation_from.text, "")
+                sent = sent.replace(relation_to.text, "")
+                sentence_ent = self.append_relations(sentence_ent, relation_from.text)
+                sentence_ent = self.append_relations(sentence_ent, relation_to.text)
 
             sentence_ent = sent.split() + sentence_ent
             for from_word in sentence_ent:
@@ -492,8 +494,8 @@ class REPreprocessor(Preprocessor):
                     index += 1
                     df = df.append(relation)
 
-            sent_id += 1
             self._logger.info(f"Finished sentence {sent_id} of {len(collection)}")
+            sent_id += 1
 
         self._logger.info(f"Training completed: Stored {index} word pairs.")
         return df
