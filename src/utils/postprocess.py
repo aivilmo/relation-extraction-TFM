@@ -68,10 +68,22 @@ class PostProcessor:
         df = df.append(relation)
         return df
 
+    def trim(self, phrase: str) -> str:
+        return (
+            phrase.replace(".", "")
+            .replace(",", "")
+            .replace("(", "")
+            .replace(")", "")
+            .replace('"', "")
+        )
+
     def get_pos(self, sentence: str, token: str, offset: int) -> str:
         positions = []
+        # For avoid no whole words
+        sentence = " " + self.trim(sentence) + " "
+        token = self.trim(token)
         for t in token.split():
-            pos_init1: int = sentence.find(t) + offset
+            pos_init1: int = sentence.find(" " + t + " ") + offset
             pos_end1 = pos_init1 + len(t)
             positions.append(str(pos_init1) + " " + str(pos_end1))
 
