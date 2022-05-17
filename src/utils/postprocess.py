@@ -163,7 +163,6 @@ class PostProcessor:
         sentence_offset: int = 0
 
         relations: list = []
-
         for sent in dataset_test.sentence.unique():
             sent_df = dataset_test.loc[dataset_test.sentence == sent]
             sent_df = sent_df[sent_df.predicted_tag != "O"]
@@ -187,8 +186,8 @@ class PostProcessor:
                 if has_inserted:
                     entity_index += 1
 
-                T1 = df.loc[df.word == row.original_token1]["index"].values[0][1:]
-                T2 = df.loc[df.word == row.original_token2]["index"].values[0][1:]
+                T1 = df.loc[df.word == row.original_token1]["index"].values[-1][1:]
+                T2 = df.loc[df.word == row.original_token2]["index"].values[-1][1:]
                 relations.append((T1, T2))
 
             # Fill relations
