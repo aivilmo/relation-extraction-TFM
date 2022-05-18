@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 
 from logger.logger import Logger
+from utils.preprocess import REPreprocessor, NERPreprocessor
 
 
 class FilesHandler:
@@ -41,6 +42,19 @@ class FilesHandler:
 
         FilesHandler._instance = self
 
+    def get_dataframe(self, instance, path: Path, transformer: str) -> pd.DataFrame:
+        if self.is_transformer(transformer):
+            return instance.process_content_cased_transformer(path, transformer)
+        return instance.process_content(path)
+
+    def get_filename(self, filename: str, transformer: str) -> str:
+        if self.transformer_filename(transformer):
+            return filename + self.transformer_filename(transformer)
+        return filename + self._IOB_output
+
+    def is_transformer(self, transformer: str) -> bool:
+        return transformer != ""
+
     def transformer_filename(self, transformer: str) -> str:
         return "_" + transformer.replace("/", "_") + ".pkl"
 
@@ -49,15 +63,13 @@ class FilesHandler:
 
     def generate_datasets(
         self,
-        transformer_type: str = "",
+        transformer: str = "",
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         def generate_dataset(
             path: Path,
             output_file: str,
-            transformer_type: str = "",
+            transformer: str = "",
         ) -> pd.DataFrame:
-            from utils.preprocess import REPreprocessor, NERPreprocessor
-
             self._logger.info("Generating DataFrame...")
 
             prep_instance = None
@@ -66,14 +78,8 @@ class FilesHandler:
             if "taskB" in self._task:
                 prep_instance = REPreprocessor.instance()
 
-            if transformer_type == "":
-                df: pd.DataFrame = prep_instance.process_content(path)
-                output_file += self._IOB_output
-            else:
-                df: pd.DataFrame = prep_instance.process_content_cased_transformer(
-                    path, transformer_type
-                )
-                output_file += self.transformer_filename(transformer_type)
+            df: pd.DataFrame = self.get_dataframe(prep_instance, path, transformer)
+            output_file = self.get_filename(output_file, transformer)
 
             if not self.try_to_save_dataframe(df, output_file):
                 self.try_to_create_directory()
@@ -85,22 +91,19 @@ class FilesHandler:
         return generate_dataset(
             path=Path(self._path_ref + "\\training\\"),
             output_file=self._output_train,
-            transformer_type=transformer_type,
+            transformer=transformer,
         ), generate_dataset(
             path=Path(self._path_eval + "\\training\\" + self._task + "\\"),
             output_file=self._output_test,
-            transformer_type=transformer_type,
+            transformer=transformer,
         )
 
-    def load_datasets(self, transformer_type="") -> tuple[pd.DataFrame, pd.DataFrame]:
-        def load_dataset(filename: str, transformer_type="") -> pd.DataFrame:
-            if transformer_type == "":
-                filename = filename + self._IOB_output
-            else:
-                filename = filename + self.transformer_filename(transformer_type)
+    def load_datasets(self, transformer="") -> tuple[pd.DataFrame, pd.DataFrame]:
+        def load_dataset(filename: str, transformer="") -> pd.DataFrame:
+            filename = self.get_filename(filename, transformer)
+            self._logger.info(f"Loading DataFrame from: {filename}")
 
             try:
-                self._logger.info(f"Loading DataFrame from: {filename}")
                 df: pd.DataFrame = pd.read_pickle(filename)
 
             except (FileNotFoundError, OSError) as e:
@@ -110,23 +113,22 @@ class FilesHandler:
             self._logger.info("DataFrame succesfully loaded")
             return df
 
-        return load_dataset(self._output_train, transformer_type), load_dataset(
-            self._output_test, transformer_type
+        return load_dataset(self._output_train, transformer), load_dataset(
+            self._output_test, transformer
         )
 
     def save_datasets(
         self,
         train_dataset: pd.DataFrame,
         test_dataset: pd.DataFrame,
-        transformer_type: str = "",
+        transformer: str = "",
     ) -> None:
-        transformer_filename = self.transformer_filename(transformer_type)
-        if transformer_type == "":
-            train_dataset.to_pickle(self._output_train + self._IOB_output)
-            test_dataset.to_pickle(self._output_test + self._IOB_output)
-        else:
-            train_dataset.to_pickle(self._output_train + transformer_filename)
-            test_dataset.to_pickle(self._output_test + transformer_filename)
+        end_filename: str = self._IOB_output
+        if self.is_transformer(transformer):
+            end_filename = self.transformer_filename(transformer)
+
+        train_dataset.to_pickle(self._output_train + end_filename)
+        test_dataset.to_pickle(self._output_test + end_filename)
         self._logger.info("Datasets successfully saved")
 
     def load_training_data(
