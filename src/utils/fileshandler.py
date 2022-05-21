@@ -42,21 +42,11 @@ class FilesHandler:
 
         FilesHandler._instance = self
 
-    def get_dataframe(self, instance, path: Path, transformer: str) -> pd.DataFrame:
-        if self.is_transformer(transformer):
-            return instance.process_content_cased_transformer(path, transformer)
+    def get_dataframe(self, instance, path: Path) -> pd.DataFrame:
         return instance.process_content(path)
 
-    def get_filename(self, filename: str, transformer: str) -> str:
-        if self.transformer_filename(transformer):
-            return filename + self.transformer_filename(transformer)
+    def get_filename(self, filename: str) -> str:
         return filename + self._IOB_output
-
-    def is_transformer(self, transformer: str) -> bool:
-        return transformer != ""
-
-    def transformer_filename(self, transformer: str) -> str:
-        return "_" + transformer.replace("/", "_") + ".pkl"
 
     def features_filename(self, features: str) -> str:
         return "_" + features + ".npy"
@@ -98,9 +88,9 @@ class FilesHandler:
             transformer=transformer,
         )
 
-    def load_datasets(self, transformer="") -> tuple[pd.DataFrame, pd.DataFrame]:
-        def load_dataset(filename: str, transformer="") -> pd.DataFrame:
-            filename = self.get_filename(filename, transformer)
+    def load_datasets(self) -> tuple[pd.DataFrame, pd.DataFrame]:
+        def load_dataset(filename: str) -> pd.DataFrame:
+            filename = self.get_filename(filename)
             self._logger.info(f"Loading DataFrame from: {filename}")
 
             try:
@@ -113,19 +103,14 @@ class FilesHandler:
             self._logger.info("DataFrame succesfully loaded")
             return df
 
-        return load_dataset(self._output_train, transformer), load_dataset(
-            self._output_test, transformer
-        )
+        return load_dataset(self._output_train), load_dataset(self._output_test)
 
     def save_datasets(
         self,
         train_dataset: pd.DataFrame,
         test_dataset: pd.DataFrame,
-        transformer: str = "",
     ) -> None:
         end_filename: str = self._IOB_output
-        if self.is_transformer(transformer):
-            end_filename = self.transformer_filename(transformer)
 
         train_dataset.to_pickle(self._output_train + end_filename)
         test_dataset.to_pickle(self._output_test + end_filename)

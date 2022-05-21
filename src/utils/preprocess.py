@@ -41,18 +41,6 @@ class Preprocessor:
     def process_content(self, path: Path) -> pd.DataFrame:
         pass
 
-    @abstractmethod
-    def process_content_cased_transformer(
-        self, path: Path, transformer_type: str
-    ) -> pd.DataFrame:
-        pass
-
-    @abstractmethod
-    def process_content_uncased_transformer(
-        self, path: Path, transformer_type: str
-    ) -> pd.DataFrame:
-        pass
-
     def train_test_split(
         self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
     ) -> np.ndarray:
@@ -320,81 +308,6 @@ class NERPreprocessor(Preprocessor):
         self._logger.info(f"Training completed: Stored {index} words.")
         return df
 
-    def process_content_cased_transformer(
-        self, path: Path, transformer_type: str
-    ) -> pd.DataFrame:
-        from collections import defaultdict
-
-        collection = Collection().load_dir(path)
-        self._logger.info(f"Loaded {len(collection)} sentences for fitting.")
-        self._logger.info(f"process_content_cased_transformer")
-
-        df: pd.DataFrame = pd.DataFrame()
-        index: int = 0
-
-        if not Embedding.trained():
-            TransformerEmbedding.instance().build_transformer(type=transformer_type)
-
-        for sentence in collection.sentences:
-            prep_sent = (
-                (Preprocessor.preprocess(sentence.text))
-                .replace(".", "")
-                .replace(",", "")
-                .strip()
-            )
-
-            sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
-            tokenized_sent = TransformerEmbedding.instance().tokenize(prep_sent)
-            sentence_entities = defaultdict(lambda: [])
-            if sentence.keyphrases == []:
-                continue
-            for keyphrase in sentence.keyphrases:
-                entities = keyphrase.text.split()
-                for i in range(len(entities)):
-                    prep_entity = Preprocessor.preprocess(entities[i])
-                    entity_word = TransformerEmbedding.instance().tokenize(prep_entity)
-                    tag = "B-" if i == 0 else "I-"
-                    tag = tag + keyphrase.label
-                    for j in range(len(entity_word)):
-                        if j != 0:
-                            break
-                        sentence_entities[entity_word[j]].append(tag)
-
-            token_pos: int = 0
-            original_sent: list = (
-                sentence.text.replace(".", " ").replace(",", " ").split()
-            )
-
-            for i in range(len(tokenized_sent)):
-                token: str = tokenized_sent[i]
-                if token.startswith("Ġ"):
-                    original_token: str = original_sent[token_pos]
-                    token_pos += 1
-                if sentence_entities[token] == []:
-                    tag = self._default_tag
-                else:
-                    tag = sentence_entities[token].pop(0)
-                word = pd.Series(
-                    {
-                        "token": token,
-                        "original_token": original_token,
-                        "vector": sent[i + 1],
-                        "tag": tag,
-                        "sentence": sentence.text,
-                    },
-                    name=index,
-                )
-                index += 1
-                df = df.append(word)
-
-        self._logger.info(f"Training completed: Stored {index} words.")
-        return df
-
-    def process_content_uncased_transformer(
-        self, path: Path, transformer_type: str
-    ) -> pd.DataFrame:
-        print("NERPreprocessor process_content_uncased_transformer")
-
 
 class REPreprocessor(Preprocessor):
 
@@ -415,22 +328,6 @@ class REPreprocessor(Preprocessor):
     def update_entity(self, phrase, entities) -> dict:
         entities[phrase.text] = phrase.label
         return entities
-
-    def update_transformer_entity(
-        self, phrase, sent, sent_vector, entities
-    ) -> tuple[str, dict]:
-        prep_relation = Preprocessor.preprocess(phrase.text)
-        relation = " ".join(TransformerEmbedding.instance().tokenize(prep_relation))
-
-        vector = np.zeros((len(relation.split()), 768))
-        i: int = 0
-        for w in relation.split():
-            index = sent.index(w)
-            vector[i] = sent_vector[index]
-            i += 1
-
-        entities[relation] = (phrase.label, vector.mean(axis=0))
-        return relation, entities
 
     def append_relations(self, sentence: list, relation: str) -> list:
         if relation not in sentence:
@@ -499,115 +396,3 @@ class REPreprocessor(Preprocessor):
 
         self._logger.info(f"Training completed: Stored {index} word pairs.")
         return df
-
-    def process_content_cased_transformer(
-        self, path: Path, transformer_type: str
-    ) -> pd.DataFrame:
-        collection = Collection().load_dir(path)
-        self._logger.info(f"Loaded {len(collection)} sentences for fitting.")
-        self._logger.info(f"process_content_cased_transformer")
-
-        df: pd.DataFrame = pd.DataFrame()
-        index: int = 0
-        sent_id: int = 1
-        default_pair: tuple = (self._default_tag, np.zeros((1, 768)))
-
-        if not Embedding.trained():
-            TransformerEmbedding.instance().build_transformer(type=transformer_type)
-
-        for sentence in collection.sentences:
-            if sentence.relations == []:
-                continue
-
-            prep_sent = (
-                (Preprocessor.preprocess(sentence.text))
-                .replace(".", "")
-                .replace(",", "")
-                .strip()
-            )
-
-            sentence_ent, sentence_ori = [], []
-            sent = TransformerEmbedding.instance().sentence_vector(prep_sent)
-            tokenized_sent = TransformerEmbedding.instance().tokenize(prep_sent)
-            sent_joined: str = " ".join(tokenized_sent)
-            original_sent: str = sentence.text.replace(".", " ").replace(",", " ")
-
-            relation_pairs, from_entities, to_entities = {}, {}, {}
-
-            for relation in sentence.relations:
-                relation_from = relation.from_phrase
-                word_from, from_entities = self.update_transformer_entity(
-                    relation_from, tokenized_sent, sent, from_entities
-                )
-
-                relation_to = relation.to_phrase
-                word_to, to_entities = self.update_transformer_entity(
-                    relation_to, tokenized_sent, sent, to_entities
-                )
-
-                relation_pairs[(word_from, word_to)] = relation.label
-
-                sent_joined = sent_joined.replace(word_from, "").replace(word_to, "")
-                original_sent = original_sent.replace(relation_from.text, "").replace(
-                    relation_to.text, ""
-                )
-                if word_from not in sentence_ent:
-                    sentence_ori.append(relation_from.text)
-                    sentence_ent.append(word_from)
-                if word_to not in sentence_ent:
-                    sentence_ori.append(relation_to.text)
-                    sentence_ent.append(word_to)
-
-            token1_pos, token2_pos = 0, 0
-            sentence_ent = sent_joined.split() + sentence_ent
-            sentence_ori = original_sent.split() + sentence_ori
-            for from_word in sentence_ent:
-                from_entity, from_vector = from_entities.get(from_word, default_pair)
-                if from_word.startswith("Ġ"):
-                    original_token1: str = sentence_ori[token1_pos]
-                    token1_pos += 1
-                if from_vector.all() == 0:
-                    from_vector = sent[token1_pos + 1]
-
-                for to_word in sentence_ent:
-                    if from_word == to_word:
-                        continue
-
-                    to_entity, to_vector = from_entities.get(to_word, default_pair)
-                    if to_word.startswith("Ġ"):
-                        original_token2: str = sentence_ori[token2_pos]
-                        token2_pos += 1
-                    if to_vector.all() == 0:
-                        to_vector = sent[token2_pos + 1]
-
-                    pair = (from_word, to_word)
-                    relation = relation_pairs.get(pair, self._default_tag)
-                    relation = pd.Series(
-                        {
-                            "token1": from_word,
-                            "original_token1": original_token1,
-                            "vector1": from_vector,
-                            "tag1": from_entity,
-                            "token2": to_word,
-                            "original_token2": original_token2,
-                            "vector2": to_vector,
-                            "tag2": to_entity,
-                            "relation": relation,
-                            "sentence": sentence.text,
-                        },
-                        name=index,
-                    )
-                    index += 1
-                    df = df.append(relation)
-                token2_pos = 0
-
-            sent_id += 1
-            self._logger.info(f"Finished sentence {sent_id} of {len(collection)}")
-
-        self._logger.info(f"Training completed: Stored {index} word pairs.")
-        return df
-
-    def process_content_uncased_transformer(
-        self, path: Path, transformer_type: str
-    ) -> pd.DataFrame:
-        print("REPreprocessor process_content_uncased_transformer")

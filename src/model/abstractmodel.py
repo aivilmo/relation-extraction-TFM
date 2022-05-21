@@ -98,8 +98,7 @@ class AbstractModel:
 
         self._logger.info("Exporting results to dataframe...")
 
-        transformer, _ = Main.instance().get_features()
-        train, test = FilesHandler.instance().load_datasets(transformer)
+        train, test = FilesHandler.instance().load_datasets()
         y_column = Main.instance().get_y_column()
 
         le = LabelEncoder()
@@ -110,7 +109,7 @@ class AbstractModel:
             self._logger.error(e)
             return
 
-        FilesHandler.instance().save_datasets(train, test, transformer_type=transformer)
+        FilesHandler.instance().save_datasets(train, test)
 
     @classmethod
     def compute_sample_weight(self) -> dict:
