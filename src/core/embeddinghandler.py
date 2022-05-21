@@ -89,6 +89,20 @@ class TransformerEmbedding(Embedding):
     def tokenize(self, text: str) -> list:
         return self._preprocess_layer.tokenize(text)
 
+    def apply_transformer(self, serie: pd.Series, token: str) -> np.ndarray:
+        sent = self.sentence_vector(serie.sentence)
+        tokenized_sent = self.tokenize(serie.sentence)
+        tokens = self.tokenize(serie[token])
+
+        token_vectors = [
+            sent[i + 1] for i, e in enumerate(tokenized_sent) if e in set(tokens)
+        ]
+        vector = np.array(token_vectors)
+
+        if vector.shape == (0,):
+            return np.zeros((768,))
+        return np.mean(vector, axis=0)
+
     def plot_model(self) -> None:
         filename = "images\\bert.png"
         tf.keras.utils.plot_model(self._model, to_file=filename)

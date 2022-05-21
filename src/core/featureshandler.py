@@ -123,10 +123,6 @@ class FeaturesHandler:
         if "seq2seq" in self._features:
             self._feat_seq2seq(df)
             return
-        if self._is_transformer:
-            columns += (
-                ["vector"] if "taskA" in self._task else ["vector1"] + ["vector2"]
-            )
 
         # RE fearures
         if "with_entities" in self._features:
@@ -135,6 +131,11 @@ class FeaturesHandler:
         if "word_emb" in self._features:
             self._feat_word_emb(df)
             columns += ["token1"] + ["token2"]
+
+        # Both tasks
+        if self._is_transformer:
+            self._feat_transformer(df)
+            columns += ["vector"] if "taskA" in self._task else ["token1"] + ["token2"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
         self._logger.info(
@@ -228,6 +229,25 @@ class FeaturesHandler:
         df["token2"] = df.token2.apply(
             lambda x: WordEmbedding.instance().words_to_vector(x.split())
         )
+
+    def _feat_transformer(self, df: pd.DataFrame) -> None:
+        if "taskA" in self._task:
+            return
+
+        if not Embedding.trained():
+            TransformerEmbedding.instance().build_transformer(self._features[0])
+
+        df["token1"] = df.apply(
+            lambda x: TransformerEmbedding.instance().apply_transformer(x, "token1"),
+            axis=1,
+        )
+        self._logger.info("Finished with apply_transformer for token1")
+
+        df["token2"] = df.apply(
+            lambda x: TransformerEmbedding.instance().apply_transformer(x, "token2"),
+            axis=1,
+        )
+        self._logger.info("Finished with apply_transformer for token2")
 
     @staticmethod
     def _combine_features(df: pd.DataFrame, columns: list) -> np.ndarray:

@@ -87,17 +87,17 @@ class Main:
     def _handle_export(self) -> None:
         from utils.postprocess import PostProcessor
 
-        transformer_type, _ = self.get_features()
-        _, self._dataset_test = FilesHandler.instance().load_datasets(transformer_type)
+        transformer, _ = self.get_features()
+        _, self._dataset_test = FilesHandler.instance().load_datasets(transformer)
 
         PostProcessor(self._args.run, self._args.task)
         PostProcessor.instance().export_data_to_file(self._dataset_test)
 
     def get_features(self) -> tuple[str, str]:
         features: str = "_".join(self._args.features)
-        transformer_type = features if "bert" in features else ""
+        transformer = features if "bert" in features else ""
         features = features.replace("/", "_")
-        return transformer_type, features
+        return transformer, features
 
     def get_y_column(self) -> str:
         if "taskB" in self._args.task:
@@ -109,11 +109,11 @@ class Main:
     def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
         from utils.preprocess import Preprocessor
 
-        transformer_type, features = self.get_features()
+        transformer, features = self.get_features()
         FeaturesHandler.instance().check_features_for_task()
 
         self._dataset_train, self._dataset_test = FilesHandler.instance().load_datasets(
-            transformer_type=transformer_type
+            transformer
         )
 
         if self._args.load:
@@ -124,9 +124,7 @@ class Main:
             (
                 self._dataset_train,
                 self._dataset_test,
-            ) = FilesHandler.instance().generate_datasets(
-                transformer_type=transformer_type
-            )
+            ) = FilesHandler.instance().generate_datasets(transformer=transformer)
 
         X_train, X_test, y_train, y_test = Preprocessor.instance().train_test_split(
             self._dataset_train,
