@@ -89,13 +89,28 @@ class TransformerEmbedding(Embedding):
     def tokenize(self, text: str) -> list:
         return self._preprocess_layer.tokenize(text)
 
-    def apply_transformer(self, serie: pd.Series, token: str) -> np.ndarray:
-        sent = self.sentence_vector(serie.sentence)
-        tokenized_sent = self.tokenize(serie.sentence)
-        tokens = self.tokenize(serie[token])
+    def apply_transformer(self, token: str, sentence: str) -> np.ndarray:
+        sent = self.sentence_vector(sentence)
+        tokenized_sent = self.tokenize(sentence)
+        tokens = self.tokenize(token)
 
         token_vectors = [
             sent[i + 1] for i, e in enumerate(tokenized_sent) if e in set(tokens)
+        ]
+        vector = np.array(token_vectors)
+
+        if vector.shape == (0,):
+            return np.zeros((768,))
+        return np.mean(vector, axis=0)
+
+    def entity_vector_from_sent(
+        self, token: str, tokenized_sent: list, vectorized_sent: list
+    ) -> np.ndarray:
+        tokens = self.tokenize(token)
+        token_vectors = [
+            vectorized_sent[i + 1]
+            for i, e in enumerate(tokenized_sent)
+            if e in set(tokens)
         ]
         vector = np.array(token_vectors)
 
