@@ -72,9 +72,7 @@ class Main:
 
         # Train Sequence to Sequence Model
         if self._args.s2s_model:
-            model_instance = CoderEncoderModel.instance()
-            model_instance.start_training(self._dataset_train, self._dataset_test)
-            return
+            model_instance = CoderEncoderModel(self._dataset_train, self._dataset_test)
 
         if model_instance is None:
             Main._logger.warning(

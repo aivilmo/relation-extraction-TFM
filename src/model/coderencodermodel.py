@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-
-import pandas as pd
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
 
 from model.abstractmodel import AbstractModel
 
@@ -15,37 +15,43 @@ class CoderEncoderModel(AbstractModel):
             CoderEncoderModel()
         return CoderEncoderModel._instance
 
-    def __init__(self) -> None:
+    def __init__(self, train, test) -> None:
         super().__init__()
         if CoderEncoderModel._instance is not None:
             raise Exception
 
-        self._train_data = None
-        self._test_data = None
+        self._train_data = train
+        self._test_data = test
 
         CoderEncoderModel._instance = self
 
-    @classmethod
     def start_training(
         self,
-        train_df: pd.DataFrame,
-        test_df: pd.DataFrame,
+        X_train: np.ndarray,
+        X_test: np.ndarray,
+        y_train: np.ndarray,
+        y_test: np.ndarray,
+        model,
     ) -> None:
-        train_df.rename(columns={"word": "words", "tag": "labels"}, inplace=True)
-        test_df.rename(columns={"word": "words", "tag": "labels"}, inplace=True)
-        self._labels = list(train_df.labels.unique())
+        self._train_data.rename(
+            columns={"token": "words", "tag": "labels"}, inplace=True
+        )
+        self._test_data.rename(
+            columns={"token": "words", "tag": "labels"}, inplace=True
+        )
+        le = LabelEncoder()
+        self._train_data["sentence_id"] = le.fit_transform(self._train_data.sentence)
+        self._test_data["sentence_id"] = le.transform(self._test_data.sentence)
 
-        self.build(train_df, test_df)
+        self._labels = list(self._train_data.labels.unique())
+
+        self.build()
         self.train()
         self.evaluate()
         self.export_results()
 
-    @classmethod
-    def build(self, train_df: pd.DataFrame, test_df: pd.DataFrame) -> None:
+    def build(self) -> None:
         from simpletransformers.ner import NERArgs, NERModel
-
-        self._train_data = train_df
-        self._test_data = test_df
 
         AbstractModel._logger.info("Building model bert-base-multilingual-cased...")
 
@@ -69,7 +75,6 @@ class CoderEncoderModel(AbstractModel):
         )
         AbstractModel._logger.info(f"Model has built successfully")
 
-    @classmethod
     def train(self) -> None:
         from time import time
 
@@ -81,8 +86,6 @@ class CoderEncoderModel(AbstractModel):
         end: float = time() - start
         self._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
 
-    @classmethod
     def evaluate(self) -> None:
         self._logger.info(f"Testing model {self._model}")
-
         self._model.eval_model(self._test_data)
