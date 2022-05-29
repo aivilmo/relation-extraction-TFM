@@ -42,32 +42,16 @@ class TransformerEmbedding(Embedding):
         TransformerEmbedding._instance = self
 
     def build_transformer(self, type: str) -> None:
+        from transformers import AutoTokenizer, AutoModel
+
         if type == "":
             type = "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es"
 
         Embedding._logger.info(f"Building transformer model with preprocessor: {type}")
         Embedding._logger.info(f"Building transformer model from: {type}")
 
-        if "distil" in type:
-            from transformers import DistilBertTokenizer, DistilBertModel
-
-            self._preprocess_layer = DistilBertTokenizer.from_pretrained(type)
-            self._encoder_layer = DistilBertModel.from_pretrained(type)
-        elif "bert-base" in type:
-            from transformers import BertTokenizer, BertModel
-
-            self._preprocess_layer = BertTokenizer.from_pretrained(type)
-            self._encoder_layer = BertModel.from_pretrained(type)
-        elif type == "gpt2":
-            from transformers import GPT2Tokenizer, GPT2Model
-
-            self._preprocess_layer = GPT2Tokenizer.from_pretrained(type)
-            self._encoder_layer = GPT2Model.from_pretrained(type)
-        elif "roberta" in type:
-            from transformers import AutoTokenizer, AutoModel
-
-            self._preprocess_layer = AutoTokenizer.from_pretrained(type)
-            self._encoder_layer = AutoModel.from_pretrained(type)
+        self._preprocess_layer = AutoTokenizer.from_pretrained(type)
+        self._encoder_layer = AutoModel.from_pretrained(type)
 
         Embedding._logger.info(f"Transformer has built with preprocessor: {type}")
         Embedding._logger.info(f"Transformer has built from: {type}")
