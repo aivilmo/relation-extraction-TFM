@@ -56,6 +56,7 @@ class Main:
         from model.coremodel import CoreModel
         from model.deepmodel import DeepModel
         from model.coderencodermodel import CoderEncoderModel
+        from model.transformermodel import TransformerModel
 
         model_instance = None
         model = None
@@ -74,9 +75,13 @@ class Main:
         if self._args.s2s_model:
             model_instance = CoderEncoderModel(self._dataset_train, self._dataset_test)
 
+        # Train Transformer Model
+        if self._args.transformer_model:
+            model_instance = TransformerModel(self._dataset_train, self._dataset_test)
+
         if model_instance is None:
             Main._logger.warning(
-                "Need select a model, with args '--ml_model' or '--dl_model'"
+                "Need select a model, with args '--ml_model', --dl_model', '--s2s_model' or 'transformer_model'"
             )
             return
 
@@ -89,14 +94,15 @@ class Main:
         PostProcessor(self._args.run, self._args.task)
         PostProcessor.instance().export_data_to_file(self._dataset_test)
 
-    def get_features(self) -> tuple[str, str]:
+    def get_features_names(self) -> str:
         features: str = "_".join(self._args.features)
         features = features.replace("/", "_")
         return features
 
+    def features(self) -> str:
+        return self._args.features
+
     def get_y_column(self) -> str:
-        if "taskB" in self._args.task:
-            return "relation"
         if self._args.s2s_model:
             return "sentence"
         return "tag"
@@ -104,7 +110,7 @@ class Main:
     def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
         from utils.preprocess import Preprocessor
 
-        features = self.get_features()
+        features = self.get_features_names()
         FeaturesHandler.instance().check_features_for_task()
 
         (

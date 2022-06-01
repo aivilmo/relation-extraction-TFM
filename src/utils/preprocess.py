@@ -383,7 +383,7 @@ class REPreprocessor(Preprocessor):
                             "token2": to_word,
                             "original_token2": to_word,
                             "tag2": to_entity,
-                            "relation": relation,
+                            "tag": relation,
                             "sentence": sentence.text,
                         },
                         name=index,

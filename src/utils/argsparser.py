@@ -66,6 +66,12 @@ class ArgsParser:
             help="Select Sequence to Sequence model to train",
         )
 
+        model.add_argument(
+            "--transformer_model",
+            action="store_true",
+            help="Select Transformer model to train",
+        )
+
         # Add a list of features to train the model
         parser.add_argument(
             "--features",

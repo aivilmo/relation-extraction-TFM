@@ -24,9 +24,9 @@ class VisualizationHandler:
     @staticmethod
     def visualice_relations(df: pd.DataFrame) -> None:
         sns.countplot(
-            x="relation",
+            x="tag",
             data=df,
-            order=df.relation.value_counts().index,
+            order=df.tag.value_counts().index,
             palette=VisualizationHandler._palette,
         ).set_title("Relations")
 
@@ -64,7 +64,7 @@ class VisualizationHandler:
     ) -> None:
         relations = df.token1 + "-"
         if with_relation:
-            relations += df.relation + "-"
+            relations += df.tag + "-"
         df["relations"] = relations + df.token2
 
         sns.set(font_scale=0.90)
