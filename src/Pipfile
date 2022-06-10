@@ -24,7 +24,7 @@ googletrans = "*"
 black = "*"
 sentencepiece = "*"
 simpletransformers = "*"
-wandb = "*"
+datasets = "*"
 
 [dev-packages]
 black = "*"
