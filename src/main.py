@@ -80,7 +80,7 @@ class Main:
             model_instance = TransformerModel(self._dataset_train, self._dataset_test)
 
         if model_instance is None:
-            Main._logger.warning(
+            self._logger.warning(
                 "Need select a model, with args '--ml_model', --dl_model', '--s2s_model' or 'transformer_model'"
             )
             return
@@ -112,30 +112,23 @@ class Main:
 
         features = self.get_features_names()
         FeaturesHandler.instance().check_features_for_task()
+        fh_instance = FilesHandler.instance()
 
-        (
-            self._dataset_train,
-            self._dataset_test,
-        ) = FilesHandler.instance().load_datasets()
+        self._dataset_train, self._dataset_test = fh_instance.load_datasets()
 
         if self._args.load:
-            return FilesHandler.instance().load_training_data(features)
+            return fh_instance.load_training_data(features)
 
         if self._dataset_train is None or self._dataset_test is None:
-            Main._logger.warning(f"Datasets not found, generating for {features}")
-            (
-                self._dataset_train,
-                self._dataset_test,
-            ) = FilesHandler.instance().generate_datasets()
+            self._logger.warning(f"Datasets not found, generating for {features}")
+            self._dataset_train, self._dataset_test = fh_instance.generate_datasets()
 
         X_train, X_test, y_train, y_test = Preprocessor.instance().train_test_split(
             self._dataset_train,
             self._dataset_test,
             y_column=self.get_y_column(),
         )
-        FilesHandler.instance().save_training_data(
-            X_train, X_test, y_train, y_test, features
-        )
+        fh_instance.save_training_data(X_train, X_test, y_train, y_test, features)
         return X_train, X_test, y_train, y_test
 
 
