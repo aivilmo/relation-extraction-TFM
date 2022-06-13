@@ -60,11 +60,11 @@ class TransformerModel(AbstractModel):
         tr_instance = TransformerEmbedding.instance()
 
         self.load_model()
+        if not tr_instance.trained():
+            tr_instance.build_transformer_to_finetuning(
+                self._model_name, len(self._labels)
+            )
         if self._model == None:
-            if not tr_instance.trained():
-                tr_instance.build_transformer_to_finetuning(
-                    self._model_name, len(self._labels)
-                )
             self._model = tr_instance._encoder_layer
             self._is_trained = False
 
@@ -152,7 +152,10 @@ class TransformerModel(AbstractModel):
 
         self._logger.info("Loading dataloader from dataset {dataset}")
         tokenized_datasets = self.tokenize(dataset)
-        tokenized_datasets = tokenized_datasets.shuffle(seed=42)  # .select(range(48))
+        subset_size = (int)(len(tokenized_datasets) * 0.3)
+        tokenized_datasets = tokenized_datasets.shuffle(seed=42).select(
+            range(subset_size)
+        )
         return DataLoader(tokenized_datasets, batch_size=batch_size)
 
     def load_model(self) -> None:

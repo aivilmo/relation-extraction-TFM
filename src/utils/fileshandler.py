@@ -53,12 +53,10 @@ class FilesHandler:
 
     def generate_datasets(
         self,
-        transformer: str = "",
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         def generate_dataset(
             path: Path,
             output_file: str,
-            transformer: str = "",
         ) -> pd.DataFrame:
             self._logger.info("Generating DataFrame...")
 
@@ -68,8 +66,8 @@ class FilesHandler:
             if "taskB" in self._task:
                 prep_instance = REPreprocessor.instance()
 
-            df: pd.DataFrame = self.get_dataframe(prep_instance, path, transformer)
-            output_file = self.get_filename(output_file, transformer)
+            df: pd.DataFrame = self.get_dataframe(prep_instance, path)
+            output_file = self.get_filename(output_file)
 
             if not self.try_to_save_dataframe(df, output_file):
                 self.try_to_create_directory()
@@ -81,11 +79,9 @@ class FilesHandler:
         return generate_dataset(
             path=Path(self._path_ref + "\\training\\"),
             output_file=self._output_train,
-            transformer=transformer,
         ), generate_dataset(
             path=Path(self._path_eval + "\\training\\" + self._task + "\\"),
             output_file=self._output_test,
-            transformer=transformer,
         )
 
     def load_datasets(self) -> tuple[pd.DataFrame, pd.DataFrame]:
