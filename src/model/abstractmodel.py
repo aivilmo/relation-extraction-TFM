@@ -105,7 +105,7 @@ class AbstractModel:
         le.fit(test[y_column].values)
         try:
             test["predicted_tag"] = le.inverse_transform(self._yhat)
-        except ValueError as e:
+        except Exception as e:
             self._logger.error(e)
             return
 

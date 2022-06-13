@@ -24,12 +24,14 @@ class PostProcessor:
             PostProcessor()
         return PostProcessor._instance
 
-    def __init__(self, run: int, task: str) -> None:
+    def __init__(self) -> None:
+        from utils.appconstants import AppConstants
+
         if PostProcessor._instance is not None:
             raise Exception
 
-        self._run = "run" + run
-        self._task = task
+        self._run = "run" + AppConstants.instance()._run
+        self._task = AppConstants.instance()._task
 
         PostProcessor._instance = self
 

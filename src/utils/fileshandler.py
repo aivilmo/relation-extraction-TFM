@@ -26,12 +26,14 @@ class FilesHandler:
             FilesHandler()
         return FilesHandler._instance
 
-    def __init__(self, task: str) -> None:
+    def __init__(self) -> None:
+        from utils.appconstants import AppConstants
+
         if FilesHandler._instance is not None:
             return
 
-        self._task: str = task
-        self._path_output: str = "data\\" + task
+        self._task: str = AppConstants.instance()._task
+        self._path_output: str = "data\\" + self._task
 
         self._output_train: str = self._path_output + "\\ref_train"
         self._output_test: str = self._path_output + "\\eval_train"

@@ -10,7 +10,6 @@ from abc import abstractmethod
 
 from ehealth.anntools import Collection
 from logger.logger import Logger
-from core.embeddinghandler import Embedding, TransformerEmbedding
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -182,77 +181,6 @@ class Preprocessor:
             df_to_remove.loc[df_to_remove[y_column].isin(invalid_labels)].index,
             inplace=True,
         )
-
-    @staticmethod
-    def data_augmentation(
-        df: pd.DataFrame,
-        transformer_type: str,
-        last_n_classes: int = 3,
-        classes_to_augment: list = [],
-    ) -> pd.DataFrame:
-        def synsets(word: str) -> list:
-            from nltk.corpus import wordnet as wn
-            from googletrans import Translator
-
-            translator = Translator()
-            translation: str = translator.translate(word, src="es", dest="en").text
-            synsets: list = []
-            for synset in wn.synsets(translation):
-                synsets += synset.lemma_names()
-                synsets += synset.lemma_names("spa")
-                synsets += synset.lemma_names("ita")
-                synsets += synset.lemma_names("fra")
-            return synsets
-
-        Preprocessor._logger.info(
-            f"Starting data augmentation for the {last_n_classes}th least represented classes"
-        )
-
-        augmented_df: pd.DataFrame = df.copy()
-        if not Embedding.trained():
-            TransformerEmbedding.instance().build_transformer(type=transformer_type)
-
-        tags = df.tag.value_counts().index.tolist()[-last_n_classes:]
-        if classes_to_augment:
-            tags = classes_to_augment
-
-        Preprocessor._logger.info(
-            "Data augmentation for classes: " + ", ".join(classes_to_augment)
-        )
-
-        index: int = df.iloc[-1].name
-        for tag in tags:
-            Preprocessor._logger.info(f"Data augmentation for class {tag}")
-            for value in df.query("tag=='" + tag + "'")["token"].values:
-                sentences = df[(df.tag == tag) & (df.token == value)]["sentence"].values
-                for sent in sentences:
-                    tokenized_sent = TransformerEmbedding.instance().tokenize(sent)
-                    for syn in synsets(value):
-                        synset = TransformerEmbedding.instance().tokenize(syn)[0]
-                        new_tokenized_sent = [
-                            synset if token == value else token
-                            for token in tokenized_sent
-                        ]
-                        vector = TransformerEmbedding.instance().sentence_vector(
-                            " ".join(new_tokenized_sent)
-                        )
-                        position = new_tokenized_sent.index(synset)
-                        word = pd.Series(
-                            {
-                                "token": synset,
-                                "vector": vector[position + 1],
-                                "tag": tag,
-                                "sentence": sent,
-                            },
-                            name=index,
-                        )
-                        index += 1
-                        augmented_df = augmented_df.append(word)
-
-        Preprocessor._logger.info(
-            f"Finished data augmentation, added {index - df.iloc[-1].name} new synsets"
-        )
-        return augmented_df
 
 
 class NERPreprocessor(Preprocessor):

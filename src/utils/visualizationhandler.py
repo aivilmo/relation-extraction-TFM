@@ -18,7 +18,6 @@ class VisualizationHandler:
             order=df.tag.value_counts().index,
             palette=VisualizationHandler._palette,
         ).set_title("Tags")
-        print(df.tag.value_counts())
         plt.show()
 
     @staticmethod

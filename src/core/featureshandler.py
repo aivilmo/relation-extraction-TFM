@@ -49,11 +49,13 @@ class FeaturesHandler:
             FeaturesHandler()
         return FeaturesHandler._instance
 
-    def __init__(self, task: str) -> None:
+    def __init__(self) -> None:
+        from utils.appconstants import AppConstants
+
         if FeaturesHandler._instance is not None:
             return
 
-        self._task: str = task
+        self._task: str = AppConstants.instance()._task
 
         self._le: LabelEncoder = LabelEncoder()
         self._cv: CountVectorizer = CountVectorizer()
@@ -61,27 +63,13 @@ class FeaturesHandler:
         self._ck: Tokenizer = Tokenizer(char_level=True)
         self._tk: Tokenizer = Tokenizer()
 
-        self._features: list = ["PlanTL-GOB-ES/roberta-base-biomedical-clinical-es"]
-        self._is_transformer: bool = False
+        self._features: list = AppConstants.instance()._features
+        self._is_transformer: bool = self.is_transformer()
 
         FeaturesHandler._instance = self
 
-    @property
-    def features(self) -> list:
-        return self._features
-
-    @features.setter
-    def features(self, features: str) -> None:
-        self._features = features
-        self._is_transformer = (
-            list(
-                filter(
-                    lambda x: x in features,
-                    self._transformers,
-                )
-            )
-            != []
-        )
+    def is_transformer(self) -> None:
+        return list(filter(lambda x: x in self._features, self._transformers)) != []
 
     def check_features_for_task(self) -> None:
         for feat in self._features:
@@ -97,7 +85,9 @@ class FeaturesHandler:
     def handle_features(self, df: pd.DataFrame, test: bool = False) -> np.ndarray:
         columns = []
         self._logger.info(
-            "Handling features: " + ", ".join(self.features) + f" for task {self._task}"
+            "Handling features: "
+            + ", ".join(self._features)
+            + f" for task {self._task}"
         )
         self.check_features_for_task()
 

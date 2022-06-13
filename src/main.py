@@ -3,9 +3,7 @@ import pandas as pd
 import argparse
 import numpy as np
 
-from core.featureshandler import FeaturesHandler
 from logger.logger import Logger
-from utils.fileshandler import FilesHandler
 
 
 class Main:
@@ -21,23 +19,18 @@ class Main:
         return Main._instance
 
     def __init__(self) -> None:
-        from utils.argsparser import ArgsParser
+        from utils.appconstants import AppConstants
 
         if Main._instance is not None:
             raise Exception
 
         self._dataset_train: pd.DataFrame = None
         self._dataset_test: pd.DataFrame = None
-        self._args: argparse.Namespace = ArgsParser.get_args()
-
-        FilesHandler(self._args.task)
-        FeaturesHandler(self._args.task)
+        self._args: argparse.Namespace = AppConstants.instance()._args
 
         Main._instance = self
 
     def main(self) -> None:
-        FeaturesHandler.instance().features = self._args.features
-
         X_train, X_test, y_train, y_test = self._get_datasets()
 
         if self._args.visualization:
@@ -89,9 +82,9 @@ class Main:
 
     def _handle_export(self) -> None:
         from utils.postprocess import PostProcessor
+        from utils.fileshandler import FilesHandler
 
         _, self._dataset_test = FilesHandler.instance().load_datasets()
-        PostProcessor(self._args.run, self._args.task)
         PostProcessor.instance().export_data_to_file(self._dataset_test)
 
     def get_features_names(self) -> str:
@@ -109,6 +102,8 @@ class Main:
 
     def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
         from utils.preprocess import Preprocessor
+        from core.featureshandler import FeaturesHandler
+        from utils.fileshandler import FilesHandler
 
         features = self.get_features_names()
         FeaturesHandler.instance().check_features_for_task()

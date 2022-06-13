@@ -11,7 +11,6 @@ class TransformerModel(AbstractModel):
     _instance = None
 
     _epochs = 1
-    _save_path = "data\\models\\transformer_"
 
     @staticmethod
     def instance():
@@ -20,11 +19,14 @@ class TransformerModel(AbstractModel):
         return TransformerModel._instance
 
     def __init__(self, train, test) -> None:
-        from main import Main
+        from utils.appconstants import AppConstants
 
         super().__init__()
         if TransformerModel._instance is not None:
             raise Exception
+
+        self._task = AppConstants.instance()._task
+        self._save_path = "data\\" + self._task + "\\models\\transformer_"
 
         self._labels = list(train.tag.unique())
         self._dataset_train = datasets.Dataset.from_dict(train, split="train")
@@ -32,7 +34,7 @@ class TransformerModel(AbstractModel):
         self._optimizer = None
         self._learning_rate_scheduler = None
         self._training_steps = None
-        self._model_name = Main.instance().features()[0]
+        self._model_name = AppConstants.instance()._features[0]
         self._model = None
         self._is_trained = True
 
