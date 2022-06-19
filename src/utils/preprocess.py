@@ -206,9 +206,15 @@ class NERPreprocessor(Preprocessor):
 
         df: pd.DataFrame = pd.DataFrame()
         index: int = 0
-        sentence_id: int = 0
+        sent_id: int = 0
 
+        sentences = []
         for sentence in collection.sentences:
+
+            if sentence.text in sentences:
+                continue
+            sentences.append(sentence.text)
+
             sentence_entities = {}
             for keyphrases in sentence.keyphrases:
                 entities = keyphrases.text.split()
@@ -231,7 +237,9 @@ class NERPreprocessor(Preprocessor):
                 )
                 index += 1
                 df = df.append(word)
-            sentence_id += 1
+
+            self._logger.info(f"Finished sentence {sent_id} of {len(collection)}")
+            sent_id += 1
 
         self._logger.info(f"Training completed: Stored {index} words.")
         return df
