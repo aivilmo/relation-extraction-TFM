@@ -57,7 +57,7 @@ class TransformerEmbedding(Embedding):
         Embedding._logger.info(f"Transformer has built from: {type}")
 
     def build_transformer_to_finetuning(self, type: str, classes: int) -> None:
-        from transformers import AutoTokenizer, AutoModelForSequenceClassification
+        from transformers import AutoTokenizer, AutoModelForTokenClassification
 
         if type == "":
             type = "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es"
@@ -66,7 +66,7 @@ class TransformerEmbedding(Embedding):
         Embedding._logger.info(f"Building transformer model to finetuning from: {type}")
 
         self._preprocess_layer = AutoTokenizer.from_pretrained(type)
-        self._encoder_layer = AutoModelForSequenceClassification.from_pretrained(
+        self._encoder_layer = AutoModelForTokenClassification.from_pretrained(
             type, num_labels=classes
         )
 
