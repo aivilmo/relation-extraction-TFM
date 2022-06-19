@@ -211,7 +211,7 @@ class NERPreprocessor(Preprocessor):
         sentences = []
         for sentence in collection.sentences:
 
-            if sentence.text in sentences:
+            if sentence.text in sentences or sentence.keyphrases == []:
                 continue
             sentences.append(sentence.text)
 

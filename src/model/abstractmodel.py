@@ -105,11 +105,9 @@ class AbstractModel:
         le.fit(test[y_column].values)
         try:
             test["predicted_tag"] = le.inverse_transform(self._yhat)
+            FilesHandler.instance().save_datasets(train, test)
         except Exception as e:
             self._logger.error(e)
-            return
-
-        FilesHandler.instance().save_datasets(train, test)
 
     @classmethod
     def compute_sample_weight(self) -> dict:

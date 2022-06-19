@@ -42,7 +42,6 @@ class TransformerModel(AbstractModel):
         self._dataset_test = datasets.Dataset.from_dict(
             self.parse_dataframe(test), split="test"
         )
-        # sys.exit()
         self._model_name = AppConstants.instance()._features[0]
         self._model = None
         self._is_trained = True
