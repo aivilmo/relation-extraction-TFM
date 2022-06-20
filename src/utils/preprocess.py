@@ -225,11 +225,15 @@ class NERPreprocessor(Preprocessor):
                     sentence_entities[entities[i]] = old_entity
 
             for word in sentence.text.split():
-                tag = sentence_entities.get(word, [self._default_tag])
+                real_word = word
+                if word.endswith(",") or word.endswith("."):
+                    real_word = word[:-1]
+
+                tag = sentence_entities.get(real_word, [self._default_tag])
                 word = pd.Series(
                     {
-                        "token": word,
-                        "original_token": word,
+                        "token": real_word,
+                        "original_token": real_word,
                         "tag": max(set(tag), key=tag.count),
                         "sentence": sentence.text,
                     },

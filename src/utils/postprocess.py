@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from matplotlib.cbook import strip_math
 import pandas as pd
+import re
 
 from logger.logger import Logger
 
@@ -79,13 +79,24 @@ class PostProcessor:
             .replace('"', "")
         )
 
+    def get_symbols(self, phrase: str, offset: int) -> list:
+        symbols: list = []
+        symbols += [_.start() + offset for _ in re.finditer("\.", phrase)]
+        symbols += [_.start() + offset for _ in re.finditer(",", phrase)]
+        return symbols
+
     def get_pos(self, sentence: str, token: str, offset: int) -> str:
         positions = []
         # For avoid no whole words
+        symbols = self.get_symbols(sentence, offset)
         sentence = " " + self.trim(sentence) + " "
         token = self.trim(token)
+
         for t in token.split():
             pos_init1: int = sentence.find(" " + t + " ") + offset
+            for s in symbols:
+                if s < pos_init1:
+                    pos_init1 += 1
             pos_end1 = pos_init1 + len(t)
             positions.append(str(pos_init1) + " " + str(pos_end1))
 
@@ -103,8 +114,6 @@ class PostProcessor:
         )
 
         if "taskA" in self._task:
-            dataset_test = dataset_test[dataset_test.predicted_tag != "O"]
-            dataset_test = dataset_test.append(dataset_test.iloc[-1])
             df = self.export_taskA(dataset_test)
         if "taskB" in self._task:
             df = self.export_taskB(dataset_test)
@@ -115,57 +124,42 @@ class PostProcessor:
     def export_taskA(self, dataset_test: pd.DataFrame) -> pd.DataFrame:
         df: pd.DataFrame = pd.DataFrame()
 
-        index: int = 1
         sentence_offset: int = 0
-        pos_end: int = 0
+        index: int = 1
+        sent = "La terapia dirigida es un tipo de tratamiento en el que se utilizan sustancias para identificar y atacar células cancerosas específicas sin dañar las células normales."
+        sentences = list(dataset_test.sentence.unique())
+        sentences.insert(38, sent)
 
-        last_sentence: str = dataset_test.sentence.values[0]
-        last_words: list = []
-        last_positions: list = []
+        for sent in sentences:
+            sent_df = dataset_test.loc[dataset_test.sentence == sent]
+            sent_df = sent_df[sent_df.tag != "O"]
 
-        last_token: str = dataset_test.original_token.values[0]
-        pos_init: int = last_sentence.find(last_token)
-        last_pos: str = str(pos_init) + " " + str(pos_init + len(last_token))
-        last_tag: str = (
-            dataset_test.predicted_tag.values[0].replace("I-", "").replace("B-", "")
-        )
-
-        for i, row in dataset_test.iterrows():
-            if i == 0:
-                continue
-            if row.sentence != last_sentence:
-                sentence_offset += len(last_sentence) + 1
-                pos_end = 0
-
-            tag: str = row.predicted_tag.replace("I-", "").replace("B-", "")
-            pos_init: int = (
-                row.sentence.find(row.original_token, pos_end) + sentence_offset
+            first = sent_df.iloc[0]
+            entities = [first.original_token]
+            positions = self.get_pos(
+                first.sentence, first.original_token, sentence_offset
             )
+            last_tag = first.tag.replace("B-", "").replace("I-", "")
 
-            pos_end = pos_init + len(row.original_token)
-            pos: str = str(pos_init) + " " + str(pos_end)
-            pos_end = pos_end - sentence_offset
+            for _, row in sent_df.iterrows():
+                tag: str = row.tag.replace("B-", "").replace("I-", "")
+                pos = self.get_pos(row.sentence, row.original_token, sentence_offset)[0]
 
-            # If the last part was fist part the current part too, we clean our parts
-            current_is_first_part: bool = "B-" in row.predicted_tag
-            if not current_is_first_part:
-                last_words.append(row.original_token)
-                last_positions.append(pos)
-                continue
+                if row.tag.startswith("B-"):
+                    df, has_inserted = self.append_entity_row(
+                        df, index, entities, positions, last_tag
+                    )
+                    entities = [row.original_token]
+                    positions = [pos]
+                    last_tag = tag
+                    if has_inserted:
+                        index += 1
+                    continue
 
-            last_words.insert(0, last_token)
-            last_positions.insert(0, last_pos)
+                entities.append(row.original_token)
+                positions.append(pos)
 
-            df, _ = self.append_entity_row(
-                df, index, last_words, last_positions, last_tag
-            )
-            index += 1
-
-            last_token = row.original_token
-            last_pos = pos
-            last_tag = tag
-            last_sentence = row.sentence
-            last_words, last_positions = [], []
+            sentence_offset += len(sent) + 1
 
         return df
 
@@ -217,7 +211,6 @@ class PostProcessor:
 
             sentence_offset += len(sent) + 1
 
-        print(df)
         return df
 
     def save_output_file(self, df: pd.DataFrame) -> None:
