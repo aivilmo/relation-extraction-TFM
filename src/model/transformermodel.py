@@ -6,7 +6,6 @@ from datasets import load_metric
 
 from model.abstractmodel import AbstractModel
 from core.embeddinghandler import TransformerEmbedding
-import sys
 
 
 class TransformerModel(AbstractModel):
