@@ -12,7 +12,7 @@ class TransformerModel(AbstractModel):
 
     _instance = None
 
-    _epochs = 15
+    _epochs = 1
 
     @staticmethod
     def instance():
@@ -38,6 +38,7 @@ class TransformerModel(AbstractModel):
         self._dataset_train = datasets.Dataset.from_dict(
             self.parse_dataframe(train), split="train"
         )
+
         self._dataset_test = datasets.Dataset.from_dict(
             self.parse_dataframe(test), split="test"
         )
@@ -144,6 +145,14 @@ class TransformerModel(AbstractModel):
             self._logger.warning(f"Model not found in path {path}, we must to train it")
 
     def parse_dataframe(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+        if "taskA" in self._task:
+            return self.parse_taskA_dataframe(dataframe)
+        import sys
+
+        self._logger.error("Transformer model not implemented for taskB")
+        sys.exit()
+
+    def parse_taskA_dataframe(self, dataframe: pd.DataFrame) -> pd.DataFrame:
         df: pd.DataFrame = pd.DataFrame()
         index: int = 0
         for sent in dataframe.sentence.unique():
@@ -151,7 +160,7 @@ class TransformerModel(AbstractModel):
             sentence = pd.Series(
                 {
                     "tokens": sent_df.original_token.values,
-                    "ner_tags": self._le.transform(sent_df.tag.values),
+                    "tags": self._le.transform(sent_df.tag.values),
                 },
                 name=index,
             )
@@ -165,7 +174,7 @@ class TransformerModel(AbstractModel):
             dataset["tokens"], truncation=True, is_split_into_words=True
         )
 
-        label = dataset["ner_tags"]
+        label = dataset["tags"]
         word_ids = tokenized_inputs.word_ids()
         label_ids = []
         for word_idx in word_ids:
