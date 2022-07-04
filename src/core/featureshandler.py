@@ -41,6 +41,7 @@ class FeaturesHandler:
         ]
         + _transformers,
         "scenario3-taskB": ["with_entities", "word_emb"] + _transformers,
+        "scenario1-main": _transformers,
     }
 
     @staticmethod
@@ -76,8 +77,8 @@ class FeaturesHandler:
             if feat not in self._features_for_task[self._task]:
                 import sys
 
-                self._logger.info(f"Feature {feat} don't match with task {self._task}")
-                self._logger.info(
+                self._logger.error(f"Feature {feat} don't match with task {self._task}")
+                self._logger.error(
                     f"Available features for task {self._task}: {self._features_for_task[self._task]}"
                 )
                 sys.exit()
