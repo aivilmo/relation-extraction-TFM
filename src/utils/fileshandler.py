@@ -33,14 +33,16 @@ class FilesHandler:
             return
 
         self._task: str = AppConstants.instance()._task
+        self._test_dataset: str = AppConstants.instance()._test_dataset
         self._path_output: str = "data\\" + self._task
+        self._output = "dev" if "dev" in self._test_dataset else "train"
 
         self._output_train: str = self._path_output + "\\ref_train"
-        self._output_test: str = self._path_output + "\\eval_train"
+        self._output_test: str = self._path_output + "\\eval_" + self._output
         self._output_X_train: str = self._path_output + "\\X_ref_train"
-        self._output_X_test: str = self._path_output + "\\X_dev_train"
+        self._output_X_test: str = self._path_output + "\\X_eval_" + self._output
         self._output_y_train: str = self._path_output + "\\y_ref_train"
-        self._output_y_test: str = self._path_output + "\\y_dev_train"
+        self._output_y_test: str = self._path_output + "\\y_eval_" + self._output
 
         FilesHandler._instance = self
 
@@ -65,7 +67,7 @@ class FilesHandler:
             prep_instance = None
             if "taskA" in self._task:
                 prep_instance = NERPreprocessor.instance()
-            if "taskB" in self._task:
+            if "taskB" in self._task or "main" in self._task:
                 prep_instance = REPreprocessor.instance()
 
             df: pd.DataFrame = self.get_dataframe(prep_instance, path)
@@ -82,7 +84,9 @@ class FilesHandler:
             path=Path(self._path_ref + "\\training\\"),
             output_file=self._output_train,
         ), generate_dataset(
-            path=Path(self._path_eval + "\\training\\" + self._task + "\\"),
+            path=Path(
+                self._path_eval + "\\" + self._test_dataset + "\\" + self._task + "\\"
+            ),
             output_file=self._output_test,
         )
 

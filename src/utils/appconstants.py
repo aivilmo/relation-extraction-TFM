@@ -26,6 +26,7 @@ class AppConstants:
         self._features = self._args.features
         self._task = self._args.task
         self._run = self._args.run
+        self._test_dataset = self._args.test_dataset
 
         self._logger.info("Application args parsed")
         AppConstants._instance = self

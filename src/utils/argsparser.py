@@ -146,4 +146,12 @@ class ArgsParser:
             help="Select if you want to export results to ann file",
         )
 
+        parser.add_argument(
+            "--test_dataset",
+            action="store",
+            default="develop",
+            choices=["training", "develop", "testing"],
+            help="Select the test dataset for the model",
+        )
+
         return parser.parse_args()

@@ -103,10 +103,12 @@ class AbstractModel:
 
         le = LabelEncoder()
         le.fit(train[y_column].values)
+
         try:
             test["predicted_tag"] = le.inverse_transform(self._yhat)
             FilesHandler.instance().save_datasets(train, test)
         except Exception as e:
+            self._logger.error("Error exporting results")
             self._logger.error(e)
 
     @classmethod

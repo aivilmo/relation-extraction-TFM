@@ -4,12 +4,13 @@ import pandas as pd
 import re
 
 from logger.logger import Logger
+from utils.appconstants import AppConstants
 
 
 class PostProcessor:
 
     _instance = None
-    _dataset = "training"
+    _dataset = AppConstants.instance()._test_dataset
     _path = (
         "C:\\Users\\Aitana V\\Desktop\\UNIVERSIDAD\\UNED\\TFM\\relation-extraction-TFM\\dataset\\"
         + "ehealthkd_CONCEPT_ACT_PRED_relaciones\\2021\\submissions\\baseline\\"
@@ -126,9 +127,9 @@ class PostProcessor:
 
         sentence_offset: int = 0
         index: int = 1
-        sent = "La terapia dirigida es un tipo de tratamiento en el que se utilizan sustancias para identificar y atacar células cancerosas específicas sin dañar las células normales."
+        # sent = "La terapia dirigida es un tipo de tratamiento en el que se utilizan sustancias para identificar y atacar células cancerosas específicas sin dañar las células normales."
         sentences = list(dataset_test.sentence.unique())
-        sentences.insert(38, sent)
+        # sentences.insert(38, sent)
 
         for sent in sentences:
             sent_df = dataset_test.loc[dataset_test.sentence == sent]
