@@ -102,7 +102,7 @@ class AbstractModel:
         y_column = Main.instance().get_y_column()
 
         le = LabelEncoder()
-        le.fit(test[y_column].values)
+        le.fit(train[y_column].values)
         try:
             test["predicted_tag"] = le.inverse_transform(self._yhat)
             FilesHandler.instance().save_datasets(train, test)
