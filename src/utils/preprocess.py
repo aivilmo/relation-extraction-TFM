@@ -226,6 +226,9 @@ class NERPreprocessor(Preprocessor):
 
             for word in sentence.text.split():
                 real_word = word
+                # Avoid empty words
+                if word == "," or word == ".":
+                    continue
                 if word.endswith(",") or word.endswith("."):
                     real_word = word[:-1]
 
