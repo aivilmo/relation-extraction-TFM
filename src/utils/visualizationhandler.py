@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import pandas as pd
+from regex import P
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -12,23 +13,32 @@ class VisualizationHandler:
 
     @staticmethod
     def visualice_tags(df: pd.DataFrame) -> None:
-        sns.countplot(
+        df["tag"] = df["tag"].apply(lambda row: row[2:] if "-" in row else row)
+
+        tags = sns.countplot(
             x="tag",
             data=df,
             order=df.tag.value_counts().index,
             palette=VisualizationHandler._palette,
-        ).set_title("Tags")
+        )
+        print(df.tag.value_counts())
+        tags.set_title("Entity types")
+        tags.set_xticklabels(tags.get_xticklabels(), rotation=25, fontsize=20)
         plt.show()
 
     @staticmethod
     def visualice_relations(df: pd.DataFrame) -> None:
-        sns.countplot(
+        df = df[df.tag != "O"]
+
+        relations = sns.countplot(
             x="tag",
             data=df,
             order=df.tag.value_counts().index,
             palette=VisualizationHandler._palette,
-        ).set_title("Relations")
-
+        )
+        print(df.tag.value_counts())
+        relations.set_title("Relation types")
+        relations.set_xticklabels(relations.get_xticklabels(), rotation=25, fontsize=20)
         plt.show()
 
     @staticmethod
@@ -55,6 +65,28 @@ class VisualizationHandler:
 
         count1.set_xticklabels(count1.get_xticklabels(), rotation=45)
         count2.set_xticklabels(count2.get_xticklabels(), rotation=45)
+        plt.show()
+
+    @staticmethod
+    def visualice_most_common_word(df: pd.DataFrame, n_words: int) -> None:
+        from nltk.corpus import stopwords
+
+        stop_words = set(stopwords.words("spanish") + stopwords.words("english"))
+        df["reduced_token"] = df["token"].apply(
+            lambda row: row.lower() if row.lower() not in stop_words else "-1"
+        )
+        df = df[df.reduced_token != "-1"]
+
+        print(df.reduced_token.value_counts()[0:15])
+        count = sns.countplot(
+            x="reduced_token",
+            data=df,
+            order=df.reduced_token.value_counts().index[:n_words],
+            palette=VisualizationHandler._palette,
+        )
+
+        count.set_title("Tokens Frecuencies")
+        count.set_xticklabels(count.get_xticklabels(), rotation=25, fontsize=17)
         plt.show()
 
     @staticmethod

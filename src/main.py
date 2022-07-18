@@ -43,7 +43,14 @@ class Main:
     def _handle_visualizations(self) -> None:
         from utils.visualizationhandler import VisualizationHandler
 
-        VisualizationHandler.visualice_tags(self._dataset_train)
+        # NER
+        if "taskA" in self._args.task:
+            VisualizationHandler.visualice_tags(self._dataset_test)
+            VisualizationHandler.visualice_most_common_word(self._dataset_test, 10)
+            return
+
+        # RE
+        VisualizationHandler.visualice_relations(self._dataset_test)
 
     def _handle_train(self, X_train, X_test, y_train, y_test) -> None:
         from model.coremodel import CoreModel
