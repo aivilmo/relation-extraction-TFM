@@ -133,20 +133,26 @@ class PostProcessor:
 
         for sent in sentences:
             sent_df = dataset_test.loc[dataset_test.sentence == sent]
-            sent_df = sent_df[sent_df.tag != "O"]
+            sent_df = sent_df[sent_df.predicted_tag != "O"]
+
+            if len(sent_df) == 0:
+                continue
 
             first = sent_df.iloc[0]
             entities = [first.original_token]
             positions = self.get_pos(
                 first.sentence, first.original_token, sentence_offset
             )
-            last_tag = first.tag.replace("B-", "").replace("I-", "")
+            last_tag = first.predicted_tag.replace("B-", "").replace("I-", "")
 
             for _, row in sent_df.iterrows():
-                tag: str = row.tag.replace("B-", "").replace("I-", "")
-                pos = self.get_pos(row.sentence, row.original_token, sentence_offset)[0]
+                tag: str = row.predicted_tag.replace("B-", "").replace("I-", "")
+                pos = self.get_pos(row.sentence, row.original_token, sentence_offset)
+                if pos == []:
+                    continue
+                pos = pos[0]
 
-                if row.tag.startswith("B-"):
+                if row.predicted_tag.startswith("B-"):
                     df, has_inserted = self.append_entity_row(
                         df, index, entities, positions, last_tag
                     )
