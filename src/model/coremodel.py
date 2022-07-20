@@ -10,10 +10,12 @@ class CoreModel(AbstractModel):
     _instance = None
 
     _available_models: dict = {
-        ModelType.SVM: svm.LinearSVC(),
-        ModelType.PRECEPTRON: linear_model.Perceptron(),
+        ModelType.SVM: svm.LinearSVC(class_weight="balanced"),
+        ModelType.PRECEPTRON: linear_model.Perceptron(class_weight="balanced"),
         ModelType.DECISIONTREE: tree.DecisionTreeClassifier(),
-        ModelType.RANDOMFOREST: ensemble.RandomForestClassifier(),
+        ModelType.RANDOMFOREST: ensemble.RandomForestClassifier(
+            class_weight="balanced"
+        ),
     }
 
     @staticmethod

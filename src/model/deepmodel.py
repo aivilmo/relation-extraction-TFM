@@ -3,6 +3,7 @@
 import random
 import numpy as np
 import tensorflow as tf
+from enum import Enum
 
 from model.abstractmodel import AbstractModel, ModelType
 
@@ -14,6 +15,11 @@ tf.random.set_seed(seed)
 # from os import environ
 
 # environ["KERAS_BACKEND"] = "plaidml.keras.backend"
+
+
+class Loss(Enum):
+    FOCAL_CROSS_ENTROPY = "sigmoid_focal_crossentropy"
+    BINARY_CROSS_ENTROPY = "binary_crossentropy"
 
 
 class DeepModel(AbstractModel):

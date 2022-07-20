@@ -35,7 +35,11 @@ class FilesHandler:
         self._task: str = AppConstants.instance()._task
         self._test_dataset: str = AppConstants.instance()._test_dataset
         self._path_output: str = "data\\" + self._task
-        self._output = "dev" if "dev" in self._test_dataset else "train"
+        self._output = "train"
+        if "dev" in self._test_dataset:
+            self._output = "dev"
+        elif "test" in self._test_dataset:
+            self._output = "test"
 
         self._output_train: str = self._path_output + "\\ref_train"
         self._output_test: str = self._path_output + "\\eval_" + self._output
