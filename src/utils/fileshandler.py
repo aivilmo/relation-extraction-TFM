@@ -41,9 +41,9 @@ class FilesHandler:
         elif "test" in self._test_dataset:
             self._output = "test"
 
-        self._output_train: str = self._path_output + "\\ref_train"
+        self._output_train: str = self._path_output + "\\ref_train_finetuned"
         self._output_test: str = self._path_output + "\\eval_" + self._output
-        self._output_X_train: str = self._path_output + "\\X_ref_train"
+        self._output_X_train: str = self._path_output + "\\X_ref_train_finetuned"
         self._output_X_test: str = self._path_output + "\\X_eval_" + self._output
         self._output_y_train: str = self._path_output + "\\y_ref_train"
         self._output_y_test: str = self._path_output + "\\y_eval_" + self._output
@@ -63,7 +63,7 @@ class FilesHandler:
         self,
     ) -> tuple[pd.DataFrame, pd.DataFrame]:
         def generate_dataset(
-            path: Path,
+            path: list[Path],
             output_file: str,
         ) -> pd.DataFrame:
             self._logger.info("Generating DataFrame...")
@@ -74,7 +74,10 @@ class FilesHandler:
             if "taskB" in self._task or "main" in self._task:
                 prep_instance = REPreprocessor.instance()
 
-            df: pd.DataFrame = self.get_dataframe(prep_instance, path)
+            df: pd.DataFrame = pd.DataFrame()
+            for paths in path:
+                df = df.append(self.get_dataframe(prep_instance, paths))
+                print(df)
             output_file = self.get_filename(output_file)
 
             if not self.try_to_save_dataframe(df, output_file):
@@ -85,12 +88,22 @@ class FilesHandler:
             return df
 
         return generate_dataset(
-            path=Path(self._path_ref + "\\training\\"),
+            path=[
+                Path(self._path_ref + "\\training\\"),
+                Path(self._path_ref + "\\develop\\"),
+            ],
             output_file=self._output_train,
         ), generate_dataset(
-            path=Path(
-                self._path_eval + "\\" + self._test_dataset + "\\" + self._task + "\\"
-            ),
+            path=[
+                Path(
+                    self._path_eval
+                    + "\\"
+                    + self._test_dataset
+                    + "\\"
+                    + self._task
+                    + "\\"
+                )
+            ],
             output_file=self._output_test,
         )
 

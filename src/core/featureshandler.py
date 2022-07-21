@@ -17,17 +17,11 @@ class FeaturesHandler:
     _logger = Logger.instance()
 
     _transformers: list = [
-        "distilbert-base-uncased",
-        "distilbert-base-cased",
-        "bert-base-uncased",
-        "bert-base-cased",
-        "bert-base-multilingual-uncased",
         "bert-base-multilingual-cased",
-        "dccuchile/bert-base-spanish-wwm-uncased",
         "dccuchile/bert-base-spanish-wwm-cased",
+        "PlanTL-GOB-ES/roberta-base-biomedical-es",
         "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es",
-        "ixa-ehu/ixambert-base-cased",
-        "gpt2",
+        "PlanTL-GOB-ES/bsc-bio-ehr-es-pharmaconer",
     ]
     _features_for_task: dict = {
         "scenario2-taskA": [
