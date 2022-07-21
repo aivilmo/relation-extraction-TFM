@@ -181,6 +181,8 @@ class PostProcessor:
         for sent in dataset_test.sentence.unique():
             sent_df = dataset_test.loc[dataset_test.sentence == sent]
             sent_df = sent_df[sent_df.predicted_tag != "O"]
+            sent_df = sent_df[sent_df.tag1 != "O"]
+            sent_df = sent_df[sent_df.tag2 != "O"]
 
             # Fill entities
             for _, row in sent_df.iterrows():
