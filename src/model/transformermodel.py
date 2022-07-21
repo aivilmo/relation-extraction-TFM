@@ -12,7 +12,7 @@ class TransformerModel(AbstractModel):
 
     _instance = None
 
-    _epochs = 25
+    _epochs = 40
 
     @staticmethod
     def instance():
