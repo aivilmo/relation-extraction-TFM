@@ -103,8 +103,8 @@ class DeepModel(AbstractModel):
     @classmethod
     def build_dense(
         self,
-        hidden_layers: int = 0,
-        num_units: list = [768],
+        hidden_layers: int = 1,
+        num_units: list = [768, 384],
         activation: str = "relu",
     ):
         self._model = tf.keras.models.Sequential()
