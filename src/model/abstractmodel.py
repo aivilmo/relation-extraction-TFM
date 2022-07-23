@@ -5,6 +5,7 @@ import numpy as np
 from enum import Enum
 
 from logger.logger import Logger
+from utils.appconstants import AppConstants
 
 
 class ModelType(Enum):
@@ -23,6 +24,7 @@ class AbstractModel:
     _random_state = 42
 
     _logger = Logger.instance()
+    _task: str = AppConstants.instance()._task
 
     @classmethod
     def __init__(self) -> None:
@@ -97,8 +99,9 @@ class AbstractModel:
         from main import Main
 
         self._logger.info("Exporting results to dataframe...")
+        fh_instance = FilesHandler.instance()
 
-        train, test = FilesHandler.instance().load_datasets()
+        train, test = fh_instance.load_datasets()
         y_column = Main.instance().get_y_column()
 
         le = LabelEncoder()
@@ -106,10 +109,25 @@ class AbstractModel:
 
         try:
             test["predicted_tag"] = le.inverse_transform(self._yhat)
-            FilesHandler.instance().save_datasets(train, test)
+            fh_instance.save_datasets(train, test)
         except Exception as e:
             self._logger.error("Error exporting results")
             self._logger.error(e)
+
+        if "taskA" in AppConstants.instance()._task:
+            train, test_main = fh_instance.load_datasets(True)
+            print(test_main)
+            features = Main.instance().get_features_names()
+            X_main_train = fh_instance.load_training_data(features, True)
+            X_token1 = X_main_train[:, :768]
+            X_token2 = X_main_train[:, 768:]
+
+            yhat1 = self._model.predict(X_token1)
+            yhat2 = self._model.predict(X_token2)
+            test_main["tag1"] = le.inverse_transform(yhat1)
+            test_main["tag2"] = le.inverse_transform(yhat2)
+            print(test_main)
+            fh_instance.save_datasets(test_main, test_main, True)
 
     @classmethod
     def compute_sample_weight(self) -> dict:

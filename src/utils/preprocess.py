@@ -262,11 +262,12 @@ class REPreprocessor(Preprocessor):
             REPreprocessor()
         return REPreprocessor._instance
 
-    def __init__(self) -> None:
+    def __init__(self, main=False) -> None:
         if REPreprocessor._instance is not None:
             raise Exception
 
         REPreprocessor._instance = self
+        self._main = main
 
     def update_entity(self, phrase, entities) -> dict:
         entities[phrase.text] = phrase.label
@@ -287,7 +288,7 @@ class REPreprocessor(Preprocessor):
         sent_id: int = 1
 
         for sentence in collection.sentences:
-            if sentence.relations == []:
+            if sentence.relations == [] and not self._main:
                 continue
 
             relation_pairs, from_entities, to_entities = {}, {}, {}
