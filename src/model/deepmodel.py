@@ -86,6 +86,7 @@ class DeepModel(AbstractModel):
             batch_size=DeepModel._batch_size,
             validation_split=0.2,
             callbacks=DeepModel.get_callbacks(),
+            # Para RE
             class_weight=self.compute_class_weight_freq(),
         )
 

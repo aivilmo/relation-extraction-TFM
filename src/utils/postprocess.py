@@ -40,6 +40,7 @@ class PostProcessor:
         self, df: pd.DataFrame, index: int, words: list, positions: list, tag: str
     ) -> pd.DataFrame:
         entities: str = " ".join(words)
+        entities = self.trim(entities)
         pos: str = ";".join(positions)
         entity_pos: str = tag + " " + pos
 
@@ -178,11 +179,37 @@ class PostProcessor:
         sentence_offset: int = 0
 
         relations: list = []
+        max_sentences = len(dataset_test.sentence.unique())
+        i = 0
         for sent in dataset_test.sentence.unique():
             sent_df = dataset_test.loc[dataset_test.sentence == sent]
-            sent_df = sent_df[sent_df.predicted_tag != "O"]
+            # Avoid create non testing sentences
+            if len(sent_df[sent_df.tag != "O"]) == 0:
+                sent_df = sent_df[sent_df.tag != "O"]
+
+            if "taskB" in self._task:
+                sent_df = sent_df[sent_df.predicted_tag != "O"]
             sent_df = sent_df[sent_df.tag1 != "O"]
             sent_df = sent_df[sent_df.tag2 != "O"]
+            sent_df = sent_df[sent_df.original_token1 != "."]
+            sent_df = sent_df[sent_df.original_token2 != "."]
+            sent_df = sent_df[sent_df.original_token1 != ","]
+            sent_df = sent_df[sent_df.original_token2 != ","]
+            sent_df = sent_df[sent_df.original_token1 != ")"]
+            sent_df = sent_df[sent_df.original_token2 != ")"]
+            sent_df = sent_df[sent_df.original_token1 != "("]
+            sent_df = sent_df[sent_df.original_token2 != "("]
+            sent_df = sent_df[sent_df.original_token1 != "()"]
+            sent_df = sent_df[sent_df.original_token2 != "()"]
+            sent_df = sent_df[sent_df.original_token1 != "(),"]
+            sent_df = sent_df[sent_df.original_token2 != "(),"]
+            sent_df = sent_df[sent_df.original_token1 != "),"]
+            sent_df = sent_df[sent_df.original_token2 != "),"]
+
+            sent_df = sent_df[sent_df.original_token1 != "(,"]
+            sent_df = sent_df[sent_df.original_token2 != "(,"]
+            sent_df = sent_df[sent_df.original_token1 != '""']
+            sent_df = sent_df[sent_df.original_token2 != '""']
 
             # Fill entities
             for _, row in sent_df.iterrows():
@@ -203,12 +230,18 @@ class PostProcessor:
                 if has_inserted:
                     entity_index += 1
 
-                T1 = df.loc[df.word == row.original_token1]["index"].values[-1][1:]
-                T2 = df.loc[df.word == row.original_token2]["index"].values[-1][1:]
+                token1 = self.trim(row.original_token1)
+                T1 = df.loc[df.word == token1]["index"].values[-1][1:]
+
+                token2 = self.trim(row.original_token2)
+                T2 = df.loc[df.word == token2]["index"].values[-1][1:]
+
                 relations.append((T1, T2))
 
             # Fill relations
             for _, row in sent_df.iterrows():
+                if row.tag == "O" and "main" in self._task:
+                    continue
                 df = self.append_entity_relation(
                     df,
                     relation_index,
@@ -219,7 +252,9 @@ class PostProcessor:
                 relation_index += 1
 
             sentence_offset += len(sent) + 1
-
+            if i % 100 == 0:
+                self._logger.info(f"Finished with {i} of {max_sentences} sentences")
+            i += 1
         return df
 
     def save_output_file(self, df: pd.DataFrame) -> None:

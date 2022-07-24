@@ -48,7 +48,7 @@ class FilesHandler:
         self._output_y_train: str = self._path_output + "\\y_ref_train"
         self._output_y_test: str = self._path_output + "\\y_eval_" + self._output
 
-        self._in_out_main: str = "data\\scenario1-main\\ref_train_finetuned"
+        self._in_out_main: str = "data\\scenario1-main\\eval_" + self._output
 
         FilesHandler._instance = self
 
@@ -152,7 +152,7 @@ class FilesHandler:
 
             if is_main:
                 return np.load(
-                    "data\\scenario1-main\\X_ref_train_finetuned_PlanTL-GOB-ES_roberta-base-biomedical-es.npy",
+                    "data\\scenario1-main\\X_eval_test_PlanTL-GOB-ES_roberta-base-biomedical-es.npy",
                     allow_pickle=True,
                 )
 
