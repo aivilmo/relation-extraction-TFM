@@ -81,7 +81,7 @@ class Main:
 
         if model_instance is None:
             self._logger.warning(
-                "Need select a model, with args '--ml_model', --dl_model', '--s2s_model' or 'transformer_model'"
+                "Need select a model, with args '--ml_model', '--dl_model', '--s2s_model' or 'transformer_model'"
             )
             return
 
