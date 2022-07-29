@@ -117,7 +117,7 @@ class PostProcessor:
 
         if "taskA" in self._task:
             df = self.export_taskA(dataset_test)
-        if "taskB" in self._task or "main" in self._task:
+        if "taskB" in self._task:
             df = self.export_taskB(dataset_test)
 
         self._logger.info("Output data successfully exported")
@@ -240,7 +240,7 @@ class PostProcessor:
 
             # Fill relations
             for _, row in sent_df.iterrows():
-                if row.tag == "O" and "main" in self._task:
+                if row.tag == "O":
                     continue
                 df = self.append_entity_relation(
                     df,

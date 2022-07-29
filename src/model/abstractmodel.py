@@ -114,21 +114,6 @@ class AbstractModel:
             self._logger.error("Error exporting results")
             self._logger.error(e)
 
-        if "taskA" in AppConstants.instance()._task:
-            train, test_main = fh_instance.load_datasets(True)
-            print(test_main)
-            features = Main.instance().get_features_names()
-            X_main_train = fh_instance.load_training_data(features, True)
-            X_token1 = X_main_train[:, :768]
-            X_token2 = X_main_train[:, 768:]
-
-            yhat1 = self._model.predict(X_token1)
-            yhat2 = self._model.predict(X_token2)
-            test_main["tag1"] = le.inverse_transform(yhat1)
-            test_main["tag2"] = le.inverse_transform(yhat2)
-            print(test_main)
-            fh_instance.save_datasets(test_main, test_main, True)
-
     @classmethod
     def compute_sample_weight(self) -> dict:
         from sklearn.utils.class_weight import compute_sample_weight

@@ -35,7 +35,6 @@ class FeaturesHandler:
         ]
         + _transformers,
         "scenario3-taskB": ["with_entities", "word_emb"] + _transformers,
-        "scenario1-main": _transformers,
     }
 
     @staticmethod

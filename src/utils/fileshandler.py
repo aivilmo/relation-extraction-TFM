@@ -48,8 +48,6 @@ class FilesHandler:
         self._output_y_train: str = self._path_output + "\\y_ref_train"
         self._output_y_test: str = self._path_output + "\\y_eval_" + self._output
 
-        self._in_out_main: str = "data\\scenario1-main\\eval_" + self._output
-
         FilesHandler._instance = self
 
     def get_dataframe(self, instance, path: Path) -> pd.DataFrame:
@@ -75,8 +73,6 @@ class FilesHandler:
                 prep_instance = NERPreprocessor.instance()
             if "taskB" in self._task:
                 prep_instance = REPreprocessor.instance()
-            if "main" in self._task:
-                prep_instance = REPreprocessor.instance(True)
 
             df: pd.DataFrame = pd.DataFrame()
             for paths in path:
@@ -111,7 +107,7 @@ class FilesHandler:
             output_file=self._output_test,
         )
 
-    def load_datasets(self, is_main=False) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def load_datasets(self) -> tuple[pd.DataFrame, pd.DataFrame]:
         def load_dataset(filename: str) -> pd.DataFrame:
             filename = self.get_filename(filename)
             self._logger.info(f"Loading DataFrame from: {filename}")
@@ -126,35 +122,24 @@ class FilesHandler:
             self._logger.info("DataFrame succesfully loaded")
             return df
 
-        if not is_main:
-            return load_dataset(self._output_train), load_dataset(self._output_test)
-        return load_dataset(self._output_train), load_dataset(self._in_out_main)
+        return load_dataset(self._output_train), load_dataset(self._output_test)
 
     def save_datasets(
-        self, train_dataset: pd.DataFrame, test_dataset: pd.DataFrame, is_main=False
+        self, train_dataset: pd.DataFrame, test_dataset: pd.DataFrame
     ) -> None:
         end_filename: str = self._IOB_output
 
-        if is_main:
-            train_dataset.to_pickle(self._in_out_main + end_filename)
-        else:
-            train_dataset.to_pickle(self._output_train + end_filename)
-            test_dataset.to_pickle(self._output_test + end_filename)
+        train_dataset.to_pickle(self._output_train + end_filename)
+        test_dataset.to_pickle(self._output_test + end_filename)
         self._logger.info("Datasets successfully saved")
 
     def load_training_data(
-        self, features: str, is_main=False
+        self, features: str
     ) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
 
         try:
             self._logger.info(f"Loading training data...")
             filename = self.features_filename(features)
-
-            if is_main:
-                return np.load(
-                    "data\\scenario1-main\\X_eval_test_PlanTL-GOB-ES_roberta-base-biomedical-es.npy",
-                    allow_pickle=True,
-                )
 
             X_train = np.load(
                 self._output_X_train + filename,
