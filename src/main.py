@@ -4,6 +4,8 @@ import argparse
 import numpy as np
 
 from logger.logger import Logger
+from utils.fileshandler import FilesHandler
+from utils.preprocess import Preprocessor
 
 
 class Main:
@@ -11,6 +13,8 @@ class Main:
     _instance = None
 
     _logger = Logger.instance()
+    _fh_instance = FilesHandler.instance()
+    _pr_instance = Preprocessor.instance()
 
     @staticmethod
     def instance():
@@ -89,10 +93,27 @@ class Main:
 
     def _handle_export(self) -> None:
         from utils.postprocess import PostProcessor
-        from utils.fileshandler import FilesHandler
 
-        _, self._dataset_test = FilesHandler.instance().load_datasets()
+        _, self._dataset_test = self._fh_instance.load_datasets()
         PostProcessor.instance().export_data_to_file(self._dataset_test)
+
+    def _handle_data_augmentation(self) -> None:
+        if self._args.data_aug == "back_translation":
+            features = features + "_back_translation_ref_pred"
+            ref_b = self._fh_instance.load_augmented_dataset("B-Reference")
+            pred_b = self._fh_instance.load_augmented_dataset("B-Predicate")
+
+            if ref_b is None:
+                self._pr_instance.data_augmentation_back_translation(
+                    self._dataset_train, "B-Reference"
+                )
+            if pred_b is None:
+                self._pr_instance.data_augmentation_back_translation(
+                    self._dataset_train, "B-Predicate"
+                )
+
+            self._dataset_train = self._dataset_train.append(ref_b, ignore_index=True)
+            self._dataset_train = self._dataset_train.append(pred_b, ignore_index=True)
 
     def get_features_names(self) -> str:
         features: str = "_".join(self._args.features)
@@ -108,29 +129,28 @@ class Main:
         return "tag"
 
     def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
-        from utils.preprocess import Preprocessor
-        from core.featureshandler import FeaturesHandler
-        from utils.fileshandler import FilesHandler
-
         features = self.get_features_names()
-        FeaturesHandler.instance().check_features_for_task()
-        fh_instance = FilesHandler.instance()
+        self._fh_instance.check_features_for_task()
 
-        self._dataset_train, self._dataset_test = fh_instance.load_datasets()
+        self._dataset_train, self._dataset_test = self._fh_instance.load_datasets()
+        self._handle_data_augmentation()
 
         if self._args.load:
-            return fh_instance.load_training_data(features)
+            return self._fh_instance.load_training_data(features)
 
         if self._dataset_train is None or self._dataset_test is None:
             self._logger.warning(f"Datasets not found, generating for {features}")
-            self._dataset_train, self._dataset_test = fh_instance.generate_datasets()
+            (
+                self._dataset_train,
+                self._dataset_test,
+            ) = self._fh_instance.generate_datasets()
 
-        X_train, X_test, y_train, y_test = Preprocessor.instance().train_test_split(
+        X_train, X_test, y_train, y_test = self._pr_instance.train_test_split(
             self._dataset_train,
             self._dataset_test,
             y_column=self.get_y_column(),
         )
-        fh_instance.save_training_data(X_train, X_test, y_train, y_test, features)
+        self._fh_instance.save_training_data(X_train, X_test, y_train, y_test, features)
         return X_train, X_test, y_train, y_test
 
 

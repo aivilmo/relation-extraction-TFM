@@ -143,9 +143,16 @@ class ArgsParser:
         parser.add_argument(
             "--test_dataset",
             action="store",
-            default="develop",
+            default="testing",
             choices=["training", "develop", "testing"],
             help="Select the test dataset for the model",
+        )
+
+        parser.add_argument(
+            "--data_aug",
+            action="store",
+            choices=["back_translation"],
+            help="Select the data augmentation strategy",
         )
 
         return parser.parse_args()

@@ -4,11 +4,10 @@ from sklearn.preprocessing import LabelEncoder
 from pathlib import Path
 import pandas as pd
 import numpy as np
-import time
 import warnings
 from abc import abstractmethod
-
 from ehealth.anntools import Collection
+
 from logger.logger import Logger
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -56,36 +55,6 @@ class Preprocessor:
         X_test = FeaturesHandler.instance().handle_features(test_df, test=True)
 
         return X_train, X_test, y_train, y_test
-
-    @staticmethod
-    def data_iterator(
-        df: pd.DataFrame, chunk_size: int = 1500, y_column: str = "tag"
-    ) -> np.ndarray:
-        from core.featureshandler import FeaturesHandler
-        import dask.dataframe as dd
-        from dask import delayed, compute
-
-        df.drop(y_column, axis=1, inplace=True)
-
-        delayed_results = []
-        dask_df = dd.from_pandas(df, chunksize=chunk_size)
-        partitions = len(dask_df.to_delayed())
-        part_n = 1
-        for part in dask_df.to_delayed():
-            df = part.compute()
-            Preprocessor._logger.info(
-                f"Computing part of dataframe, part {part_n} of {partitions}"
-            )
-            part_n += 1
-            X = delayed(FeaturesHandler.instance().handle_features)(df)
-            delayed_results.append(X)
-
-        start = time.time()
-        results = compute(*delayed_results, scheduler="threads")
-        Preprocessor._logger.info(
-            f"Parallel features handler: {(time.time() - start) / 60} minutes"
-        )
-        return results
 
     @staticmethod
     def preprocess(text: str, without_stopwords: bool = False) -> str:
@@ -181,6 +150,42 @@ class Preprocessor:
             df_to_remove.loc[df_to_remove[y_column].isin(invalid_labels)].index,
             inplace=True,
         )
+
+    def data_augmentation_back_translation(
+        self, df: pd.DataFrame, cls: str = "B-Reference"
+    ) -> pd.DataFrame:
+        import nlpaug.augmenter.word as naw
+        from utils.fileshandler import FilesHandler
+
+        self._logger.info(f"Generating Data Augmentation tokens for class {cls}")
+
+        df_cls = df[df.tag == cls]
+        aug = naw.BackTranslationAug(
+            from_model_name="Helsinki-NLP/opus-mt-es-en",
+            to_model_name="Helsinki-NLP/opus-mt-en-es",
+        )
+
+        new_df = pd.DataFrame()
+        index: int = 0
+        for _, row in df_cls.iterrows():
+            augment = aug.augment(data=row.token, num_thread=-1)[0]
+            entity = pd.Series(
+                {
+                    "token": augment.replace(".", ""),
+                    "original_token": augment,
+                    "tag": cls,
+                    "sentence": row.sentence.replace(row.token, augment),
+                },
+                name=index,
+            )
+            index += 1
+            new_df = new_df.append(entity)
+
+        self._logger.info(f"Generated {len(new_df)} tokens for class {cls}")
+        FilesHandler.instance().save_train_dataset(
+            new_df, f"_aug_back_translation_{cls}"
+        )
+        return df
 
 
 class NERPreprocessor(Preprocessor):

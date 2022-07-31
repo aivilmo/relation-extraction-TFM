@@ -226,6 +226,8 @@ class FeaturesHandler:
         mask = (df.sentence == sentence) & (
             df["original_token" + column_int] == original_token
         )
+        if len(df.loc[mask, "token" + column_int].values) == 0:
+            return
         if np.all((np.array(df.loc[mask, "token" + column_int].values[0]) != 0)):
             return
         token = TransformerEmbedding.instance().entity_vector_from_sent(

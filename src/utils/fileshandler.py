@@ -107,22 +107,40 @@ class FilesHandler:
             output_file=self._output_test,
         )
 
+    def load_dataset(self, filename: str) -> pd.DataFrame:
+        filename = self.get_filename(filename)
+        self._logger.info(f"Loading DataFrame from: {filename}")
+
+        try:
+            df: pd.DataFrame = pd.read_pickle(filename)
+
+        except (FileNotFoundError, OSError) as e:
+            self._logger.error(e)
+            return None
+
+        self._logger.info("DataFrame succesfully loaded")
+        return df
+
     def load_datasets(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        def load_dataset(filename: str) -> pd.DataFrame:
-            filename = self.get_filename(filename)
-            self._logger.info(f"Loading DataFrame from: {filename}")
+        return self.load_dataset(self._output_train), self.load_dataset(
+            self._output_test
+        )
 
-            try:
-                df: pd.DataFrame = pd.read_pickle(filename)
+    def load_augmented_dataset(self, cls: str) -> pd.DataFrame:
+        filename = self.get_filename(
+            self._output_train + f"_aug_back_translation_{cls}"
+        )
+        self._logger.info(f"Loading DataFrame from: {filename}")
 
-            except (FileNotFoundError, OSError) as e:
-                self._logger.error(e)
-                return None
+        try:
+            df: pd.DataFrame = pd.read_pickle(filename)
 
-            self._logger.info("DataFrame succesfully loaded")
-            return df
+        except (FileNotFoundError, OSError) as e:
+            self._logger.error(e)
+            return None
 
-        return load_dataset(self._output_train), load_dataset(self._output_test)
+        self._logger.info("DataFrame succesfully loaded")
+        return df
 
     def save_datasets(
         self, train_dataset: pd.DataFrame, test_dataset: pd.DataFrame
@@ -132,6 +150,13 @@ class FilesHandler:
         train_dataset.to_pickle(self._output_train + end_filename)
         test_dataset.to_pickle(self._output_test + end_filename)
         self._logger.info("Datasets successfully saved")
+
+    def save_train_dataset(self, df: pd.DataFrame, filename_sufix="") -> None:
+        end_filename: str = filename_sufix + self._IOB_output
+        df.to_pickle(self._output_train + end_filename)
+        self._logger.info(
+            f"Dataset train successfully saved with filename {end_filename}"
+        )
 
     def load_training_data(
         self, features: str
