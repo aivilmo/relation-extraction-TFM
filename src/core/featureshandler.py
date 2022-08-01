@@ -32,6 +32,7 @@ class FeaturesHandler:
             "chars",
             "tokens",
             "seq2seq",
+            "pos_tag",
         ]
         + _transformers,
         "scenario3-taskB": ["with_entities", "word_emb"] + _transformers,
@@ -104,6 +105,9 @@ class FeaturesHandler:
         if "tokens" in self._features:
             self._feat_tokens(df, test=test)
             columns += ["token"]
+        if "pos_tag" in self._features:
+            self._feat_pos_tags(df, test=test)
+            columns += ["pos_tag"]
         if "seq2seq" in self._features:
             self._feat_seq2seq(df)
             return
@@ -186,6 +190,12 @@ class FeaturesHandler:
 
     def _feat_tokens(self, df: pd.DataFrame, test: bool = False) -> None:
         df = self._fit_on_texts(df, self._tk, 3, test)
+
+    def _feat_pos_tags(self, df, test: bool = False) -> None:
+        if test:
+            df["pos_tag"] = df.pos_tag.apply(lambda x: self._le.transform([x])[0])
+            return
+        df["pos_tag"] = df.pos_tag.apply(lambda x: self._le.fit_transform([x])[0])
 
     def _feat_seq2seq(self, df: pd.DataFrame) -> None:
         df.rename(columns={"token": "words", "tag": "labels"}, inplace=True)

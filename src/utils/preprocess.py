@@ -18,6 +18,7 @@ class Preprocessor:
     _instance = None
     _n_classes = None
     _default_tag = "O"
+    _models_dir = "..\\dataset"
 
     _logger = Logger.instance()
 
@@ -28,10 +29,21 @@ class Preprocessor:
         return Preprocessor._instance
 
     def __init__(self) -> None:
+        import stanfordnlp
+
         if Preprocessor._instance is not None:
             raise Exception
 
         self._le = LabelEncoder()
+
+        stanfordnlp.download("es", self._models_dir)  # Download the Spanish models
+        self._tagger = stanfordnlp.Pipeline(
+            processors="tokenize,pos",
+            models_dir=self._models_dir,
+            treebank="es_ancora",
+            lang="es",
+            pos_batch_size=3000,
+        )
 
         Preprocessor._instance = self
 
@@ -169,11 +181,17 @@ class Preprocessor:
         index: int = 0
         for _, row in df_cls.iterrows():
             augment = aug.augment(data=row.token, num_thread=-1)[0]
+            token = augment.replace(".", "")
             entity = pd.Series(
                 {
-                    "token": augment.replace(".", ""),
+                    "token": token,
                     "original_token": augment,
                     "tag": cls,
+                    "pos_tag": Preprocessor.instance()
+                    ._tagger(token)
+                    .sentences[0]
+                    .words[0]
+                    .upos,
                     "sentence": row.sentence.replace(row.token, augment),
                 },
                 name=index,
@@ -243,6 +261,11 @@ class NERPreprocessor(Preprocessor):
                         "token": real_word,
                         "original_token": real_word,
                         "tag": max(set(tag), key=tag.count),
+                        "pos_tag": Preprocessor.instance()
+                        ._tagger(real_word)
+                        .sentences[0]
+                        .words[0]
+                        .upos,
                         "sentence": sentence.text,
                     },
                     name=index,

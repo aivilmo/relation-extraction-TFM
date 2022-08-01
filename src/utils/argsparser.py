@@ -93,6 +93,7 @@ class ArgsParser:
                 "PlanTL-GOB-ES/roberta-base-biomedical-es",
                 "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es",
                 "PlanTL-GOB-ES/bsc-bio-ehr-es-pharmaconer",
+                "pos_tag"
             ],
             help="If you want to add custom features to train",
         )
