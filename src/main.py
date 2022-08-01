@@ -99,7 +99,6 @@ class Main:
 
     def _handle_data_augmentation(self) -> None:
         if self._args.data_aug == "back_translation":
-            features = features + "_back_translation_ref_pred"
             ref_b = self._fh_instance.load_augmented_dataset("B-Reference")
             pred_b = self._fh_instance.load_augmented_dataset("B-Predicate")
 
@@ -114,6 +113,9 @@ class Main:
 
             self._dataset_train = self._dataset_train.append(ref_b, ignore_index=True)
             self._dataset_train = self._dataset_train.append(pred_b, ignore_index=True)
+            return True
+
+        return False
 
     def get_features_names(self) -> str:
         features: str = "_".join(self._args.features)
@@ -129,11 +131,14 @@ class Main:
         return "tag"
 
     def _get_datasets(self) -> tuple[np.ndarray, np.array, np.ndarray, np.array]:
+        from core.featureshandler import FeaturesHandler
+
         features = self.get_features_names()
-        self._fh_instance.check_features_for_task()
+        FeaturesHandler.instance().check_features_for_task()
 
         self._dataset_train, self._dataset_test = self._fh_instance.load_datasets()
-        self._handle_data_augmentation()
+        if self._handle_data_augmentation():
+            features = features + "_back_translation_ref_pred"
 
         if self._args.load:
             return self._fh_instance.load_training_data(features)
