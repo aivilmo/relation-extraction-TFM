@@ -98,28 +98,35 @@ class Main:
         PostProcessor.instance().export_data_to_file(self._dataset_test)
 
     def _handle_data_augmentation(self) -> None:
-        if self._args.data_aug == "back_translation":
-            ref_b = self._fh_instance.load_augmented_dataset("B-Reference")
-            pred_b = self._fh_instance.load_augmented_dataset("B-Predicate")
+        if self._args.data_aug != None:
+            type = self._args.data_aug
 
+            ref_i = self._fh_instance.load_augmented_dataset("I-Reference", type)
+            ref_b = self._fh_instance.load_augmented_dataset("B-Reference", type)
+            pred_b = self._fh_instance.load_augmented_dataset("B-Predicate", type)
+
+            if ref_i is None:
+                self._pr_instance.data_augmentation(
+                    self._dataset_train, type, "I-Reference", n=10
+                )
             if ref_b is None:
-                self._pr_instance.data_augmentation_back_translation(
-                    self._dataset_train, "B-Reference"
+                self._pr_instance.data_augmentation(
+                    self._dataset_train, type, "B-Reference"
                 )
             if pred_b is None:
-                self._pr_instance.data_augmentation_back_translation(
-                    self._dataset_train, "B-Predicate"
+                self._pr_instance.data_augmentation(
+                    self._dataset_train, type, "B-Predicate"
                 )
 
+            self._dataset_train = self._dataset_train.append(ref_i, ignore_index=True)
             self._dataset_train = self._dataset_train.append(ref_b, ignore_index=True)
             self._dataset_train = self._dataset_train.append(pred_b, ignore_index=True)
             return True
-
         return False
 
     def get_features_names(self) -> str:
         features: str = "_".join(self._args.features)
-        features = features.replace("/", "_")
+        features = features.replace("/", "_").replace("\\", "_")
         return features
 
     def features(self) -> str:
@@ -138,7 +145,7 @@ class Main:
 
         self._dataset_train, self._dataset_test = self._fh_instance.load_datasets()
         if self._handle_data_augmentation():
-            features = features + "_back_translation_ref_pred"
+            features = features + f"_{self._args.data_aug}_ref_pred"
 
         if self._args.load:
             return self._fh_instance.load_training_data(features)

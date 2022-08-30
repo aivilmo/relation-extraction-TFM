@@ -126,10 +126,8 @@ class FilesHandler:
             self._output_test
         )
 
-    def load_augmented_dataset(self, cls: str) -> pd.DataFrame:
-        filename = self.get_filename(
-            self._output_train + f"_aug_back_translation_{cls}"
-        )
+    def load_augmented_dataset(self, cls: str, type: str) -> pd.DataFrame:
+        filename = self.get_filename(self._output_train + f"_aug_{type}_{cls}")
         self._logger.info(f"Loading DataFrame from: {filename}")
 
         try:
@@ -214,7 +212,6 @@ class FilesHandler:
     def try_to_save_dataframe(self, df: pd.DataFrame, output_file: str) -> bool:
         try:
             df.to_pickle(output_file)
-            df.to_csv(output_file.replace(".pkl", ".csv"), sep="\t")
         except (OSError, KeyError) as e:
             self._logger.error(e)
             return False

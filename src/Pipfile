@@ -24,6 +24,9 @@ seaborn = "*"
 sentencepiece = "*"
 simpletransformers = "*"
 datasets = "*"
+nlpaug = "*"
+sacremoses = "*"
+stanfordnlp = "*"
 
 [dev-packages]
 black = "*"

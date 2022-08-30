@@ -7,6 +7,10 @@ import numpy as np
 import warnings
 from abc import abstractmethod
 from ehealth.anntools import Collection
+from nltk.stem import SnowballStemmer
+from nltk.corpus import stopwords
+import re
+import unidecode
 
 from logger.logger import Logger
 
@@ -43,6 +47,7 @@ class Preprocessor:
             treebank="es_ancora",
             lang="es",
             pos_batch_size=3000,
+            verbose=False,
         )
 
         Preprocessor._instance = self
@@ -70,11 +75,6 @@ class Preprocessor:
 
     @staticmethod
     def preprocess(text: str, without_stopwords: bool = False) -> str:
-        from nltk.stem import WordNetLemmatizer, PorterStemmer
-        from nltk.corpus import stopwords
-        import re
-        import unidecode
-
         unaccented_string = unidecode.unidecode(text)
         alphanumeric_text = re.sub("[^0-9a-zA-Z-/:]+", " ", unaccented_string)
         without_accents = (
@@ -91,11 +91,8 @@ class Preprocessor:
             tokens = [token for token in tokens if token not in stop_words]
             return " ".join(tokens)
 
-        wordnet_lemmatizer = WordNetLemmatizer()
-        tokens_lemmas = [wordnet_lemmatizer.lemmatize(token) for token in tokens]
-
-        stemmer = PorterStemmer()
-        tokens_stemmed = [stemmer.stem(token) for token in tokens_lemmas]
+        stemmer = SnowballStemmer("spanish")
+        tokens_stemmed = [stemmer.stem(token) for token in tokens]
 
         return " ".join(tokens_stemmed)
 
@@ -106,19 +103,6 @@ class Preprocessor:
         return to_categorical(
             y_train, num_classes=Preprocessor._n_classes
         ), to_categorical(y_test, num_classes=Preprocessor._n_classes)
-
-    @staticmethod
-    def prepare_2D_labels(y_train: np.ndarray, y_test: np.ndarray) -> np.ndarray:
-        from keras.preprocessing.sequence import pad_sequences
-
-        y_train, y_test = pad_sequences(
-            y_train.values, maxlen=100, padding="post", value=8
-        ), pad_sequences(y_test.values, maxlen=100, padding="post", value=8)
-
-        y_train = y_train.reshape((y_train.shape[0], y_train.shape[1], 1))
-        y_test = y_test.reshape((y_test.shape[0], y_test.shape[1], 1))
-
-        return y_train, y_test
 
     def encode_labels(
         self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
@@ -134,75 +118,48 @@ class Preprocessor:
 
         return y_train, y_test
 
-    def encode_2D_labels(
-        self, train_df: pd.DataFrame, test_df: pd.DataFrame, y_column: str = "tag"
-    ) -> np.ndarray:
-
-        from model.coremodel import AbstractModel
-
-        self._logger.info(f"Transforming {y_column} into 2D labels")
-        y_train = train_df[y_column].apply(self._le.transform)
-        y_test = test_df[y_column].apply(self._le.transform)
-
-        AbstractModel.instance().set_labels(list(self._le.classes_))
-        self._n_classes = len(list(self._le.classes_))
-
-        return y_train, y_test
-
-    @staticmethod
-    def remove_invalid_classes(
-        df_to_remove: pd.DataFrame, df_from_remove: pd.DataFrame, y_column: str
-    ) -> None:
-        invalid_labels: list = list(
-            set(df_to_remove[y_column].unique())
-            - set(df_from_remove[y_column].unique())
-        )
-
-        df_to_remove.drop(
-            df_to_remove.loc[df_to_remove[y_column].isin(invalid_labels)].index,
-            inplace=True,
-        )
-
-    def data_augmentation_back_translation(
-        self, df: pd.DataFrame, cls: str = "B-Reference"
+    def data_augmentation(
+        self, df: pd.DataFrame, type: str, cls: str = "B-Reference", n: int = 1
     ) -> pd.DataFrame:
         import nlpaug.augmenter.word as naw
         from utils.fileshandler import FilesHandler
 
-        self._logger.info(f"Generating Data Augmentation tokens for class {cls}")
+        self._logger.info(
+            f"Generating Data Augmentation tokens for class {cls} with technique {type}"
+        )
 
         df_cls = df[df.tag == cls]
-        aug = naw.BackTranslationAug(
-            from_model_name="Helsinki-NLP/opus-mt-es-en",
-            to_model_name="Helsinki-NLP/opus-mt-en-es",
-        )
+        if type == "back_translation":
+            aug = naw.BackTranslationAug(
+                from_model_name="Helsinki-NLP/opus-mt-es-en",
+                to_model_name="Helsinki-NLP/opus-mt-en-es",
+            )
+
+        if type == "synonym":
+            aug = naw.SynonymAug(lang="spa")
 
         new_df = pd.DataFrame()
         index: int = 0
         for _, row in df_cls.iterrows():
-            augment = aug.augment(data=row.token, num_thread=-1)[0]
-            token = augment.replace(".", "")
-            entity = pd.Series(
-                {
-                    "token": token,
-                    "original_token": augment,
-                    "tag": cls,
-                    "pos_tag": Preprocessor.instance()
-                    ._tagger(token)
-                    .sentences[0]
-                    .words[0]
-                    .upos,
-                    "sentence": row.sentence.replace(row.token, augment),
-                },
-                name=index,
-            )
-            index += 1
-            new_df = new_df.append(entity)
+            augments = aug.augment(data=row.token, num_thread=10, n=n)
+            for augment in augments:
+                token = augment.replace(".", "")
+                entity = pd.Series(
+                    {
+                        "token": token,
+                        "original_token": augment,
+                        "tag": cls,
+                        "pos_tag": row.pos_tag,
+                        "sentence": row.sentence.replace(row.token, augment),
+                    },
+                    name=index,
+                )
+                self._logger.info(f"Generated word {token} for original {row.token}")
+                index += 1
+                new_df = new_df.append(entity)
 
         self._logger.info(f"Generated {len(new_df)} tokens for class {cls}")
-        FilesHandler.instance().save_train_dataset(
-            new_df, f"_aug_back_translation_{cls}"
-        )
+        FilesHandler.instance().save_train_dataset(new_df, f"_aug_{type}_{cls}")
         return df
 
 
@@ -239,13 +196,21 @@ class NERPreprocessor(Preprocessor):
             sentences.append(sentence.text)
 
             sentence_entities = {}
+            sentence_positions = {}
             for keyphrases in sentence.keyphrases:
+                positions = []
                 entities = keyphrases.text.split()
+                init_pos = sentence.text.find(keyphrases.text)
+
                 for i in range(len(entities)):
                     tag = "B-" if i == 0 else "I-"
                     old_entity = sentence_entities.get(entities[i], [])
                     old_entity.append(tag + keyphrases.label)
                     sentence_entities[entities[i]] = old_entity
+                    end_pos = init_pos + len(entities[i])
+                    positions.append(str(init_pos) + " " + str(end_pos))
+                    init_pos = end_pos + 1
+                sentence_positions[entities[-1]] = positions
 
             for word in sentence.text.split():
                 real_word = word
@@ -256,6 +221,7 @@ class NERPreprocessor(Preprocessor):
                     real_word = word[:-1]
 
                 tag = sentence_entities.get(real_word, [self._default_tag])
+                positions = sentence_positions.get(real_word, "")
                 word = pd.Series(
                     {
                         "token": real_word,
@@ -266,6 +232,7 @@ class NERPreprocessor(Preprocessor):
                         .sentences[0]
                         .words[0]
                         .upos,
+                        "positions": ";".join(positions),
                         "sentence": sentence.text,
                     },
                     name=index,

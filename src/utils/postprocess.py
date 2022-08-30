@@ -2,6 +2,8 @@
 
 import pandas as pd
 import re
+from ehealth.anntools import Collection, Sentence, Relation, Keyphrase
+from pathlib import Path
 
 from logger.logger import Logger
 from utils.appconstants import AppConstants
@@ -26,8 +28,6 @@ class PostProcessor:
         return PostProcessor._instance
 
     def __init__(self) -> None:
-        from utils.appconstants import AppConstants
-
         if PostProcessor._instance is not None:
             raise Exception
 
@@ -116,60 +116,47 @@ class PostProcessor:
         )
 
         if "taskA" in self._task:
-            df = self.export_taskA(dataset_test)
+            collection = self.export_taskA_ehealth(dataset_test)
         if "taskB" in self._task:
             df = self.export_taskB(dataset_test)
 
         self._logger.info("Output data successfully exported")
-        self.save_output_file(df)
+        self.save_output_file_ehealth(collection)
 
-    def export_taskA(self, dataset_test: pd.DataFrame) -> pd.DataFrame:
-        df: pd.DataFrame = pd.DataFrame()
-
-        sentence_offset: int = 0
+    def export_taskA_ehealth(self, dataset_test: pd.DataFrame) -> Collection:
         index: int = 1
-        # sent = "La terapia dirigida es un tipo de tratamiento en el que se utilizan sustancias para identificar y atacar células cancerosas específicas sin dañar las células normales."
         sentences = list(dataset_test.sentence.unique())
-        # sentences.insert(38, sent)
+        sentences_list = []
 
+        s = 0
         for sent in sentences:
+            sentence_obj = Sentence(text=sent)
+            keyphrases = []
             sent_df = dataset_test.loc[dataset_test.sentence == sent]
             sent_df = sent_df[sent_df.predicted_tag != "O"]
-
-            if len(sent_df) == 0:
-                continue
-
-            first = sent_df.iloc[0]
-            entities = [first.original_token]
-            positions = self.get_pos(
-                first.sentence, first.original_token, sentence_offset
-            )
-            last_tag = first.predicted_tag.replace("B-", "").replace("I-", "")
+            sent_df = sent_df[sent_df.positions != ""]
 
             for _, row in sent_df.iterrows():
-                tag: str = row.predicted_tag.replace("B-", "").replace("I-", "")
-                pos = self.get_pos(row.sentence, row.original_token, sentence_offset)
-                if pos == []:
-                    continue
-                pos = pos[0]
+                positions = row.positions.split(";")
+                label = row.predicted_tag.replace("B-", "").replace("I-", "")
+                position = []
+                for pos in positions:
+                    p = pos.split(" ")
+                    position.append((int(p[0]), int(p[1])))
+                keyphrase_obj = Keyphrase(
+                    sentence=sentence_obj,
+                    spans=position,
+                    label=label,
+                    id=index,
+                )
+                keyphrases.append(keyphrase_obj)
+                index += 1
 
-                if row.predicted_tag.startswith("B-"):
-                    df, has_inserted = self.append_entity_row(
-                        df, index, entities, positions, last_tag
-                    )
-                    entities = [row.original_token]
-                    positions = [pos]
-                    last_tag = tag
-                    if has_inserted:
-                        index += 1
-                    continue
+            sentence_obj.keyphrases = keyphrases
+            sentences_list.append(sentence_obj)
+            s += 1
 
-                entities.append(row.original_token)
-                positions.append(pos)
-
-            sentence_offset += len(sent) + 1
-
-        return df
+        return Collection(sentences_list)
 
     def export_taskB(self, dataset_test: pd.DataFrame) -> pd.DataFrame:
         df: pd.DataFrame = pd.DataFrame()
@@ -258,8 +245,6 @@ class PostProcessor:
         return df
 
     def save_output_file(self, df: pd.DataFrame) -> None:
-        from pathlib import Path
-
         output_dir = Path(
             self._path + self._dataset + "\\" + self._run + "\\" + self._task + "\\"
         )
@@ -272,5 +257,15 @@ class PostProcessor:
             sep="\t",
             mode="w",
         )
+
+        self._logger.info(f"File output.ann saved at path {str(output_dir)}")
+
+    def save_output_file_ehealth(self, collection: Collection) -> None:
+        output_dir = Path(
+            self._path + self._dataset + "\\" + self._run + "\\" + self._task + "\\"
+        )
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        collection.dump(Path(str(output_dir) + "\\" + self._output_file))
 
         self._logger.info(f"File output.ann saved at path {str(output_dir)}")

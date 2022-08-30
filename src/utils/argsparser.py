@@ -93,7 +93,8 @@ class ArgsParser:
                 "PlanTL-GOB-ES/roberta-base-biomedical-es",
                 "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es",
                 "PlanTL-GOB-ES/bsc-bio-ehr-es-pharmaconer",
-                "pos_tag"
+                "data\\scenario2-taskA\\models\\40epoch\\bert-base-multilingual-cased",
+                "pos_tag",
             ],
             help="If you want to add custom features to train",
         )
@@ -120,7 +121,7 @@ class ArgsParser:
         parser.add_argument(
             "--task",
             action="store",
-            default="scenario2-taskA",
+            default="scenario3-taskB",
             choices=["scenario2-taskA", "scenario3-taskB"],
             help="Select the task you want to do",
         )
@@ -152,7 +153,7 @@ class ArgsParser:
         parser.add_argument(
             "--data_aug",
             action="store",
-            choices=["back_translation"],
+            choices=["back_translation", "synonym"],
             help="Select the data augmentation strategy",
         )
 
