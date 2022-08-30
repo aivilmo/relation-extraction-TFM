@@ -73,6 +73,20 @@ class TransformerEmbedding(Embedding):
         Embedding._logger.info(f"Transformer has built with preprocessor: {type}")
         Embedding._logger.info(f"Transformer to finetuning has built from: {type}")
 
+    def build_finetuned_transformer(self, type: str, base_type: str) -> None:
+        from transformers import AutoTokenizer, AutoModel
+
+        Embedding._logger.info(
+            f"Building transformer model with preprocessor: {base_type}"
+        )
+        Embedding._logger.info(f"Building transformer model to finetuning from: {type}")
+
+        self._preprocess_layer = AutoTokenizer.from_pretrained(base_type)
+        self._encoder_layer = AutoModel.from_pretrained(type)
+
+        Embedding._logger.info(f"Transformer has built with preprocessor: {base_type}")
+        Embedding._logger.info(f"Transformer to finetuning has built from: {type}")
+
     def word_vector(self, word: str) -> np.ndarray:
         word_preprocessed = self._preprocess_layer(word, return_tensors="pt")
         bert_results = self._encoder_layer(**word_preprocessed)
