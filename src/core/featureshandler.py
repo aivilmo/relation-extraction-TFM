@@ -22,6 +22,7 @@ class FeaturesHandler:
         "PlanTL-GOB-ES/roberta-base-biomedical-es",
         "PlanTL-GOB-ES/roberta-base-biomedical-clinical-es",
         "PlanTL-GOB-ES/bsc-bio-ehr-es-pharmaconer",
+        "data\\scenario2-taskA\\models\\40epoch\\bert-base-multilingual-cased",
     ]
     _features_for_task: dict = {
         "scenario2-taskA": [
@@ -86,6 +87,11 @@ class FeaturesHandler:
         )
         self.check_features_for_task()
 
+        # Both tasks
+        if self._is_transformer:
+            self._feat_transformer(df)
+            columns += ["token"] if "taskA" in self._task else ["token1"] + ["token2"]
+
         # NER features
         if "tf_idf" in self._features:
             self._feat_tf_idf(df, test=test)
@@ -105,12 +111,12 @@ class FeaturesHandler:
         if "tokens" in self._features:
             self._feat_tokens(df, test=test)
             columns += ["token"]
-        if "pos_tag" in self._features:
-            self._feat_pos_tags(df, test=test)
-            columns += ["pos_tag"]
         if "seq2seq" in self._features:
             self._feat_seq2seq(df)
             return
+        if "pos_tag" in self._features:
+            self._feat_bag_of_words(df, test=test, column="pos_tag")
+            columns += ["pos_tag"]
 
         # RE fearures
         if "with_entities" in self._features:
@@ -119,11 +125,6 @@ class FeaturesHandler:
         if "word_emb" in self._features:
             self._feat_word_emb(df)
             columns += ["token1"] + ["token2"]
-
-        # Both tasks
-        if self._is_transformer:
-            self._feat_transformer(df)
-            columns += ["token"] if "taskA" in self._task else ["token1"] + ["token2"]
 
         features: np.ndarray = FeaturesHandler._combine_features(df, columns)
         self._logger.info(
@@ -190,12 +191,6 @@ class FeaturesHandler:
 
     def _feat_tokens(self, df: pd.DataFrame, test: bool = False) -> None:
         df = self._fit_on_texts(df, self._tk, 3, test)
-
-    def _feat_pos_tags(self, df, test: bool = False) -> None:
-        if test:
-            df["pos_tag"] = df.pos_tag.apply(lambda x: self._le.transform([x])[0])
-            return
-        df["pos_tag"] = df.pos_tag.apply(lambda x: self._le.fit_transform([x])[0])
 
     def _feat_seq2seq(self, df: pd.DataFrame) -> None:
         df.rename(columns={"token": "words", "tag": "labels"}, inplace=True)
