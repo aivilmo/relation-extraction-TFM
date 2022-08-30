@@ -162,6 +162,17 @@ class Preprocessor:
         FilesHandler.instance().save_train_dataset(new_df, f"_aug_{type}_{cls}")
         return df
 
+    def get_entity_positions(self, sent: str, entity: str, offset: int) -> str:
+        entity = entity.split()
+        positions = []
+        init_pos = sent.find(entity[0], offset)
+        for i in range(len(entity)):
+            end_pos = init_pos + len(entity[i])
+            positions.append(str(init_pos) + ":" + str(end_pos))
+            init_pos = end_pos + 1
+
+        return ";".join(positions)
+
 
 class NERPreprocessor(Preprocessor):
 
@@ -196,22 +207,16 @@ class NERPreprocessor(Preprocessor):
             sentences.append(sentence.text)
 
             sentence_entities = {}
-            sentence_positions = {}
             for keyphrases in sentence.keyphrases:
-                positions = []
                 entities = keyphrases.text.split()
-                init_pos = sentence.text.find(keyphrases.text)
 
                 for i in range(len(entities)):
                     tag = "B-" if i == 0 else "I-"
                     old_entity = sentence_entities.get(entities[i], [])
                     old_entity.append(tag + keyphrases.label)
                     sentence_entities[entities[i]] = old_entity
-                    end_pos = init_pos + len(entities[i])
-                    positions.append(str(init_pos) + " " + str(end_pos))
-                    init_pos = end_pos + 1
-                sentence_positions[entities[-1]] = positions
 
+            position = "0:0"
             for word in sentence.text.split():
                 real_word = word
                 # Avoid empty words
@@ -221,7 +226,8 @@ class NERPreprocessor(Preprocessor):
                     real_word = word[:-1]
 
                 tag = sentence_entities.get(real_word, [self._default_tag])
-                positions = sentence_positions.get(real_word, "")
+                offset = int(position.split(":")[-1])
+                position = self.get_entity_positions(sentence.text, real_word, offset)
                 word = pd.Series(
                     {
                         "token": real_word,
@@ -232,7 +238,7 @@ class NERPreprocessor(Preprocessor):
                         .sentences[0]
                         .words[0]
                         .upos,
-                        "positions": ";".join(positions),
+                        "positions": position,
                         "sentence": sentence.text,
                     },
                     name=index,
@@ -263,14 +269,18 @@ class REPreprocessor(Preprocessor):
 
         REPreprocessor._instance = self
 
-    def update_entity(self, phrase, entities) -> dict:
-        entities[phrase.text] = phrase.label
-        return entities
+    def join_sublist(self, sublist: list, l: list) -> list:
+        def _find_sub_list(sublist: list, l: list) -> tuple:
+            sll = len(sublist)
+            for ind in (i for i, e in enumerate(l) if e == sublist[0]):
+                if l[ind : ind + sll] == sublist:
+                    return ind, ind + sll - 1
+            return 0, 0
 
-    def append_relations(self, sentence: list, relation: str) -> list:
-        if relation not in sentence:
-            sentence.append(relation)
-        return sentence
+        if len(sublist) > 1:
+            init, end = _find_sub_list(sublist, l)
+            l[init : end + 1] = [" ".join(l[init : end + 1])]
+        return l
 
     def process_content(self, path: Path) -> pd.DataFrame:
         collection = Collection().load_dir(path)
@@ -285,31 +295,39 @@ class REPreprocessor(Preprocessor):
             if sentence.relations == []:
                 continue
 
-            relation_pairs, from_entities, to_entities = {}, {}, {}
-            sentence_ent: list = []
+            relation_pairs, entities = {}, {}
             sent: str = sentence.text
+            sent_tokens: list = sent.split()
 
             for relation in sentence.relations:
-                relation_from = relation.from_phrase
-                from_entities = self.update_entity(relation_from, from_entities)
+                relation_from = relation.from_phrase.text
+                relation_to = relation.to_phrase.text
 
-                relation_to = relation.to_phrase
-                to_entities = self.update_entity(relation_to, to_entities)
+                sent_tokens = self.join_sublist(relation_from.split(), sent_tokens)
+                sent_tokens = self.join_sublist(relation_to.split(), sent_tokens)
 
-                relation_pairs[(relation_from.text, relation_to.text)] = relation.label
+                relation_pairs[(relation_from, relation_to)] = relation.label
+                entities[relation_from] = relation.from_phrase.label
+                entities[relation_to] = relation.to_phrase.label
 
-                sent = sent.replace(relation_from.text, "")
-                sent = sent.replace(relation_to.text, "")
-                sentence_ent = self.append_relations(sentence_ent, relation_from.text)
-                sentence_ent = self.append_relations(sentence_ent, relation_to.text)
+            from_position, to_position = ["0:0"], ["0:0"]
+            last_from_word = sent_tokens[0]
+            from_offset, to_offset = 0, 0
 
-            sentence_ent = sent.split() + sentence_ent
-            for from_word in sentence_ent:
-                from_entity = from_entities.get(from_word, self._default_tag)
-                for to_word in sentence_ent:
+            for from_word in sent_tokens:
+                from_entity = entities.get(from_word, self._default_tag)
+                # If we iter the same word, dont update offset
+                if last_from_word != from_word:
+                    from_offset = int(from_position[-1].split(":")[-1])
+                from_pos = self.get_entity_positions(sent, from_word, from_offset)
+
+                for to_word in sent_tokens:
                     if from_word == to_word:
                         continue
-                    to_entity = to_entities.get(to_word, self._default_tag)
+                    to_entity = entities.get(to_word, self._default_tag)
+
+                    to_offset = int(to_position[-1].split(":")[-1])
+                    to_pos = self.get_entity_positions(sent, to_word, to_offset)
 
                     pair = (from_word, to_word)
                     relation = relation_pairs.get(pair, self._default_tag)
@@ -318,9 +336,11 @@ class REPreprocessor(Preprocessor):
                             "token1": from_word,
                             "original_token1": from_word,
                             "tag1": from_entity,
+                            "position1": from_pos,
                             "token2": to_word,
                             "original_token2": to_word,
                             "tag2": to_entity,
+                            "position2": to_pos,
                             "tag": relation,
                             "sentence": sentence.text,
                         },
@@ -328,7 +348,13 @@ class REPreprocessor(Preprocessor):
                     )
                     index += 1
                     df = df.append(relation)
+                last_from_word = from_word
 
+            # df = df.drop(["sentence", "original_token1", "original_token2"], axis=1)
+            # print(df[0:50])
+            # import sys
+
+            # sys.exit()
             self._logger.info(f"Finished sentence {sent_id} of {len(collection)}")
             sent_id += 1
 
