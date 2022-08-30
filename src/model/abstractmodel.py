@@ -3,6 +3,9 @@
 from time import time
 import numpy as np
 from enum import Enum
+from collections import Counter
+from matplotlib import pyplot
+
 
 from logger.logger import Logger
 from utils.appconstants import AppConstants
@@ -14,7 +17,7 @@ class ModelType(Enum):
     DECISIONTREE = "decisiontree"
     RANDOMFOREST = "randomforest"
     DENSE = "dense"
-    GRU = "gru"
+    MULTIINPUT = "multi"
 
 
 class AbstractModel:
@@ -25,6 +28,12 @@ class AbstractModel:
 
     _logger = Logger.instance()
     _task: str = AppConstants.instance()._task
+    _imbalance_strategy: str = AppConstants.instance()._imbalance_strategy
+
+    _sampling_strategy: dict = {
+        "scenario2-taskA": {7: 100, 4: 350, 6: 250},
+        "scenario3-taskB": {7: 100, 4: 350, 6: 250},
+    }
 
     @classmethod
     def __init__(self) -> None:
@@ -50,6 +59,25 @@ class AbstractModel:
         model,
     ) -> None:
         self.build(X=X_train, y=y_train, model=model)
+        counter = Counter(self._y)
+        for k, v in counter.items():
+            per = v / len(self._y) * 100
+            print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
+
+        if self._imbalance_strategy == "oversampling":
+            self.over_sample_data()
+        if self._imbalance_strategy == "undersampling":
+            self.under_sample_data()
+        if self._imbalance_strategy == "both":
+            self.combined_resample_data()
+
+        print()
+
+        counter = Counter(self._y)
+        for k, v in counter.items():
+            per = v / len(self._y) * 100
+            print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
+
         self.train()
         self.evaluate(X=X_test, y=y_test)
         self.export_results()
@@ -59,6 +87,7 @@ class AbstractModel:
         AbstractModel._logger.info(f"Building model {self._model}...")
         self._X = X
         self._y = y
+        self._n_classes = len(np.unique(self._y))
         AbstractModel._logger.info(f"Model has built successfully")
 
     @classmethod
@@ -151,30 +180,37 @@ class AbstractModel:
     @classmethod
     def under_sample_data(self) -> None:
         from imblearn.under_sampling import NearMiss
+        from imblearn.over_sampling import SMOTENC
 
-        print("Undersampling data...")
+        under_sampler = NearMiss(sampling_strategy={8: 10000})
 
-        under_sampler = NearMiss(
-            n_neighbors=1, n_neighbors_ver3=3, sampling_strategy="majority"
-        )
+        self._logger.info(f"Undersampling data with {under_sampler}")
         self._X, self._y = under_sampler.fit_resample(self._X, self._y)
 
     @classmethod
     def over_sample_data(self) -> None:
-        from imblearn.over_sampling import RandomOverSampler
+        from imblearn.over_sampling import SMOTE, SMOTENC
 
-        print("Oversampling data...")
+        over_sampler = SMOTENC(
+            categorical_features=[True] * self._n_classes,
+            sampling_strategy=self._sampling_strategy[self._task],
+            n_jobs=10,
+        )
 
-        over_sampler = RandomOverSampler(sampling_strategy="minority")
+        self._logger.info(f"Oversampling data with {over_sampler}")
         self._X, self._y = over_sampler.fit_resample(self._X, self._y)
 
     @classmethod
     def combined_resample_data(self) -> None:
         from imblearn.combine import SMOTETomek, SMOTEENN
 
-        print("Combined oversampling and undersampling data...")
+        resampler = SMOTETomek(
+            sampling_strategy=self._sampling_strategy[self._task],
+            random_state=AbstractModel._random_state,
+            n_jobs=10,
+        )
 
-        resampler = SMOTETomek(random_state=AbstractModel._random_state, n_jobs=-1)
+        self._logger.info(f"Combined resampling data with {resampler}")
         self._X, self._y = resampler.fit_resample(self._X, self._y)
 
     @classmethod
