@@ -173,6 +173,11 @@ class Preprocessor:
 
         return ";".join(positions)
 
+    def trim(self, word: str) -> str:
+        if word.endswith(",") or word.endswith("."):
+            return word[:-1]
+        return word
+
 
 class NERPreprocessor(Preprocessor):
 
@@ -218,12 +223,10 @@ class NERPreprocessor(Preprocessor):
 
             position = "0:0"
             for word in sentence.text.split():
-                real_word = word
                 # Avoid empty words
                 if word == "," or word == ".":
                     continue
-                if word.endswith(",") or word.endswith("."):
-                    real_word = word[:-1]
+                real_word = self.trim(word)
 
                 tag = sentence_entities.get(real_word, [self._default_tag])
                 offset = int(position.split(":")[-1])
@@ -315,30 +318,41 @@ class REPreprocessor(Preprocessor):
             from_offset, to_offset = 0, 0
 
             for from_word in sent_tokens:
-                from_entity = entities.get(from_word, self._default_tag)
+                # Avoid empty from_words
+                if from_word == "," or from_word == ".":
+                    continue
+                real_from_word = self.trim(from_word)
+
+                from_entity = entities.get(real_from_word, self._default_tag)
                 # If we iter the same word, dont update offset
-                if last_from_word != from_word:
+                if last_from_word != real_from_word:
                     from_offset = int(from_position[-1].split(":")[-1])
-                from_pos = self.get_entity_positions(sent, from_word, from_offset)
+                from_pos = self.get_entity_positions(sent, real_from_word, from_offset)
 
                 for to_word in sent_tokens:
-                    if from_word == to_word:
+                    if real_from_word == to_word:
                         continue
-                    to_entity = entities.get(to_word, self._default_tag)
+
+                    # Avoid empty from_words
+                    if to_word == "," or to_word == ".":
+                        continue
+                    real_to_word = self.trim(to_word)
+
+                    to_entity = entities.get(real_to_word, self._default_tag)
 
                     to_offset = int(to_position[-1].split(":")[-1])
-                    to_pos = self.get_entity_positions(sent, to_word, to_offset)
+                    to_pos = self.get_entity_positions(sent, real_to_word, to_offset)
 
-                    pair = (from_word, to_word)
+                    pair = (real_from_word, real_to_word)
                     relation = relation_pairs.get(pair, self._default_tag)
                     relation = pd.Series(
                         {
-                            "token1": from_word,
-                            "original_token1": from_word,
+                            "token1": real_from_word,
+                            "original_token1": real_from_word,
                             "tag1": from_entity,
                             "position1": from_pos,
-                            "token2": to_word,
-                            "original_token2": to_word,
+                            "token2": real_to_word,
+                            "original_token2": real_to_word,
                             "tag2": to_entity,
                             "position2": to_pos,
                             "tag": relation,
