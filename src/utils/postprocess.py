@@ -36,9 +36,9 @@ class PostProcessor:
         PostProcessor._instance = self
 
     def export_data_to_file(self, dataset_test: pd.DataFrame) -> None:
-        if "predicted_tag" not in list(dataset_test.columns):
-            self._logger.error(f"Dataset must be trained with any model before export")
-            return
+        # if "predicted_tag" not in list(dataset_test.columns):
+        #     self._logger.error(f"Dataset must be trained with any model before export")
+        #     return
 
         self._logger.info(
             f"Exporting output.ann data for task {self._task}, run {self._run} and dataset {self._dataset}"
@@ -107,44 +107,55 @@ class PostProcessor:
         sentences = list(dataset_test.sentence.unique())
         sentences_list = []
 
-        dataset_test = dataset_test[dataset_test.tag1 != "O"]
-        print(dataset_test)
-
         for sent in sentences:
             sentence_obj = Sentence(text=sent)
-            keyphrases, relations = [], []
+            glob_positions, keyphrases, relations = [], [], []
             sent_df = dataset_test.loc[dataset_test.sentence == sent]
             sent_df = sent_df[sent_df.tag != "O"]
             sent_df = sent_df[sent_df.tag1 != "O"]
             sent_df = sent_df[sent_df.tag2 != "O"]
 
-            print(sent_df)
+            # print(sent_df)
 
             for _, row in sent_df.iterrows():
-                from_positions = self.pos_list(row.positions1)
-                to_positions = self.pos_list(row.positions2)
+                from_positions = self.pos_list(row.position1)
+                to_positions = self.pos_list(row.position2)
 
-                init, end = from_positions.split(" ")
+                from_ps = []
+                for from_p in from_positions:
+                    init, end = from_p.split(" ")
+                    from_ps.append((int(init), int(end)))
+
                 keyphrase_obj = Keyphrase(
                     sentence=sentence_obj,
-                    spans=(int(init), int(end)),
+                    spans=from_ps,
                     label=row.tag1,
                     id=entity_index,
                 )
-                from_index = entity_index
-                keyphrases.append(keyphrase_obj)
-                entity_index += 1
 
-                init, end = to_positions.split(" ")
+                if from_positions not in glob_positions:
+                    from_index = entity_index
+                    keyphrases.append(keyphrase_obj)
+                    glob_positions.append(from_positions)
+                    entity_index += 1
+
+                to_ps = []
+                for to_p in to_positions:
+                    init, end = to_p.split(" ")
+                    to_ps.append((int(init), int(end)))
+
                 keyphrase_obj = Keyphrase(
                     sentence=sentence_obj,
-                    spans=(int(init), int(end)),
+                    spans=to_ps,
                     label=row.tag2,
                     id=entity_index,
                 )
-                to_index = entity_index
-                keyphrases.append(keyphrase_obj)
-                entity_index += 1
+
+                if to_positions not in glob_positions:
+                    to_index = entity_index
+                    keyphrases.append(keyphrase_obj)
+                    glob_positions.append(to_positions)
+                    entity_index += 1
 
                 relation_obj = Relation(
                     sentence=sentence_obj,
@@ -157,7 +168,11 @@ class PostProcessor:
             sentence_obj.keyphrases = keyphrases
             sentence_obj.relations = relations
             sentences_list.append(sentence_obj)
-            break
+
+            print(sentences_list)
+            import sys
+
+            sys.exit()
 
         return Collection(sentences_list)
 
