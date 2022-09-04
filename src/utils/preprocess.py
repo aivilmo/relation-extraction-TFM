@@ -299,7 +299,7 @@ class REPreprocessor(Preprocessor):
                 continue
 
             relation_pairs, entities = {}, {}
-            sent: str = sentence.text
+            sent: str = self.trim(sentence.text)
             sent_tokens: list = sent.split()
 
             for relation in sentence.relations:
