@@ -369,11 +369,6 @@ class REPreprocessor(Preprocessor):
                     df = df.append(relation)
                 last_from_word = from_word
 
-            # df = df.drop(["sentence", "original_token1", "original_token2"], axis=1)
-            # print(df[0:50])
-            # import sys
-
-            # sys.exit()
             self._logger.info(f"Finished sentence {sent_id} of {len(collection)}")
             sent_id += 1
 
