@@ -112,7 +112,7 @@ class PostProcessor:
             keyphrases, relations = [], []
             entities = {}
             sent_df = dataset_test.loc[dataset_test.sentence == sent]
-            sent_df = sent_df[sent_df.tag != "O"]
+            sent_df = sent_df[sent_df.predicted_tag != "O"]
             sent_df = sent_df[sent_df.tag1 != "O"]
             sent_df = sent_df[sent_df.tag2 != "O"]
 
@@ -156,7 +156,7 @@ class PostProcessor:
                     sentence=sentence_obj,
                     origin=entities[row.original_token1],
                     destination=entities[row.original_token2],
-                    label=row.tag,
+                    label=row.predicted_tag,
                 )
                 relations.append(relation_obj)
 
