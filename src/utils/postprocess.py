@@ -109,13 +109,12 @@ class PostProcessor:
 
         for sent in sentences:
             sentence_obj = Sentence(text=sent)
-            glob_positions, keyphrases, relations = [], [], []
+            keyphrases, relations = [], []
+            entities = {}
             sent_df = dataset_test.loc[dataset_test.sentence == sent]
             sent_df = sent_df[sent_df.tag != "O"]
             sent_df = sent_df[sent_df.tag1 != "O"]
             sent_df = sent_df[sent_df.tag2 != "O"]
-
-            # print(sent_df)
 
             for _, row in sent_df.iterrows():
                 from_positions = self.pos_list(row.position1)
@@ -132,12 +131,10 @@ class PostProcessor:
                     label=row.tag1,
                     id=entity_index,
                 )
-
-                if from_positions not in glob_positions:
-                    from_index = entity_index
-                    keyphrases.append(keyphrase_obj)
-                    glob_positions.append(from_positions)
+                if entities.get(keyphrase_obj.text, 0) == 0:
+                    entities[keyphrase_obj.text] = entity_index
                     entity_index += 1
+                    keyphrases.append(keyphrase_obj)
 
                 to_ps = []
                 for to_p in to_positions:
@@ -150,17 +147,15 @@ class PostProcessor:
                     label=row.tag2,
                     id=entity_index,
                 )
-
-                if to_positions not in glob_positions:
-                    to_index = entity_index
-                    keyphrases.append(keyphrase_obj)
-                    glob_positions.append(to_positions)
+                if entities.get(keyphrase_obj.text, 0) == 0:
+                    entities[keyphrase_obj.text] = entity_index
                     entity_index += 1
+                    keyphrases.append(keyphrase_obj)
 
                 relation_obj = Relation(
                     sentence=sentence_obj,
-                    origin=from_index,
-                    destination=to_index,
+                    origin=entities[row.original_token1],
+                    destination=entities[row.original_token2],
                     label=row.tag,
                 )
                 relations.append(relation_obj)
@@ -168,11 +163,6 @@ class PostProcessor:
             sentence_obj.keyphrases = keyphrases
             sentence_obj.relations = relations
             sentences_list.append(sentence_obj)
-
-            print(sentences_list)
-            import sys
-
-            sys.exit()
 
         return Collection(sentences_list)
 
