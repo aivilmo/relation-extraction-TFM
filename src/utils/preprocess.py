@@ -165,18 +165,24 @@ class Preprocessor:
     def get_entity_positions(self, sent: str, entity: str, offset: int) -> str:
         entity = entity.split()
         positions = []
-        init_pos = sent.find(entity[0], offset)
+        start = 0
         for i in range(len(entity)):
+            init_pos = sent.find(entity[i], start)
             end_pos = init_pos + len(entity[i])
-            positions.append(str(init_pos) + ":" + str(end_pos))
-            init_pos = end_pos + 1
+            positions.append(str(init_pos + offset) + ":" + str(end_pos + offset))
+            start = end_pos
 
         return ";".join(positions)
 
     def trim(self, word: str) -> str:
-        if word.endswith(",") or word.endswith("."):
-            return word[:-1]
-        return word
+        return re.sub(r"^\W+|\W+$", "", word)
+
+    def trim_sentence(self, sent: str) -> str:
+        trimmed_sent = []
+        for word in sent.split():
+            new_word = re.sub(r"^\W+|\W+$", "", word)
+            trimmed_sent.append(new_word)
+        return " ".join(trimmed_sent)
 
 
 class NERPreprocessor(Preprocessor):
@@ -285,6 +291,14 @@ class REPreprocessor(Preprocessor):
             l[init : end + 1] = [" ".join(l[init : end + 1])]
         return l
 
+    def add_spaced_entities(self, sent_list: list, entity_list: list) -> list:
+        added_sent = sent_list
+        sent = " ".join(sent_list)
+        for entity in entity_list:
+            if entity not in sent:
+                added_sent.append(entity)
+        return added_sent
+
     def process_content(self, path: Path) -> pd.DataFrame:
         collection = Collection().load_dir(path)
         self._logger.info(f"Loaded {len(collection)} sentences for fitting.")
@@ -299,8 +313,8 @@ class REPreprocessor(Preprocessor):
                 continue
 
             relation_pairs, entities = {}, {}
-            sent: str = self.trim(sentence.text)
-            sent_tokens: list = sent.split()
+            sent: str = sentence.text
+            sent_tokens: list = self.trim_sentence(sentence.text).split()
 
             for relation in sentence.relations:
                 relation_from = relation.from_phrase.text
@@ -316,43 +330,34 @@ class REPreprocessor(Preprocessor):
             from_position, to_position = ["0:0"], ["0:0"]
             last_from_word = sent_tokens[0]
             from_offset, to_offset = 0, 0
+            sent_tokens = self.add_spaced_entities(sent_tokens, list(entities.keys()))
 
             for from_word in sent_tokens:
-                # Avoid empty from_words
-                if from_word == "," or from_word == ".":
-                    continue
-                real_from_word = self.trim(from_word)
-
-                from_entity = entities.get(real_from_word, self._default_tag)
+                from_entity = entities.get(from_word, self._default_tag)
                 # If we iter the same word, dont update offset
-                if last_from_word != real_from_word:
+                if last_from_word != from_word:
                     from_offset = int(from_position[-1].split(":")[-1])
-                from_pos = self.get_entity_positions(sent, real_from_word, from_offset)
+                from_pos = self.get_entity_positions(sent, from_word, from_offset)
 
                 for to_word in sent_tokens:
-                    if real_from_word == to_word:
+                    if from_word == to_word:
                         continue
 
-                    # Avoid empty from_words
-                    if to_word == "," or to_word == ".":
-                        continue
-                    real_to_word = self.trim(to_word)
-
-                    to_entity = entities.get(real_to_word, self._default_tag)
+                    to_entity = entities.get(to_word, self._default_tag)
 
                     to_offset = int(to_position[-1].split(":")[-1])
-                    to_pos = self.get_entity_positions(sent, real_to_word, to_offset)
+                    to_pos = self.get_entity_positions(sent, to_word, to_offset)
 
-                    pair = (real_from_word, real_to_word)
+                    pair = (from_word, to_word)
                     relation = relation_pairs.get(pair, self._default_tag)
                     relation = pd.Series(
                         {
-                            "token1": real_from_word,
-                            "original_token1": real_from_word,
+                            "token1": from_word,
+                            "original_token1": from_word,
                             "tag1": from_entity,
                             "position1": from_pos,
-                            "token2": real_to_word,
-                            "original_token2": real_to_word,
+                            "token2": to_word,
+                            "original_token2": to_word,
                             "tag2": to_entity,
                             "position2": to_pos,
                             "tag": relation,
