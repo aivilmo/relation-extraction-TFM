@@ -196,14 +196,8 @@ class FeaturesHandler:
         df.rename(columns={"token": "words", "tag": "labels"}, inplace=True)
 
     def _feat_with_tags(self, df: pd.DataFrame, test: bool = False) -> None:
-        def _fit_transform(df, tag, values, test):
-            if not test:
-                df[tag] = self._le.fit_transform(values)
-            df[tag] = self._le.transform(values)
-            return df
-
-        df = _fit_transform(df, "tag1", df.tag1.values, test)
-        df = _fit_transform(df, "tag2", df.tag2.values, test)
+        df = self._fit_on_feature_extraction(df, self._cv, "tag1", test)
+        df = self._fit_on_feature_extraction(df, self._cv, "tag2", test)
 
     @staticmethod
     def _feat_word_emb(df: pd.DataFrame) -> None:
