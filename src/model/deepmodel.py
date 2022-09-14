@@ -43,6 +43,8 @@ class DeepModel(AbstractModel):
         self._loss = None
         self._optimizer = None
         self._history = None
+        self._n_classes = None
+        self._is_multi = False
 
         DeepModel._instance = self
 
@@ -60,13 +62,15 @@ class DeepModel(AbstractModel):
         super().start_training(X_train, X_test, y_train, y_test, model)
 
     def build(self, X: np.ndarray, y: np.ndarray, model) -> None:
-        AbstractModel._n_classes = y.shape[1]
+        self._n_classes = y.shape[1]
         super().build(X, y)
 
         if ModelType(model) is ModelType.DENSE:
             self.build_dense()
-        if ModelType(model) is ModelType.GRU:
-            self.build_gru()
+        if ModelType(model) is ModelType.MULTIINPUT:
+            self._is_multi = True
+            self._X = self.handle_multi_input(self._X)
+            self.build_multi_dense()
         self.compile()
 
     def train(self) -> None:
@@ -90,6 +94,8 @@ class DeepModel(AbstractModel):
         AbstractModel._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
 
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
+        X = self.handle_multi_input(X)
+
         yhat = self._model.predict(X)
         yhat = np.argmax(yhat, axis=1)
         y = np.argmax(y, axis=1)
@@ -126,30 +132,39 @@ class DeepModel(AbstractModel):
 
         # Output layer
         self._model.add(
-            tf.keras.layers.Dense(units=DeepModel._n_classes, activation="softmax")
+            tf.keras.layers.Dense(units=self._n_classes, activation="softmax")
         )
 
     @classmethod
-    def build_gru(self, vocab_size: int = 0, input_length: int = 0):
-        self._model = tf.keras.models.Sequential()
+    def build_multi_dense(self) -> None:
+        # define two sets of inputs
+        input_embedding = tf.keras.layers.Input(shape=(768 * 2,))
+        input_entities = tf.keras.layers.Input(shape=(8,))
 
-        self._model.add(
-            tf.keras.layers.Embedding(
-                input_dim=vocab_size,
-                output_dim=DeepModel._embedding_dims,
-                input_length=input_length,
-            )
+        # the first branch operates on the first input
+        embedding = tf.keras.layers.Dense(768, activation="relu")(input_embedding)
+        embedding = tf.keras.layers.Dense(384, activation="relu")(embedding)
+        embedding = tf.keras.layers.Dropout(0.25)(embedding)
+        embedding = tf.keras.models.Model(inputs=input_embedding, outputs=embedding)
+
+        # the second branch opreates on the second input
+        entities = tf.keras.layers.Dense(4, activation="relu")(input_entities)
+        entities = tf.keras.layers.Dropout(0.25)(entities)
+        entities = tf.keras.models.Model(inputs=input_entities, outputs=entities)
+
+        # combine the output of the two branches
+        combined = tf.keras.layers.concatenate([embedding.output, entities.output])
+
+        # apply a FC layer and then a regression prediction on the
+        # combined outputs
+        z = tf.keras.layers.Dropout(0.50)(combined)
+        z = tf.keras.layers.Dense(15, activation="softmax")(z)
+        # our model will accept the inputs of the two branches and
+        # then output a single value
+        self._model = tf.keras.models.Model(
+            inputs=[embedding.input, entities.input], outputs=z
         )
-
-        self._model.add(
-            tf.keras.layers.GRU(
-                units=DeepModel._embedding_dims,
-                dropout=0.1,
-                recurrent_dropout=0.5,
-            )
-        )
-
-        self._model.add(tf.keras.layers.Dense(units=AbstractModel._n_classes))
+        print(self._model)
 
     def compile(self) -> None:
         from main import Main
@@ -212,3 +227,13 @@ class DeepModel(AbstractModel):
             filepath=checkpoint_path, save_weights_only=True, verbose=1
         )
         return [accuracy, loss, checkpoint]
+
+    def handle_multi_input(self, X: np.array) -> list[np.array]:
+        if not self._is_multi:
+            return X
+
+        embedding = np.hstack((X[:, 0:768], X[:, 768 : 768 * 2]))
+        entity = np.hstack(
+            (X[:, 768 * 2 : 768 * 2 + 4], X[:, 768 * 2 + 4 : 768 * 2 + 8])
+        )
+        return [embedding, entity]

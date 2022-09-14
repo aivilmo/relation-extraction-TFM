@@ -55,7 +55,7 @@ class ArgsParser:
             action="store",
             choices=[
                 "dense",
-                "gru",
+                "multi",
             ],
             help="Select DL model to train",
         )
