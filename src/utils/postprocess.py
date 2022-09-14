@@ -36,9 +36,9 @@ class PostProcessor:
         PostProcessor._instance = self
 
     def export_data_to_file(self, dataset_test: pd.DataFrame) -> None:
-        # if "predicted_tag" not in list(dataset_test.columns):
-        #     self._logger.error(f"Dataset must be trained with any model before export")
-        #     return
+        if "predicted_tag" not in list(dataset_test.columns):
+            self._logger.error(f"Dataset must be trained with any model before export")
+            return
 
         self._logger.info(
             f"Exporting output.ann data for task {self._task}, run {self._run} and dataset {self._dataset}"
