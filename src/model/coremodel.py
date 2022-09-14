@@ -31,18 +31,15 @@ class CoreModel(AbstractModel):
 
         CoreModel._instance = self
 
-    @classmethod
     def build(self, X: np.ndarray, y: np.ndarray, model, **kwargs) -> None:
         super().build(X, y)
         self._model = self._available_models[ModelType(model)]
 
-    @classmethod
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
         yhat = self._model.predict(X)
 
         super().evaluate(yhat, y)
 
-    @classmethod
     def make_pipeline(self) -> None:
         from sklearn.pipeline import Pipeline
         from sklearn.feature_selection import f_classif, SelectKBest
@@ -69,7 +66,6 @@ class CoreModel(AbstractModel):
             f"Pipeline trained, time: {(time.time() - start) / 60} minutes"
         )
 
-    @classmethod
     def train_best_model(self) -> None:
         from sklearn.model_selection import GridSearchCV
         from sklearn.model_selection import ShuffleSplit

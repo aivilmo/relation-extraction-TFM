@@ -28,7 +28,6 @@ class DeepModel(AbstractModel):
 
     _epochs = 80
     _batch_size = 64
-    _embedding_dims = 100
 
     @staticmethod
     def instance():
@@ -47,7 +46,6 @@ class DeepModel(AbstractModel):
 
         DeepModel._instance = self
 
-    @classmethod
     def start_training(
         self,
         X_train: np.ndarray,
@@ -61,7 +59,6 @@ class DeepModel(AbstractModel):
         y_train, y_test = Preprocessor.instance().prepare_labels(y_train, y_test)
         super().start_training(X_train, X_test, y_train, y_test, model)
 
-    @classmethod
     def build(self, X: np.ndarray, y: np.ndarray, model) -> None:
         AbstractModel._n_classes = y.shape[1]
         super().build(X, y)
@@ -72,7 +69,6 @@ class DeepModel(AbstractModel):
             self.build_gru()
         self.compile()
 
-    @classmethod
     def train(self) -> None:
         from time import time
 
@@ -93,7 +89,6 @@ class DeepModel(AbstractModel):
         end: float = time() - start
         AbstractModel._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
 
-    @classmethod
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
         yhat = self._model.predict(X)
         yhat = np.argmax(yhat, axis=1)
@@ -101,13 +96,12 @@ class DeepModel(AbstractModel):
 
         super().evaluate(yhat, y)
 
-    @classmethod
     def build_dense(
         self,
         hidden_layers: int = 1,
         num_units: list = [768, 384],
         activation: str = "relu",
-    ):
+    ) -> None:
         self._model = tf.keras.models.Sequential()
 
         # Input layer
@@ -157,7 +151,6 @@ class DeepModel(AbstractModel):
 
         self._model.add(tf.keras.layers.Dense(units=AbstractModel._n_classes))
 
-    @classmethod
     def compile(self) -> None:
         from main import Main
 
@@ -179,7 +172,6 @@ class DeepModel(AbstractModel):
 
         print(self._model.summary())
 
-    @classmethod
     def show_history(self) -> None:
         import matplotlib.pyplot as plt
 

@@ -35,7 +35,6 @@ class AbstractModel:
         "scenario3-taskB": {7: 100, 4: 350, 6: 250},
     }
 
-    @classmethod
     def __init__(self) -> None:
         if AbstractModel._instance is not None:
             raise Exception
@@ -49,7 +48,6 @@ class AbstractModel:
 
         AbstractModel._instance = self
 
-    @classmethod
     def start_training(
         self,
         X_train: np.ndarray,
@@ -82,15 +80,13 @@ class AbstractModel:
         self.evaluate(X=X_test, y=y_test)
         self.export_results()
 
-    @classmethod
     def build(self, X: np.ndarray, y: np.ndarray) -> None:
         AbstractModel._logger.info(f"Building model {self._model}...")
         self._X = X
         self._y = y
-        self._n_classes = len(np.unique(self._y))
+        # self._n_classes = len(np.unique(self._y))
         AbstractModel._logger.info(f"Model has built successfully")
 
-    @classmethod
     def train(self, **kwargs) -> None:
         self._logger.info("Training model...")
         start: float = time()
@@ -100,7 +96,6 @@ class AbstractModel:
         end: float = time() - start
         self._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
 
-    @classmethod
     def evaluate(self, yhat: np.ndarray, y: np.ndarray) -> None:
         from sklearn.metrics import (
             classification_report,
@@ -121,7 +116,6 @@ class AbstractModel:
         disp.plot()
         # plt.show()
 
-    @classmethod
     def export_results(self) -> None:
         from sklearn.preprocessing import LabelEncoder
         from utils.fileshandler import FilesHandler
@@ -143,7 +137,6 @@ class AbstractModel:
             self._logger.error("Error exporting results")
             self._logger.error(e)
 
-    @classmethod
     def compute_sample_weight(self) -> dict:
         from sklearn.utils.class_weight import compute_sample_weight
 
@@ -160,7 +153,7 @@ class AbstractModel:
 
     # SOURCE:
     # https://towardsdatascience.com/handling-class-imbalanced-data-using-a-loss-specifically-made-for-it-6e58fd65ffab
-    @classmethod
+
     def compute_class_weight_imbalanced(self, beta: float = 0.9) -> np.ndarray:
         unique, samples_per_cls = np.unique(
             np.argmax(self._y, axis=1), return_counts=True
@@ -171,13 +164,11 @@ class AbstractModel:
 
         return dict(zip(unique, weights))
 
-    @classmethod
     def compute_class_weight_freq(self) -> dict:
         samples = self._y.shape[0]
         unique, counts = np.unique(np.argmax(self._y, axis=1), return_counts=True)
         return dict(zip(unique, 100 - (counts / samples) * 100))
 
-    @classmethod
     def under_sample_data(self) -> None:
         from imblearn.under_sampling import NearMiss
         from imblearn.over_sampling import SMOTENC
@@ -187,7 +178,6 @@ class AbstractModel:
         self._logger.info(f"Undersampling data with {under_sampler}")
         self._X, self._y = under_sampler.fit_resample(self._X, self._y)
 
-    @classmethod
     def over_sample_data(self) -> None:
         from imblearn.over_sampling import SMOTE, SMOTENC
 
@@ -200,7 +190,6 @@ class AbstractModel:
         self._logger.info(f"Oversampling data with {over_sampler}")
         self._X, self._y = over_sampler.fit_resample(self._X, self._y)
 
-    @classmethod
     def combined_resample_data(self) -> None:
         from imblearn.combine import SMOTETomek, SMOTEENN
 
@@ -213,7 +202,6 @@ class AbstractModel:
         self._logger.info(f"Combined resampling data with {resampler}")
         self._X, self._y = resampler.fit_resample(self._X, self._y)
 
-    @classmethod
     def set_labels(self, labels: list) -> None:
         self._logger.info(f"Setting labels to model: {labels}")
         self._labels = labels
