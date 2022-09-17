@@ -108,3 +108,32 @@ class VisualizationHandler:
 
         plt.xticks(rotation=25)
         plt.show()
+
+    @staticmethod
+    def visualice_relations_tags(df: pd.DataFrame) -> None:
+        df = df[df.tag != "O"]
+        df = df.drop(
+            columns=[
+                "token1",
+                "original_token1",
+                "position1",
+                "token2",
+                "original_token2",
+                "position2",
+                "sentence",
+                "predicted_tag",
+            ]
+        )
+        df = df.replace(to_replace="Action", value="Act")
+        df = df.replace(to_replace="Predicate", value="Pred")
+        df = df.replace(to_replace="Reference", value="Ref")
+        df = df.replace(to_replace="Concept", value="Con")
+
+        df.groupby("tag1").sum().reset_index().melt(id_vars="tag1")
+        df["entities"] = df["tag1"].astype(str) + "-" + df["tag2"]
+        df = df.drop(columns=["tag1", "tag2"])
+
+        df = df.value_counts().reset_index(name="counts")
+        flights_wide = df.pivot("tag", "entities", "counts")
+        sns.lineplot(data=flights_wide)
+        plt.show()

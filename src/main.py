@@ -54,7 +54,7 @@ class Main:
             return
 
         # RE
-        VisualizationHandler.visualice_relations(self._dataset_test)
+        VisualizationHandler.visualice_relations_tags(self._dataset_test)
 
     def _handle_train(self, X_train, X_test, y_train, y_test) -> None:
         from model.coremodel import CoreModel
