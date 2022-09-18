@@ -4,6 +4,7 @@ import random
 import numpy as np
 import tensorflow as tf
 from enum import Enum
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 from model.abstractmodel import AbstractModel, ModelType
 
@@ -45,6 +46,7 @@ class DeepModel(AbstractModel):
         self._history = None
         self._n_classes = None
         self._is_multi = False
+        self._lda = LinearDiscriminantAnalysis(n_components=10)
 
         DeepModel._instance = self
 
@@ -57,6 +59,10 @@ class DeepModel(AbstractModel):
         model,
     ) -> None:
         from utils.preprocess import Preprocessor
+
+        self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
+        X_train = self._lda.fit_transform(X_train, y_train)
+        self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
 
         y_train, y_test = Preprocessor.instance().prepare_labels(y_train, y_test)
         super().start_training(X_train, X_test, y_train, y_test, model)
@@ -95,6 +101,7 @@ class DeepModel(AbstractModel):
 
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
         X = self.handle_multi_input(X)
+        X = self._lda.transform(X)
 
         yhat = self._model.predict(X)
         yhat = np.argmax(yhat, axis=1)
