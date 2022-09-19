@@ -32,7 +32,12 @@ class AbstractModel:
 
     _sampling_strategy: dict = {
         "scenario2-taskA": {7: 100, 4: 350, 6: 250},
-        "scenario3-taskB": {7: 100, 4: 350, 6: 250},
+        "scenario3-taskB": {
+            13: 1811 * 2,
+            10: 1136 * 2,
+            7: 1693 * 2,
+            14: 2821 * 2,
+        },
     }
 
     def __init__(self) -> None:
@@ -114,7 +119,7 @@ class AbstractModel:
         cm = confusion_matrix(y, self._yhat)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot()
-        # plt.show()
+        plt.show()
 
     def export_results(self) -> None:
         from sklearn.preprocessing import LabelEncoder
@@ -160,7 +165,7 @@ class AbstractModel:
         )
         effective_num = 1.0 - np.power(beta, samples_per_cls)
         weights = (1.0 - beta) / np.array(effective_num)
-        weights = weights / np.sum(weights) * AbstractModel._n_classes
+        weights = weights / np.sum(weights) * self._n_classes
 
         return dict(zip(unique, weights))
 
@@ -173,7 +178,7 @@ class AbstractModel:
         from imblearn.under_sampling import NearMiss
         from imblearn.over_sampling import SMOTENC
 
-        under_sampler = NearMiss(sampling_strategy={8: 10000})
+        under_sampler = NearMiss(sampling_strategy=self._sampling_strategy[self._task])
 
         self._logger.info(f"Undersampling data with {under_sampler}")
         self._X, self._y = under_sampler.fit_resample(self._X, self._y)
