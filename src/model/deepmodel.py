@@ -60,12 +60,52 @@ class DeepModel(AbstractModel):
     ) -> None:
         from utils.preprocess import Preprocessor
 
-        self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
-        X_train = self._lda.fit_transform(X_train, y_train)
-        self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
+        # self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
+        # X_train = self._lda.fit_transform(X_train, y_train)
+        # self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
+        bin_y_train = y_train
+        bin_y_test = y_test
+        bin_y_train[bin_y_train > 0] = 1
+        bin_y_test[bin_y_test > 0] = 1
 
-        y_train, y_test = Preprocessor.instance().prepare_labels(y_train, y_test)
-        super().start_training(X_train, X_test, y_train, y_test, model)
+        bin_y_train, bin_y_test = Preprocessor.instance().prepare_labels(
+            bin_y_train, bin_y_test
+        )
+        # First train with binary cls
+        self.build(X=X_train, y=bin_y_train, model=model)
+        self.train()
+        self.evaluate(X=X_test, y=bin_y_test)
+
+        print(self._yhat)
+        indices = np.where(self._yhat == 1)
+        print(indices)
+        ent_X_train = np.take(X_train, indices).reshape(-1)
+        ent_X_test = np.take(X_test, indices)
+        ent_y_train = np.take(y_train, indices)
+        ent_y_test = np.take(y_test, indices)
+
+        self._logger.info("Taken vectors")
+        print(ent_X_train.shape)
+        print(ent_X_test.shape)
+        print(ent_y_train.shape)
+        print(ent_y_test.shape)
+
+        ent_y_train, ent_y_test = Preprocessor.instance().prepare_labels(
+            ent_y_train, ent_y_test
+        )
+
+        print(ent_y_train.shape)
+        print(ent_y_test.shape)
+
+        # Second train discriminate cls
+        self._logger.info("Second model")
+        self.build(X=ent_X_train, y=ent_y_train, model=model)
+        self.train()
+        self.evaluate(X=ent_X_test, y=ent_y_test)
+        print(self._yhat)
+        bin_y_test[bin_y_test > 0] = self._yhat
+        self._yhat = bin_y_test
+        self.export_results()
 
     def build(self, X: np.ndarray, y: np.ndarray, model) -> None:
         self._n_classes = y.shape[1]
@@ -85,6 +125,9 @@ class DeepModel(AbstractModel):
         AbstractModel._logger.info("Training model...")
         start: float = time()
 
+        print(self._X.shape)
+        print(self._y.shape)
+
         self._history = self._model.fit(
             self._X,
             self._y,
@@ -101,7 +144,7 @@ class DeepModel(AbstractModel):
 
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
         X = self.handle_multi_input(X)
-        X = self._lda.transform(X)
+        # X = self._lda.transform(X)
 
         yhat = self._model.predict(X)
         yhat = np.argmax(yhat, axis=1)
