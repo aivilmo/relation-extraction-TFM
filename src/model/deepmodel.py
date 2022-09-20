@@ -63,11 +63,12 @@ class DeepModel(AbstractModel):
         # self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
         # X_train = self._lda.fit_transform(X_train, y_train)
         # self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
-        bin_y_train = y_train
-        bin_y_test = y_test
+        bin_y_train = y_train.copy()
+        bin_y_test = y_test.copy()
         bin_y_train[bin_y_train > 0] = 1
         bin_y_test[bin_y_test > 0] = 1
 
+        bin_y_test_without_2dim = bin_y_test
         bin_y_train, bin_y_test = Preprocessor.instance().prepare_labels(
             bin_y_train, bin_y_test
         )
@@ -76,35 +77,25 @@ class DeepModel(AbstractModel):
         self.train()
         self.evaluate(X=X_test, y=bin_y_test)
 
-        print(self._yhat)
-        indices = np.where(self._yhat == 1)
-        print(indices)
-        ent_X_train = np.take(X_train, indices).reshape(-1)
-        ent_X_test = np.take(X_test, indices)
-        ent_y_train = np.take(y_train, indices)
-        ent_y_test = np.take(y_test, indices)
+        indices = np.where(bin_y_test_without_2dim > 0)[0]
+        ent_X_train = np.take(X_train, indices, axis=0)
+        ent_X_test = np.take(X_test, indices, axis=0)
+        ent_y_train = np.take(y_train, indices, axis=0)
+        ent_y_test = np.take(y_test, indices, axis=0)
 
-        self._logger.info("Taken vectors")
-        print(ent_X_train.shape)
-        print(ent_X_test.shape)
-        print(ent_y_train.shape)
-        print(ent_y_test.shape)
-
+        ent_y_test_without_2dim = ent_y_test.copy()
         ent_y_train, ent_y_test = Preprocessor.instance().prepare_labels(
             ent_y_train, ent_y_test
         )
-
-        print(ent_y_train.shape)
-        print(ent_y_test.shape)
 
         # Second train discriminate cls
         self._logger.info("Second model")
         self.build(X=ent_X_train, y=ent_y_train, model=model)
         self.train()
         self.evaluate(X=ent_X_test, y=ent_y_test)
-        print(self._yhat)
-        bin_y_test[bin_y_test > 0] = self._yhat
-        self._yhat = bin_y_test
+
+        bin_y_test_without_2dim[bin_y_test_without_2dim > 0] = ent_y_test_without_2dim
+        self._yhat = bin_y_test_without_2dim
         self.export_results()
 
     def build(self, X: np.ndarray, y: np.ndarray, model) -> None:
