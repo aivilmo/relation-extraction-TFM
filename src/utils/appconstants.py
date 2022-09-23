@@ -29,6 +29,7 @@ class AppConstants:
         self._test_dataset = self._args.test_dataset
         self._data_aug = self._args.data_aug
         self._imbalance_strategy = self._args.imbalance_strategy
+        self._lda = self._args.lda
 
         self._logger.info("Application args parsed")
         AppConstants._instance = self

@@ -157,4 +157,10 @@ class ArgsParser:
             help="Select the data augmentation strategy",
         )
 
+        parser.add_argument(
+            "--lda",
+            action="store_true",
+            help="Use LinearDiscriminantAnalysis for clasification",
+        )
+
         return parser.parse_args()

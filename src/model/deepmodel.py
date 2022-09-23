@@ -7,6 +7,7 @@ from enum import Enum
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 from model.abstractmodel import AbstractModel, ModelType
+from utils.appconstants import AppConstants
 
 seed = 6
 random.seed(seed)
@@ -60,9 +61,11 @@ class DeepModel(AbstractModel):
     ) -> None:
         from utils.preprocess import Preprocessor
 
-        # self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
-        # X_train = self._lda.fit_transform(X_train, y_train)
-        # self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
+        if AppConstants.instance()._lda:
+            self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
+            X_train = self._lda.fit_transform(X_train, y_train)
+            self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
+
         bin_y_train = y_train.copy()
         bin_y_test = y_test.copy()
         bin_y_train[bin_y_train > 0] = 1
@@ -135,7 +138,8 @@ class DeepModel(AbstractModel):
 
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
         X = self.handle_multi_input(X)
-        # X = self._lda.transform(X)
+        if AppConstants.instance()._lda:
+            X = self._lda.transform(X)
 
         yhat = self._model.predict(X)
         yhat = np.argmax(yhat, axis=1)
