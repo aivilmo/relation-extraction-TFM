@@ -61,21 +61,18 @@ class DeepModel(AbstractModel):
     ) -> None:
         from utils.preprocess import Preprocessor
 
-        # if AppConstants.instance()._lda:
-        #     self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
-        #     X_train = self._lda.fit_transform(X_train, y_train)
-        #     self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
+        bin_y_train, bin_y_test = self.binarize_labels(y_train, y_test)
+        bin_y_train, bin_y_test = Preprocessor.instance().prepare_labels(
+            bin_y_train, bin_y_test
+        )
+        # First train with binary cls
+        self._logger.info("First model")
+        self.build(X=X_train, y=bin_y_train, model=model)
+        self.train()
+        self.evaluate(X=X_test, y=bin_y_test)
 
-        # bin_y_train, bin_y_test = Preprocessor.instance().prepare_labels(
-        #     bin_y_train, bin_y_test
-        # )
-        # # First train with binary cls
-        # self.build(X=X_train, y=bin_y_train, model=model)
-        # self.train()
-        # self.evaluate(X=X_test, y=bin_y_test)
-
-        ent_X_train, ent_X_test, ent_y_train, ent_y_test = self.take_subsample(
-            X_train, X_test, y_train, y_test
+        idx, ent_X_train, ent_X_test, ent_y_train, ent_y_test = self.take_subsample(
+            self._yhat, X_train, X_test, y_train, y_test
         )
 
         if AppConstants.instance()._lda:
@@ -93,7 +90,7 @@ class DeepModel(AbstractModel):
         self.train()
         self.evaluate(X=ent_X_test, y=ent_y_test)
 
-        y_test[y_test > 0] = self._yhat + 1
+        y_test[idx] = self._yhat + 1
         self._yhat = y_test
         self.export_results()
 
@@ -132,7 +129,11 @@ class DeepModel(AbstractModel):
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
         X = self.handle_multi_input(X)
         if AppConstants.instance()._lda:
-            X = self._lda.transform(X)
+            try:
+                X = self._lda.transform(X)
+            except Exception as e:
+                self._logger.warning(e)
+                self._logger.warning("Not applying LDA on that dataset")
 
         yhat = self._model.predict(X)
         yhat = np.argmax(yhat, axis=1)
@@ -277,22 +278,30 @@ class DeepModel(AbstractModel):
 
     def take_subsample(
         self,
+        y_hat: np.ndarray,
         X_train: np.ndarray,
         X_test: np.ndarray,
         y_train: np.ndarray,
         y_test: np.ndarray,
+    ) -> tuple[np.ndarray]:
+        bin_y_train, bin_y_test = self.binarize_labels(y_train, y_hat)
+
+        indices_train = np.where(bin_y_train > 0)[0]
+        out_X_train = np.take(X_train, indices_train, axis=0)
+        out_y_train = np.take(y_train, indices_train, axis=0) - 1
+
+        indices_test = np.where(bin_y_test > 0)[0]
+        out_X_test = np.take(X_test, indices_test, axis=0)
+        out_y_test = np.take(y_test, indices_test, axis=0) - 1
+
+        return indices_test, out_X_train, out_X_test, out_y_train, out_y_test
+
+    def binarize_labels(
+        self, y_train: np.ndarray, y_test: np.ndarray
     ) -> tuple[np.ndarray]:
         bin_y_train = y_train.copy()
         bin_y_test = y_test.copy()
         bin_y_train[bin_y_train > 0] = 1
         bin_y_test[bin_y_test > 0] = 1
 
-        indices_train = np.where(bin_y_train > 0)[0]
-        out_y_train = np.take(y_train, indices_train, axis=0) - 1
-        out_X_train = np.take(X_train, indices_train, axis=0)
-
-        indices_test = np.where(bin_y_test > 0)[0]
-        out_X_test = np.take(X_test, indices_test, axis=0)
-        out_y_test = np.take(y_test, indices_test, axis=0) - 1
-
-        return out_X_train, out_X_test, out_y_train, out_y_test
+        return bin_y_train, bin_y_test
