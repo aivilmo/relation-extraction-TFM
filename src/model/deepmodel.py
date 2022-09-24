@@ -7,6 +7,7 @@ from enum import Enum
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 from model.abstractmodel import AbstractModel, ModelType
+from utils.appconstants import AppConstants
 
 seed = 6
 random.seed(seed)
@@ -46,7 +47,7 @@ class DeepModel(AbstractModel):
         self._history = None
         self._n_classes = None
         self._is_multi = False
-        self._lda = LinearDiscriminantAnalysis(n_components=10)
+        self._lda = LinearDiscriminantAnalysis(n_components=11)
 
         DeepModel._instance = self
 
@@ -60,12 +61,38 @@ class DeepModel(AbstractModel):
     ) -> None:
         from utils.preprocess import Preprocessor
 
-        self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
-        X_train = self._lda.fit_transform(X_train, y_train)
-        self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
+        bin_y_train, bin_y_test = self.binarize_labels(y_train, y_test)
+        bin_y_train, bin_y_test = Preprocessor.instance().prepare_labels(
+            bin_y_train, bin_y_test
+        )
+        # First train with binary cls
+        self._logger.info("First model")
+        self.build(X=X_train, y=bin_y_train, model=model)
+        self.train()
+        self.evaluate(X=X_test, y=bin_y_test)
 
-        y_train, y_test = Preprocessor.instance().prepare_labels(y_train, y_test)
-        super().start_training(X_train, X_test, y_train, y_test, model)
+        idx, ent_X_train, ent_X_test, ent_y_train, ent_y_test = self.take_subsample(
+            self._yhat, X_train, X_test, y_train, y_test
+        )
+
+        if AppConstants.instance()._lda:
+            self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
+            ent_X_train = self._lda.fit_transform(ent_X_train, ent_y_train)
+            self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
+
+        ent_y_train, ent_y_test = Preprocessor.instance().prepare_labels(
+            ent_y_train, ent_y_test
+        )
+
+        # Second train discriminate cls
+        self._logger.info("Second model")
+        self.build(X=ent_X_train, y=ent_y_train, model=model)
+        self.train()
+        self.evaluate(X=ent_X_test, y=ent_y_test)
+
+        y_test[idx] = self._yhat + 1
+        self._yhat = y_test
+        self.export_results()
 
     def build(self, X: np.ndarray, y: np.ndarray, model) -> None:
         self._n_classes = y.shape[1]
@@ -82,26 +109,31 @@ class DeepModel(AbstractModel):
     def train(self) -> None:
         from time import time
 
-        AbstractModel._logger.info("Training model...")
+        self._logger.info("Training model...")
         start: float = time()
 
         self._history = self._model.fit(
             self._X,
             self._y,
-            epochs=DeepModel._epochs,
-            batch_size=DeepModel._batch_size,
+            epochs=self._epochs,
+            batch_size=self._batch_size,
             validation_split=0.2,
-            callbacks=DeepModel.get_callbacks(),
+            callbacks=self.get_callbacks(),
             # Para RE
             class_weight=self.compute_class_weight_freq(),
         )
 
         end: float = time() - start
-        AbstractModel._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
+        self._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
 
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
         X = self.handle_multi_input(X)
-        X = self._lda.transform(X)
+        if AppConstants.instance()._lda:
+            try:
+                X = self._lda.transform(X)
+            except Exception as e:
+                self._logger.warning(e)
+                self._logger.warning("Not applying LDA on that dataset")
 
         yhat = self._model.predict(X)
         yhat = np.argmax(yhat, axis=1)
@@ -111,7 +143,6 @@ class DeepModel(AbstractModel):
 
     def build_dense(
         self,
-        hidden_layers: int = 1,
         num_units: list = [768, 384],
         activation: str = "relu",
     ) -> None:
@@ -128,7 +159,7 @@ class DeepModel(AbstractModel):
         self._model.add(tf.keras.layers.Dropout(0.25))
 
         #  Hidden layers
-        for hl in range(hidden_layers):
+        for hl in range(len(num_units) - 1):
             self._model.add(
                 tf.keras.layers.Dense(
                     units=num_units[hl + 1],
@@ -244,3 +275,33 @@ class DeepModel(AbstractModel):
             (X[:, 768 * 2 : 768 * 2 + 4], X[:, 768 * 2 + 4 : 768 * 2 + 8])
         )
         return [embedding, entity]
+
+    def take_subsample(
+        self,
+        y_hat: np.ndarray,
+        X_train: np.ndarray,
+        X_test: np.ndarray,
+        y_train: np.ndarray,
+        y_test: np.ndarray,
+    ) -> tuple[np.ndarray]:
+        bin_y_train, bin_y_test = self.binarize_labels(y_train, y_hat)
+
+        indices_train = np.where(bin_y_train > 0)[0]
+        out_X_train = np.take(X_train, indices_train, axis=0)
+        out_y_train = np.take(y_train, indices_train, axis=0) - 1
+
+        indices_test = np.where(bin_y_test > 0)[0]
+        out_X_test = np.take(X_test, indices_test, axis=0)
+        out_y_test = np.take(y_test, indices_test, axis=0) - 1
+
+        return indices_test, out_X_train, out_X_test, out_y_train, out_y_test
+
+    def binarize_labels(
+        self, y_train: np.ndarray, y_test: np.ndarray
+    ) -> tuple[np.ndarray]:
+        bin_y_train = y_train.copy()
+        bin_y_test = y_test.copy()
+        bin_y_train[bin_y_train > 0] = 1
+        bin_y_test[bin_y_test > 0] = 1
+
+        return bin_y_train, bin_y_test

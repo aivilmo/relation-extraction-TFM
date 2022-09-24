@@ -145,14 +145,16 @@ class AbstractModel:
     def compute_sample_weight(self) -> dict:
         from sklearn.utils.class_weight import compute_sample_weight
 
-        return compute_sample_weight(class_weight="balanced", y=self._y)
+        y: np.ndarray = np.argmax(self._y, axis=1)
+        return compute_sample_weight(class_weight="balanced", y=y)
 
     def compute_class_weight(self) -> dict:
         from sklearn.utils.class_weight import compute_class_weight
 
-        train_classes: np.array = np.unique(self._y)
+        y: np.ndarray = np.argmax(self._y, axis=1)
+        train_classes: np.array = list(np.unique(y))
         class_weight: np.array = compute_class_weight(
-            class_weight="balanced", classes=train_classes, y=self._y
+            class_weight="balanced", classes=train_classes, y=y
         )
         return dict(zip(train_classes, class_weight))
 
