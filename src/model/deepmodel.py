@@ -47,7 +47,7 @@ class DeepModel(AbstractModel):
         self._history = None
         self._n_classes = None
         self._is_multi = False
-        self._lda = LinearDiscriminantAnalysis(n_components=10)
+        self._lda = LinearDiscriminantAnalysis(n_components=11)
 
         DeepModel._instance = self
 
@@ -61,10 +61,10 @@ class DeepModel(AbstractModel):
     ) -> None:
         from utils.preprocess import Preprocessor
 
-        if AppConstants.instance()._lda:
-            self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
-            X_train = self._lda.fit_transform(X_train, y_train)
-            self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
+        # if AppConstants.instance()._lda:
+        #     self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
+        #     X_train = self._lda.fit_transform(X_train, y_train)
+        #     self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
 
         # bin_y_train, bin_y_test = Preprocessor.instance().prepare_labels(
         #     bin_y_train, bin_y_test
@@ -77,6 +77,11 @@ class DeepModel(AbstractModel):
         ent_X_train, ent_X_test, ent_y_train, ent_y_test = self.take_subsample(
             X_train, X_test, y_train, y_test
         )
+
+        if AppConstants.instance()._lda:
+            self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
+            ent_X_train = self._lda.fit_transform(ent_X_train, ent_y_train)
+            self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
 
         ent_y_train, ent_y_test = Preprocessor.instance().prepare_labels(
             ent_y_train, ent_y_test
