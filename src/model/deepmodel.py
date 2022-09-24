@@ -66,27 +66,18 @@ class DeepModel(AbstractModel):
             X_train = self._lda.fit_transform(X_train, y_train)
             self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
 
-        bin_y_train = y_train.copy()
-        bin_y_test = y_test.copy()
-        bin_y_train[bin_y_train > 0] = 1
-        bin_y_test[bin_y_test > 0] = 1
+        # bin_y_train, bin_y_test = Preprocessor.instance().prepare_labels(
+        #     bin_y_train, bin_y_test
+        # )
+        # # First train with binary cls
+        # self.build(X=X_train, y=bin_y_train, model=model)
+        # self.train()
+        # self.evaluate(X=X_test, y=bin_y_test)
 
-        bin_y_test_without_2dim = bin_y_test
-        bin_y_train, bin_y_test = Preprocessor.instance().prepare_labels(
-            bin_y_train, bin_y_test
+        ent_X_train, ent_X_test, ent_y_train, ent_y_test = self.take_subsample(
+            X_train, X_test, y_train, y_test
         )
-        # First train with binary cls
-        self.build(X=X_train, y=bin_y_train, model=model)
-        self.train()
-        self.evaluate(X=X_test, y=bin_y_test)
 
-        indices = np.where(bin_y_test_without_2dim > 0)[0]
-        ent_X_train = np.take(X_train, indices, axis=0)
-        ent_X_test = np.take(X_test, indices, axis=0)
-        ent_y_train = np.take(y_train, indices, axis=0)
-        ent_y_test = np.take(y_test, indices, axis=0)
-
-        ent_y_test_without_2dim = ent_y_test.copy()
         ent_y_train, ent_y_test = Preprocessor.instance().prepare_labels(
             ent_y_train, ent_y_test
         )
@@ -97,8 +88,8 @@ class DeepModel(AbstractModel):
         self.train()
         self.evaluate(X=ent_X_test, y=ent_y_test)
 
-        bin_y_test_without_2dim[bin_y_test_without_2dim > 0] = ent_y_test_without_2dim
-        self._yhat = bin_y_test_without_2dim
+        y_test[y_test > 0] = self._yhat + 1
+        self._yhat = y_test
         self.export_results()
 
     def build(self, X: np.ndarray, y: np.ndarray, model) -> None:
@@ -116,25 +107,22 @@ class DeepModel(AbstractModel):
     def train(self) -> None:
         from time import time
 
-        AbstractModel._logger.info("Training model...")
+        self._logger.info("Training model...")
         start: float = time()
-
-        print(self._X.shape)
-        print(self._y.shape)
 
         self._history = self._model.fit(
             self._X,
             self._y,
-            epochs=DeepModel._epochs,
-            batch_size=DeepModel._batch_size,
+            epochs=self._epochs,
+            batch_size=self._batch_size,
             validation_split=0.2,
-            callbacks=DeepModel.get_callbacks(),
+            callbacks=self.get_callbacks(),
             # Para RE
             class_weight=self.compute_class_weight_freq(),
         )
 
         end: float = time() - start
-        AbstractModel._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
+        self._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
 
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
         X = self.handle_multi_input(X)
@@ -149,7 +137,6 @@ class DeepModel(AbstractModel):
 
     def build_dense(
         self,
-        hidden_layers: int = 1,
         num_units: list = [768, 384],
         activation: str = "relu",
     ) -> None:
@@ -166,7 +153,7 @@ class DeepModel(AbstractModel):
         self._model.add(tf.keras.layers.Dropout(0.25))
 
         #  Hidden layers
-        for hl in range(hidden_layers):
+        for hl in range(len(num_units) - 1):
             self._model.add(
                 tf.keras.layers.Dense(
                     units=num_units[hl + 1],
@@ -282,3 +269,25 @@ class DeepModel(AbstractModel):
             (X[:, 768 * 2 : 768 * 2 + 4], X[:, 768 * 2 + 4 : 768 * 2 + 8])
         )
         return [embedding, entity]
+
+    def take_subsample(
+        self,
+        X_train: np.ndarray,
+        X_test: np.ndarray,
+        y_train: np.ndarray,
+        y_test: np.ndarray,
+    ) -> tuple[np.ndarray]:
+        bin_y_train = y_train.copy()
+        bin_y_test = y_test.copy()
+        bin_y_train[bin_y_train > 0] = 1
+        bin_y_test[bin_y_test > 0] = 1
+
+        indices_train = np.where(bin_y_train > 0)[0]
+        out_y_train = np.take(y_train, indices_train, axis=0) - 1
+        out_X_train = np.take(X_train, indices_train, axis=0)
+
+        indices_test = np.where(bin_y_test > 0)[0]
+        out_X_test = np.take(X_test, indices_test, axis=0)
+        out_y_test = np.take(y_test, indices_test, axis=0) - 1
+
+        return out_X_train, out_X_test, out_y_train, out_y_test
