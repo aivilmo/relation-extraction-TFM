@@ -275,33 +275,3 @@ class DeepModel(AbstractModel):
             (X[:, 768 * 2 : 768 * 2 + 4], X[:, 768 * 2 + 4 : 768 * 2 + 8])
         )
         return [embedding, entity]
-
-    def take_subsample(
-        self,
-        y_hat: np.ndarray,
-        X_train: np.ndarray,
-        X_test: np.ndarray,
-        y_train: np.ndarray,
-        y_test: np.ndarray,
-    ) -> tuple[np.ndarray]:
-        bin_y_train, bin_y_test = self.binarize_labels(y_train, y_hat)
-
-        indices_train = np.where(bin_y_train > 0)[0]
-        out_X_train = np.take(X_train, indices_train, axis=0)
-        out_y_train = np.take(y_train, indices_train, axis=0) - 1
-
-        indices_test = np.where(bin_y_test > 0)[0]
-        out_X_test = np.take(X_test, indices_test, axis=0)
-        out_y_test = np.take(y_test, indices_test, axis=0) - 1
-
-        return indices_test, out_X_train, out_X_test, out_y_train, out_y_test
-
-    def binarize_labels(
-        self, y_train: np.ndarray, y_test: np.ndarray
-    ) -> tuple[np.ndarray]:
-        bin_y_train = y_train.copy()
-        bin_y_test = y_test.copy()
-        bin_y_train[bin_y_train > 0] = 1
-        bin_y_test[bin_y_test > 0] = 1
-
-        return bin_y_train, bin_y_test
