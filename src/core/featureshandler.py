@@ -62,6 +62,15 @@ class FeaturesHandler:
         self._features: list = AppConstants.instance()._features
         self._is_transformer: bool = self.is_transformer()
 
+        """
+            0 ['Action']
+            1 ['Concept']
+            2 ['O']
+            3 ['Predicate']
+            4 ['Reference']
+        """
+        self._le.fit(["O", "Action", "Concept", "Predicate", "Reference"])
+
         FeaturesHandler._instance = self
 
     def is_transformer(self) -> None:
@@ -196,8 +205,8 @@ class FeaturesHandler:
         df.rename(columns={"token": "words", "tag": "labels"}, inplace=True)
 
     def _feat_with_tags(self, df: pd.DataFrame, test: bool = False) -> None:
-        df = self._fit_on_feature_extraction(df, self._cv, "tag1", test)
-        df = self._fit_on_feature_extraction(df, self._cv, "tag2", test)
+        df["tag1"] = self._le.transform(df.tag1.values)
+        df["tag2"] = self._le.transform(df.tag2.values)
 
     @staticmethod
     def _feat_word_emb(df: pd.DataFrame) -> None:
