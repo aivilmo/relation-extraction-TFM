@@ -122,18 +122,21 @@ class VisualizationHandler:
                 "position2",
                 "sentence",
                 "predicted_tag",
-            ]
+            ],
+            errors="ignore",
         )
-        df = df.replace(to_replace="Action", value="Act")
-        df = df.replace(to_replace="Predicate", value="Pred")
-        df = df.replace(to_replace="Reference", value="Ref")
-        df = df.replace(to_replace="Concept", value="Con")
+        print(df.value_counts())
+        print()
+        df = df.replace(to_replace="Action", value="A")
+        df = df.replace(to_replace="Predicate", value="P")
+        df = df.replace(to_replace="Reference", value="R")
+        df = df.replace(to_replace="Concept", value="C")
 
         df.groupby("tag1").sum().reset_index().melt(id_vars="tag1")
         df["entities"] = df["tag1"].astype(str) + "-" + df["tag2"]
         df = df.drop(columns=["tag1", "tag2"])
 
         df = df.value_counts().reset_index(name="counts")
-        flights_wide = df.pivot("tag", "entities", "counts")
+        flights_wide = df.pivot("entities", "tag", "counts")
         sns.lineplot(data=flights_wide)
         plt.show()
