@@ -238,3 +238,43 @@ class AbstractModel:
         out_y_test = np.take(y_test, indices_test, axis=0) - 1
 
         return indices_test, out_X_train, out_X_test, out_y_train, out_y_test
+
+    def repuntuate_binary_model(self, X_test: np.ndarray, yhat: np.ndarray):
+        """
+        0 ['Action']
+        1 ['Concept']
+        2 ['O']
+        3 ['Predicate']
+        4 ['Reference']
+        """
+        emb_size = 768 * 2
+        from_ent = X_test[:, emb_size : emb_size + 1]
+        to_ent = X_test[:, emb_size + 1 : emb_size + 2]
+
+        idx_0 = np.concatenate(
+            (
+                np.where((from_ent == 2) & (to_ent == 0))[0],
+                np.where((from_ent == 2) & (to_ent == 1))[0],
+                np.where((from_ent == 2) & (to_ent == 2))[0],
+                np.where((from_ent == 2) & (to_ent == 3))[0],
+                np.where((from_ent == 2) & (to_ent == 4))[0],
+                np.where((from_ent == 0) & (to_ent == 2))[0],
+                np.where((from_ent == 1) & (to_ent == 2))[0],
+                np.where((from_ent == 3) & (to_ent == 2))[0],
+                np.where((from_ent == 4) & (to_ent == 2))[0],
+                np.where((from_ent == 1) & (to_ent == 1))[0],
+            )
+        )
+
+        idx_1 = np.concatenate(
+            (
+                np.where((from_ent == 0) & (to_ent == 1))[0],
+                np.where((from_ent == 3) & (to_ent == 1))[0],
+                np.where((from_ent == 4) & (to_ent == 1))[0],
+            )
+        )
+
+        yhat[idx_0] = 0
+        yhat[idx_1] = 1
+
+        return yhat

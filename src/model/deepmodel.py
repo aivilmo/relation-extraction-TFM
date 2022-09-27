@@ -69,7 +69,13 @@ class DeepModel(AbstractModel):
         self._logger.info("First model")
         self.build(X=X_train, y=bin_y_train, model=model)
         self.train()
-        self.evaluate(X=X_test, y=bin_y_test)
+        # self.evaluate(X=X_test, y=bin_y_test)
+
+        yhat = self._model.predict(X_test)
+        yhat = np.argmax(yhat, axis=1)
+        bin_y_test = np.argmax(bin_y_test, axis=1)
+        yhat = self.repuntuate_binary_model(X_test, yhat)
+        super().evaluate(yhat, bin_y_test)
 
         idx, ent_X_train, ent_X_test, ent_y_train, ent_y_test = self.take_subsample(
             self._yhat, X_train, X_test, y_train, y_test
