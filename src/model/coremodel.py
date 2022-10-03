@@ -31,6 +31,34 @@ class CoreModel(AbstractModel):
 
         CoreModel._instance = self
 
+    # def start_training(
+    #     self,
+    #     X_train: np.ndarray,
+    #     X_test: np.ndarray,
+    #     y_train: np.ndarray,
+    #     y_test: np.ndarray,
+    #     model,
+    # ) -> None:
+    #     bin_y_train, bin_y_test = self.binarize_labels(y_train, y_test)
+
+    #     # First train with binary cls
+    #     self._logger.info("First model")
+    #     self.build(X=X_train, y=bin_y_train, model=model)
+    #     self.train()
+
+    #     """
+    #     2          2          2      143222
+    #     1          2          2       85763
+    #     2          1          2       85763
+    #     1          1          2       41866
+    #     0          2          2       30630
+    #     2          0          2       30630
+    #     """
+
+    #     yhat = self._model.predict(X_test)
+    #     yhat = self.repuntuate_binary_model(X_test, yhat)
+    #     super().evaluate(yhat, bin_y_test)
+
     def build(self, X: np.ndarray, y: np.ndarray, model, **kwargs) -> None:
         super().build(X, y)
         self._model = self._available_models[ModelType(model)]
@@ -44,7 +72,7 @@ class CoreModel(AbstractModel):
         from sklearn.pipeline import Pipeline
         from sklearn.feature_selection import f_classif, SelectKBest
 
-        AbstractModel._logger.info("Creating a pipeline...")
+        self._logger.info("Creating a pipeline...")
 
         self._model = Pipeline(
             steps=[
@@ -54,15 +82,15 @@ class CoreModel(AbstractModel):
             verbose=True,
         )
 
-        AbstractModel._logger.info(
+        self._logger.info(
             f"Pipeline created with {self._model.named_steps['feature_selection']}"
         )
         start: float = time.time()
 
         self._model.fit(self._X, self._y)
-        AbstractModel._logger.info(self._model)
+        self._logger.info(self._model)
 
-        AbstractModel._logger.info(
+        self._logger.info(
             f"Pipeline trained, time: {(time.time() - start) / 60} minutes"
         )
 
@@ -74,7 +102,7 @@ class CoreModel(AbstractModel):
         self._model = GridSearchCV(
             estimator=self._model, param_grid=self._params, cv=cv, n_jobs=8, verbose=1
         )
-        AbstractModel._logger.info("Training best model")
+        self._logger.info("Training best model")
         self._model.fit(self._X, self._y)
 
         means = self._model.cv_results_["mean_test_score"]
@@ -83,7 +111,7 @@ class CoreModel(AbstractModel):
             zip(means, stds, self._model.cv_results_["params"]), key=lambda x: -x[0]
         ):
             if not np.isnan(mean):
-                AbstractModel._logger.info(
+                self._logger.info(
                     "Mean test score: %0.3f (+/-%0.03f) for params: %r"
                     % (mean, std * 2, params)
                 )
