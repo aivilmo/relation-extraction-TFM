@@ -13,6 +13,7 @@ import re
 import unidecode
 
 from logger.logger import Logger
+from utils.appconstants import AppConstants
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -113,7 +114,7 @@ class Preprocessor:
         y_train = self._le.fit_transform(train_df[y_column].values)
         y_test = self._le.transform(test_df[y_column].values)
 
-        AbstractModel.set_labels(list(self._le.classes_))
+        AbstractModel._labels = list(self._le.classes_)
         Preprocessor._n_classes = len(list(self._le.classes_))
 
         return y_train, y_test
@@ -138,6 +139,16 @@ class Preprocessor:
         if type == "synonym":
             aug = naw.SynonymAug(lang="spa")
 
+        if "taskA" in AppConstants.instance()._task:
+            new_df = self._data_augmentation_taskA(df_cls, aug, n)
+        else:
+            new_df = self._data_augmentation_taskA(df_cls, aug, n)
+        FilesHandler.instance().save_train_dataset(new_df, f"_aug_{type}_{cls}")
+        return new_df
+
+    def _data_augmentation_taskA(
+        self, df_cls: pd.DataFrame, aug, n: int
+    ) -> pd.DataFrame:
         new_df = pd.DataFrame()
         index: int = 0
         for _, row in df_cls.iterrows():
@@ -148,7 +159,7 @@ class Preprocessor:
                     {
                         "token": token,
                         "original_token": augment,
-                        "tag": cls,
+                        "tag": row.tag,
                         "pos_tag": row.pos_tag,
                         "sentence": row.sentence.replace(row.token, augment),
                     },
@@ -157,10 +168,7 @@ class Preprocessor:
                 self._logger.info(f"Generated word {token} for original {row.token}")
                 index += 1
                 new_df = new_df.append(entity)
-
-        self._logger.info(f"Generated {len(new_df)} tokens for class {cls}")
-        FilesHandler.instance().save_train_dataset(new_df, f"_aug_{type}_{cls}")
-        return df
+        return new_df
 
     def get_entity_positions(self, sent: str, entity: str, offset: int) -> str:
         entity = entity.split()

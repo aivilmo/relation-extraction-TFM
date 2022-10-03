@@ -106,15 +106,15 @@ class Main:
             pred_b = self._fh_instance.load_augmented_dataset("B-Predicate", type)
 
             if ref_i is None:
-                self._pr_instance.data_augmentation(
+                ref_i = self._pr_instance.data_augmentation(
                     self._dataset_train, type, "I-Reference", n=10
                 )
             if ref_b is None:
-                self._pr_instance.data_augmentation(
+                ref_b = self._pr_instance.data_augmentation(
                     self._dataset_train, type, "B-Reference"
                 )
             if pred_b is None:
-                self._pr_instance.data_augmentation(
+                pred_b = self._pr_instance.data_augmentation(
                     self._dataset_train, type, "B-Predicate"
                 )
 
