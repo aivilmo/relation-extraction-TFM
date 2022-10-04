@@ -307,6 +307,13 @@ class REPreprocessor(Preprocessor):
                 added_sent.append(entity)
         return added_sent
 
+    def get_spans_str(self, spans: list) -> list[str]:
+        spans_str = []
+        for s in spans:
+            span = str(s[0]) + ":" + str(s[1])
+            spans_str.append(span)
+        return ";".join(spans_str)
+
     def process_content(self, path: Path) -> pd.DataFrame:
         collection = Collection().load_dir(path)
         self._logger.info(f"Loaded {len(collection)} sentences for fitting.")
@@ -320,7 +327,7 @@ class REPreprocessor(Preprocessor):
             if sentence.relations == []:
                 continue
 
-            relation_pairs, entities = {}, {}
+            relation_pairs, entities, entity_spans = {}, {}, {}
             sent: str = sentence.text
             sent_tokens: list = self.trim_sentence(sentence.text).split()
 
@@ -334,6 +341,10 @@ class REPreprocessor(Preprocessor):
                 relation_pairs[(relation_from, relation_to)] = relation.label
                 entities[relation_from] = relation.from_phrase.label
                 entities[relation_to] = relation.to_phrase.label
+                from_span = self.get_spans_str(relation.from_phrase.spans)
+                to_span = self.get_spans_str(relation.to_phrase.spans)
+
+                entity_spans[(relation_from, relation_to)] = (from_span, to_span)
 
             from_position, to_position = ["0:0"], ["0:0"]
             last_from_word = sent_tokens[0]
@@ -358,6 +369,12 @@ class REPreprocessor(Preprocessor):
 
                     pair = (from_word, to_word)
                     relation = relation_pairs.get(pair, self._default_tag)
+
+                    spans = entity_spans.get(pair, self._default_tag)
+                    if spans != self._default_tag:
+                        from_pos = spans[0]
+                        to_pos = spans[1]
+
                     relation = pd.Series(
                         {
                             "token1": from_word,
