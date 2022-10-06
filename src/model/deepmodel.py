@@ -30,6 +30,7 @@ class DeepModel(AbstractModel):
 
     _epochs = 80
     _batch_size = 64
+    _checkpoint_path = "training_1/cp.ckpt"
 
     @staticmethod
     def instance():
@@ -48,6 +49,7 @@ class DeepModel(AbstractModel):
         self._n_classes = None
         self._is_multi = False
         self._lda = LinearDiscriminantAnalysis(n_components=11)
+        self._entity_vc_test = None
 
         DeepModel._instance = self
 
@@ -61,44 +63,17 @@ class DeepModel(AbstractModel):
     ) -> None:
         from utils.preprocess import Preprocessor
 
-        bin_y_train, bin_y_test = self.binarize_labels(y_train, y_test)
-        bin_y_train, bin_y_test = Preprocessor.instance().prepare_labels(
-            bin_y_train, bin_y_test
-        )
-        # First train with binary cls
-        self._logger.info("First model")
-        self.build(X=X_train, y=bin_y_train, model=model)
-        self.train()
-        # self.evaluate(X=X_test, y=bin_y_test)
-
-        yhat = self._model.predict(X_test)
-        yhat = np.argmax(yhat, axis=1)
-        bin_y_test = np.argmax(bin_y_test, axis=1)
-        yhat = self.repuntuate_binary_model(X_test, yhat)
-        super().evaluate(yhat, bin_y_test)
-
-        idx, ent_X_train, ent_X_test, ent_y_train, ent_y_test = self.take_subsample(
-            self._yhat, X_train, X_test, y_train, y_test
-        )
+        X_train = self.handle_multi_input(X_train)[0]
+        test = self.handle_multi_input(X_test)
+        X_test, self._entity_vc_test = test[0], test[1]
 
         if AppConstants.instance()._lda:
             self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
-            ent_X_train = self._lda.fit_transform(ent_X_train, ent_y_train)
+            X_train = self._lda.fit_transform(X_train, y_train)
             self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
 
-        ent_y_train, ent_y_test = Preprocessor.instance().prepare_labels(
-            ent_y_train, ent_y_test
-        )
-
-        # Second train discriminate cls
-        self._logger.info("Second model")
-        self.build(X=ent_X_train, y=ent_y_train, model=model)
-        self.train()
-        self.evaluate(X=ent_X_test, y=ent_y_test)
-
-        y_test[idx] = self._yhat + 1
-        self._yhat = y_test
-        self.export_results()
+        y_train, y_test = Preprocessor.instance().prepare_labels(y_train, y_test)
+        super().start_training(X_train, X_test, y_train, y_test, model)
 
     def build(self, X: np.ndarray, y: np.ndarray, model) -> None:
         self._n_classes = y.shape[1]
@@ -118,6 +93,8 @@ class DeepModel(AbstractModel):
         self._logger.info("Training model...")
         start: float = time()
 
+        # self._model.load_weights(self._checkpoint_path)
+
         self._history = self._model.fit(
             self._X,
             self._y,
@@ -133,7 +110,6 @@ class DeepModel(AbstractModel):
         self._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
 
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
-        X = self.handle_multi_input(X)
         if AppConstants.instance()._lda:
             try:
                 X = self._lda.transform(X)
@@ -143,6 +119,7 @@ class DeepModel(AbstractModel):
 
         yhat = self._model.predict(X)
         yhat = np.argmax(yhat, axis=1)
+        yhat = self.repuntuate_binary_model(yhat)
         y = np.argmax(y, axis=1)
 
         super().evaluate(yhat, y)
@@ -208,7 +185,6 @@ class DeepModel(AbstractModel):
         self._model = tf.keras.models.Model(
             inputs=[embedding.input, entities.input], outputs=z
         )
-        print(self._model)
 
     def compile(self) -> None:
         from main import Main
@@ -266,18 +242,15 @@ class DeepModel(AbstractModel):
         )
 
         # Create a callback that saves the model's weights
-        checkpoint_path = "training_1/cp.ckpt"
         checkpoint = tf.keras.callbacks.ModelCheckpoint(
-            filepath=checkpoint_path, save_weights_only=True, verbose=1
+            filepath=DeepModel._checkpoint_path, save_weights_only=True, verbose=1
         )
         return [accuracy, loss, checkpoint]
 
     def handle_multi_input(self, X: np.array) -> list[np.array]:
-        if not self._is_multi:
-            return X
-
-        embedding = np.hstack((X[:, 0:768], X[:, 768 : 768 * 2]))
+        emb_size = 768 * 2
+        embedding = np.hstack((X[:, 0:768], X[:, 768:emb_size]))
         entity = np.hstack(
-            (X[:, 768 * 2 : 768 * 2 + 4], X[:, 768 * 2 + 4 : 768 * 2 + 8])
+            (X[:, emb_size : emb_size + 1], X[:, emb_size + 1 : emb_size + 2])
         )
         return [embedding, entity]

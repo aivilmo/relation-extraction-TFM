@@ -62,10 +62,10 @@ class AbstractModel:
         model,
     ) -> None:
         self.build(X=X_train, y=y_train, model=model)
-        counter = Counter(self._y)
-        for k, v in counter.items():
-            per = v / len(self._y) * 100
-            print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
+        # counter = Counter(self._y)
+        # for k, v in counter.items():
+        #     per = v / len(self._y) * 100
+        #     print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
 
         if self._imbalance_strategy == "oversampling":
             self.over_sample_data()
@@ -74,12 +74,12 @@ class AbstractModel:
         if self._imbalance_strategy == "both":
             self.combined_resample_data()
 
-        print()
+        # print()
 
-        counter = Counter(self._y)
-        for k, v in counter.items():
-            per = v / len(self._y) * 100
-            print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
+        # counter = Counter(self._y)
+        # for k, v in counter.items():
+        #     per = v / len(self._y) * 100
+        #     print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
 
         self.train()
         self.evaluate(X=X_test, y=y_test)
@@ -239,7 +239,7 @@ class AbstractModel:
 
         return indices_test, out_X_train, out_X_test, out_y_train, out_y_test
 
-    def repuntuate_binary_model(self, X_test: np.ndarray, yhat: np.ndarray):
+    def repuntuate_binary_model(self, yhat: np.ndarray):
         """
         0 ['Action']
         1 ['Concept']
@@ -247,9 +247,8 @@ class AbstractModel:
         3 ['Predicate']
         4 ['Reference']
         """
-        emb_size = 768 * 2
-        from_ent = X_test[:, emb_size : emb_size + 1]
-        to_ent = X_test[:, emb_size + 1 : emb_size + 2]
+        from_ent = self._entity_vc_test[0]
+        to_ent = self._entity_vc_test[1]
 
         idx_0 = np.concatenate(
             (
