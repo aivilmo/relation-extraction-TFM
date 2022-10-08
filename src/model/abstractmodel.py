@@ -119,7 +119,7 @@ class AbstractModel:
         cm = confusion_matrix(y, self._yhat)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot()
-        plt.show()
+        # plt.show()
 
     def export_results(self) -> None:
         from sklearn.preprocessing import LabelEncoder
@@ -227,13 +227,13 @@ class AbstractModel:
         y_train: np.ndarray,
         y_test: np.ndarray,
     ) -> tuple[np.ndarray]:
-        bin_y_train, bin_y_test = self.binarize_labels(y_train, y_hat)
+        bin_y_train, bin_yhat = self.binarize_labels(y_train, y_hat)
 
         indices_train = np.where(bin_y_train > 0)[0]
         out_X_train = np.take(X_train, indices_train, axis=0)
         out_y_train = np.take(y_train, indices_train, axis=0) - 1
 
-        indices_test = np.where(bin_y_test > 0)[0]
+        indices_test = np.where(bin_yhat > 0)[0]
         out_X_test = np.take(X_test, indices_test, axis=0)
         out_y_test = np.take(y_test, indices_test, axis=0) - 1
 
