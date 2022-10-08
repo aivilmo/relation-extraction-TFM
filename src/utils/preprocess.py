@@ -314,6 +314,15 @@ class REPreprocessor(Preprocessor):
             spans_str.append(span)
         return ";".join(spans_str)
 
+    def update_entity(self, phrase, entities) -> dict:
+        entities[phrase.text] = phrase.label
+        return entities
+
+    def append_relations(self, sentence: list, relation: str) -> list:
+        if relation not in sentence:
+            sentence.append(relation)
+        return sentence
+
     def process_content(self, path: Path) -> pd.DataFrame:
         collection = Collection().load_dir(path)
         self._logger.info(f"Loaded {len(collection)} sentences for fitting.")
@@ -327,64 +336,42 @@ class REPreprocessor(Preprocessor):
             if sentence.relations == []:
                 continue
 
-            relation_pairs, entities, entity_spans = {}, {}, {}
+            relation_pairs, from_entities, to_entities = {}, {}, {}
+            sentence_ent: list = []
             sent: str = sentence.text
-            sent_tokens: list = self.trim_sentence(sentence.text).split()
 
             for relation in sentence.relations:
-                relation_from = relation.from_phrase.text
-                relation_to = relation.to_phrase.text
+                relation_from = relation.from_phrase
+                from_entities = self.update_entity(relation_from, from_entities)
 
-                sent_tokens = self.join_sublist(relation_from.split(), sent_tokens)
-                sent_tokens = self.join_sublist(relation_to.split(), sent_tokens)
+                relation_to = relation.to_phrase
+                to_entities = self.update_entity(relation_to, to_entities)
 
-                relation_pairs[(relation_from, relation_to)] = relation.label
-                entities[relation_from] = relation.from_phrase.label
-                entities[relation_to] = relation.to_phrase.label
-                from_span = self.get_spans_str(relation.from_phrase.spans)
-                to_span = self.get_spans_str(relation.to_phrase.spans)
+                relation_pairs[(relation_from.text, relation_to.text)] = relation.label
 
-                entity_spans[(relation_from, relation_to)] = (from_span, to_span)
+                sent = sent.replace(relation_from.text, "")
+                sent = sent.replace(relation_to.text, "")
+                sentence_ent = self.append_relations(sentence_ent, relation_from.text)
+                sentence_ent = self.append_relations(sentence_ent, relation_to.text)
 
-            from_position, to_position = ["0:0"], ["0:0"]
-            last_from_word = sent_tokens[0]
-            from_offset, to_offset = 0, 0
-            sent_tokens = self.add_spaced_entities(sent_tokens, list(entities.keys()))
-
-            for from_word in sent_tokens:
-                from_entity = entities.get(from_word, self._default_tag)
-                # If we iter the same word, dont update offset
-                if last_from_word != from_word:
-                    from_offset = int(from_position[-1].split(":")[-1])
-                from_pos = self.get_entity_positions(sent, from_word, from_offset)
-
-                for to_word in sent_tokens:
+            sentence_ent = sent.split() + sentence_ent
+            for from_word in sentence_ent:
+                from_entity = from_entities.get(from_word, self._default_tag)
+                for to_word in sentence_ent:
                     if from_word == to_word:
                         continue
-
-                    to_entity = entities.get(to_word, self._default_tag)
-
-                    to_offset = int(to_position[-1].split(":")[-1])
-                    to_pos = self.get_entity_positions(sent, to_word, to_offset)
+                    to_entity = to_entities.get(to_word, self._default_tag)
 
                     pair = (from_word, to_word)
                     relation = relation_pairs.get(pair, self._default_tag)
-
-                    spans = entity_spans.get(pair, self._default_tag)
-                    if spans != self._default_tag:
-                        from_pos = spans[0]
-                        to_pos = spans[1]
-
                     relation = pd.Series(
                         {
                             "token1": from_word,
                             "original_token1": from_word,
                             "tag1": from_entity,
-                            "position1": from_pos,
                             "token2": to_word,
                             "original_token2": to_word,
                             "tag2": to_entity,
-                            "position2": to_pos,
                             "tag": relation,
                             "sentence": sentence.text,
                         },
@@ -392,7 +379,6 @@ class REPreprocessor(Preprocessor):
                     )
                     index += 1
                     df = df.append(relation)
-                last_from_word = from_word
 
             self._logger.info(f"Finished sentence {sent_id} of {len(collection)}")
             sent_id += 1

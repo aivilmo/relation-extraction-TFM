@@ -3,6 +3,7 @@
 import pandas as pd
 from ehealth.anntools import Collection, Sentence, Relation, Keyphrase
 from pathlib import Path
+import re
 
 from logger.logger import Logger
 from utils.appconstants import AppConstants
@@ -46,11 +47,12 @@ class PostProcessor:
 
         if "taskA" in self._task:
             collection = self.export_taskA(dataset_test)
+            self.save_output_file_taskA(collection)
 
         if "taskB" in self._task:
             collection = self.export_taskB(dataset_test)
+            self.save_output_file_taskB(collection)
 
-        self.save_output_file(collection)
         self._logger.info("Output data successfully exported")
 
     def pos_list(self, positions: str) -> str:
@@ -102,76 +104,188 @@ class PostProcessor:
 
         return Collection(sentences_list)
 
-    def export_taskB(self, dataset_test: pd.DataFrame) -> Collection:
-        entity_index: int = 1
-        sentences = list(dataset_test.sentence.unique())
-        sentences_list = []
+    def append_entity_row(
+        self, df: pd.DataFrame, index: int, words: list, positions: list, tag: str
+    ) -> pd.DataFrame:
+        entities: str = " ".join(words)
+        entities = self.trim(entities)
+        pos: str = ";".join(positions)
+        entity_pos: str = tag + " " + pos
 
-        for sent in sentences:
-            sentence_obj = Sentence(text=sent)
-            keyphrases, relations = [], []
-            entities = {}
+        if "word" in list(df.columns) and entity_pos in df.entity_pos.unique():
+            return df, False
+
+        entity = pd.Series(
+            {
+                "index": "T" + str(index),
+                "entity_pos": entity_pos,
+                "word": entities,
+            },
+            name=index,
+        )
+        df = df.append(entity)
+        return df, True
+
+    def append_entity_relation(
+        self, df: pd.DataFrame, index: int, relation_type: str, T1: str, T2: str
+    ) -> pd.DataFrame:
+        relation = pd.Series(
+            {
+                "index": "R" + str(index),
+                "entity_pos": relation_type,
+                "word": "Arg1:" + "T" + str(T1) + " Arg2:" + "T" + str(T2),
+            },
+            name=index,
+        )
+        df = df.append(relation)
+        return df
+
+    def trim(self, phrase: str) -> str:
+        return (
+            phrase.replace(".", "")
+            .replace(",", "")
+            .replace("(", "")
+            .replace(")", "")
+            .replace('"', "")
+        )
+
+    def get_symbols(self, phrase: str, offset: int) -> list:
+        symbols: list = []
+        symbols += [_.start() + offset for _ in re.finditer("\.", phrase)]
+        symbols += [_.start() + offset for _ in re.finditer(",", phrase)]
+        return symbols
+
+    def get_pos(self, sentence: str, token: str, offset: int) -> str:
+        positions = []
+        # For avoid no whole words
+        symbols = self.get_symbols(sentence, offset)
+        sentence = " " + self.trim(sentence) + " "
+        token = self.trim(token)
+
+        for t in token.split():
+            pos_init1: int = sentence.find(" " + t + " ") + offset
+            for s in symbols:
+                if s < pos_init1:
+                    pos_init1 += 1
+            pos_end1 = pos_init1 + len(t)
+            positions.append(str(pos_init1) + " " + str(pos_end1))
+
+        return positions
+
+    def export_taskB(self, dataset_test: pd.DataFrame) -> pd.DataFrame:
+        df: pd.DataFrame = pd.DataFrame()
+
+        entity_index: int = 1
+        relation_index: int = 0
+        sentence_offset: int = 0
+
+        relations: list = []
+        max_sentences = len(dataset_test.sentence.unique())
+        i = 0
+        for sent in dataset_test.sentence.unique():
             sent_df = dataset_test.loc[dataset_test.sentence == sent]
-            sent_df = sent_df[sent_df.predicted_tag != "O"]
+            # Avoid create non testing sentences
+            if len(sent_df[sent_df.predicted_tag != "O"]) == 0:
+                sent_df = sent_df[sent_df.predicted_tag != "O"]
+
+            if "taskB" in self._task:
+                sent_df = sent_df[sent_df.predicted_tag != "O"]
             sent_df = sent_df[sent_df.tag1 != "O"]
             sent_df = sent_df[sent_df.tag2 != "O"]
+            sent_df = sent_df[sent_df.original_token1 != "."]
+            sent_df = sent_df[sent_df.original_token2 != "."]
+            sent_df = sent_df[sent_df.original_token1 != ","]
+            sent_df = sent_df[sent_df.original_token2 != ","]
+            sent_df = sent_df[sent_df.original_token1 != ")"]
+            sent_df = sent_df[sent_df.original_token2 != ")"]
+            sent_df = sent_df[sent_df.original_token1 != "("]
+            sent_df = sent_df[sent_df.original_token2 != "("]
+            sent_df = sent_df[sent_df.original_token1 != "()"]
+            sent_df = sent_df[sent_df.original_token2 != "()"]
+            sent_df = sent_df[sent_df.original_token1 != "(),"]
+            sent_df = sent_df[sent_df.original_token2 != "(),"]
+            sent_df = sent_df[sent_df.original_token1 != "),"]
+            sent_df = sent_df[sent_df.original_token2 != "),"]
 
+            sent_df = sent_df[sent_df.original_token1 != "(,"]
+            sent_df = sent_df[sent_df.original_token2 != "(,"]
+            sent_df = sent_df[sent_df.original_token1 != '""']
+            sent_df = sent_df[sent_df.original_token2 != '""']
+
+            # Fill entities
             for _, row in sent_df.iterrows():
-                from_positions = self.pos_list(row.position1)
-                to_positions = self.pos_list(row.position2)
+                tag1: str = row.tag1.replace("B-", "").replace("I-", "")
+                tag2: str = row.tag2.replace("B-", "").replace("I-", "")
 
-                from_ps = []
-                for from_p in from_positions:
-                    init, end = from_p.split(" ")
-                    from_ps.append((int(init), int(end)))
+                pos1 = self.get_pos(row.sentence, row.original_token1, sentence_offset)
+                pos2 = self.get_pos(row.sentence, row.original_token2, sentence_offset)
 
-                keyphrase_obj = Keyphrase(
-                    sentence=sentence_obj,
-                    spans=from_ps,
-                    label=row.tag1,
-                    id=entity_index,
+                df, has_inserted = self.append_entity_row(
+                    df, entity_index, [row.original_token1], pos1, tag1
                 )
-                if entities.get(keyphrase_obj.text, 0) == 0:
-                    entities[keyphrase_obj.text] = entity_index
+                if has_inserted:
                     entity_index += 1
-                    keyphrases.append(keyphrase_obj)
-
-                to_ps = []
-                for to_p in to_positions:
-                    init, end = to_p.split(" ")
-                    to_ps.append((int(init), int(end)))
-
-                keyphrase_obj = Keyphrase(
-                    sentence=sentence_obj,
-                    spans=to_ps,
-                    label=row.tag2,
-                    id=entity_index,
+                df, has_inserted = self.append_entity_row(
+                    df, entity_index, [row.original_token2], pos2, tag2
                 )
-                if entities.get(keyphrase_obj.text, 0) == 0:
-                    entities[keyphrase_obj.text] = entity_index
+                if has_inserted:
                     entity_index += 1
-                    keyphrases.append(keyphrase_obj)
 
-                relation_obj = Relation(
-                    sentence=sentence_obj,
-                    origin=entities[row.original_token1],
-                    destination=entities[row.original_token2],
-                    label=row.predicted_tag,
+                token1 = self.trim(row.original_token1)
+                T1 = df.loc[df.word == token1]["index"].values[-1][1:]
+
+                token2 = self.trim(row.original_token2)
+                T2 = df.loc[df.word == token2]["index"].values[-1][1:]
+
+                relations.append((T1, T2))
+
+            # Fill relations
+            for _, row in sent_df.iterrows():
+                if row.predicted_tag == "O":
+                    continue
+                df = self.append_entity_relation(
+                    df,
+                    relation_index,
+                    row.predicted_tag,
+                    relations[relation_index][0],
+                    relations[relation_index][1],
                 )
-                relations.append(relation_obj)
+                relation_index += 1
 
-            sentence_obj.keyphrases = keyphrases
-            sentence_obj.relations = relations
-            sentences_list.append(sentence_obj)
+            sentence_offset += len(sent) + 1
+            if i % 100 == 0:
+                self._logger.info(f"Finished with {i} of {max_sentences} sentences")
+            i += 1
+        return df
 
-        return Collection(sentences_list)
-
-    def save_output_file(self, collection: Collection) -> None:
+    def save_output_file_taskA(self, df: pd.DataFrame) -> None:
         output_dir = Path(
             self._path + self._dataset + "\\" + self._run + "\\" + self._task + "\\"
         )
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        collection.dump(Path(str(output_dir) + "\\" + self._output_file))
+        df.to_csv(
+            str(output_dir) + "\\" + self._output_file,
+            header=None,
+            index=None,
+            sep="\t",
+            mode="w",
+        )
+
+        self._logger.info(f"File output.ann saved at path {str(output_dir)}")
+
+    def save_output_file_taskB(self, df: pd.DataFrame) -> None:
+        output_dir = Path(
+            self._path + self._dataset + "\\" + self._run + "\\" + self._task + "\\"
+        )
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        df.to_csv(
+            str(output_dir) + "\\" + self._output_file,
+            header=None,
+            index=None,
+            sep="\t",
+            mode="w",
+        )
 
         self._logger.info(f"File output.ann saved at path {str(output_dir)}")
