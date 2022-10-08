@@ -63,17 +63,39 @@ class DeepModel(AbstractModel):
     ) -> None:
         from utils.preprocess import Preprocessor
 
+        pr_instance = Preprocessor.instance()
+
         X_train = self.handle_multi_input(X_train)[0]
         test = self.handle_multi_input(X_test)
         X_test, self._entity_vc_test = test[0], test[1]
+        ori_y_train, ori_y_test = y_train, y_test
 
         if AppConstants.instance()._lda:
             self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
             X_train = self._lda.fit_transform(X_train, y_train)
             self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
 
-        y_train, y_test = Preprocessor.instance().prepare_labels(y_train, y_test)
-        super().start_training(X_train, X_test, y_train, y_test, model)
+        y_train, y_test = pr_instance.prepare_labels(y_train, y_test)
+
+        self.build(X=X_train, y=y_train, model=model)
+        self.train(train=False, number="1")
+        self.evaluate(X=X_test, y=y_test)
+        first_yhat = self._yhat
+
+        idx, ent_X_train, ent_X_test, ent_y_train, ent_y_test = self.take_subsample(
+            ori_y_test, X_train, X_test, ori_y_train, ori_y_test
+        )
+        ent_y_train, ent_y_test = pr_instance.prepare_labels(ent_y_train, ent_y_test)
+
+        # Second train discriminate cls
+        self._logger.info("Second model")
+        self.build(X=ent_X_train, y=ent_y_train, model=model)
+        self.train(train=False, number="2")
+        self.evaluate(X=ent_X_test, y=ent_y_test)
+
+        first_yhat[idx] = self._yhat + 1
+        self._yhat = first_yhat
+        self.export_results()
 
     def build(self, X: np.ndarray, y: np.ndarray, model) -> None:
         self._n_classes = y.shape[1]
@@ -87,13 +109,18 @@ class DeepModel(AbstractModel):
             self.build_multi_dense()
         self.compile()
 
-    def train(self) -> None:
+    def train(self, train=True, number: str = "1") -> None:
         from time import time
 
         self._logger.info("Training model...")
         start: float = time()
 
-        # self._model.load_weights(self._checkpoint_path)
+        if not train:
+            if number == "2":
+                self._model.load_weights("training_2/cp.ckpt")
+            else:
+                self._model.load_weights(self._checkpoint_path)
+            return
 
         self._history = self._model.fit(
             self._X,
@@ -119,7 +146,7 @@ class DeepModel(AbstractModel):
 
         yhat = self._model.predict(X)
         yhat = np.argmax(yhat, axis=1)
-        yhat = self.repuntuate_binary_model(yhat)
+        # yhat = self.repuntuate_binary_model(yhat)
         y = np.argmax(y, axis=1)
 
         super().evaluate(yhat, y)
