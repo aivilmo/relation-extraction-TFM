@@ -247,8 +247,10 @@ class AbstractModel:
         3 ['Predicate']
         4 ['Reference']
         """
-        from_ent = self._entity_vc_test[0]
-        to_ent = self._entity_vc_test[1]
+        from_ent = self._entity_vc_test[:, 0]
+        to_ent = self._entity_vc_test[:, 1]
+
+        self._logger.info("Repuntuating model with rules...")
 
         idx_0 = np.concatenate(
             (
@@ -256,24 +258,13 @@ class AbstractModel:
                 np.where((from_ent == 2) & (to_ent == 1))[0],
                 np.where((from_ent == 2) & (to_ent == 2))[0],
                 np.where((from_ent == 2) & (to_ent == 3))[0],
-                np.where((from_ent == 2) & (to_ent == 4))[0],
                 np.where((from_ent == 0) & (to_ent == 2))[0],
                 np.where((from_ent == 1) & (to_ent == 2))[0],
                 np.where((from_ent == 3) & (to_ent == 2))[0],
                 np.where((from_ent == 4) & (to_ent == 2))[0],
-                np.where((from_ent == 1) & (to_ent == 1))[0],
-            )
-        )
-
-        idx_1 = np.concatenate(
-            (
-                np.where((from_ent == 0) & (to_ent == 1))[0],
-                np.where((from_ent == 3) & (to_ent == 1))[0],
-                np.where((from_ent == 4) & (to_ent == 1))[0],
             )
         )
 
         yhat[idx_0] = 0
-        yhat[idx_1] = 1
 
         return yhat
