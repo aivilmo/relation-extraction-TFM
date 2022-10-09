@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 from enum import Enum
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+import pickle
 
 from model.abstractmodel import AbstractModel, ModelType
 from utils.appconstants import AppConstants
@@ -70,11 +71,6 @@ class DeepModel(AbstractModel):
         X_test, self._entity_vc_test = test[0], test[1]
         ori_y_train, ori_y_test = y_train, y_test
 
-        if AppConstants.instance()._lda:
-            self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
-            X_train = self._lda.fit_transform(X_train, y_train)
-            self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
-
         y_train, y_test = pr_instance.prepare_labels(y_train, y_test)
 
         self.build(X=X_train, y=y_train, model=model)
@@ -83,8 +79,19 @@ class DeepModel(AbstractModel):
         first_yhat = self._yhat
 
         idx, ent_X_train, ent_X_test, ent_y_train, ent_y_test = self.take_subsample(
-            ori_y_test, X_train, X_test, ori_y_train, ori_y_test
+            self._yhat, X_train, X_test, ori_y_train, ori_y_test
         )
+
+        if AppConstants.instance()._lda:
+            with open("lda.model", "rb") as f:
+                self._lda = pickle.load(f)
+            ent_X_train = self._lda.transform(ent_X_train)
+            # self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
+            # ent_X_train = self._lda.fit_transform(ent_X_train, ent_y_train)
+            # self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
+            # with open("lda.model", "wb") as f:
+            #     pickle.dump(self._lda, f)
+
         ent_y_train, ent_y_test = pr_instance.prepare_labels(ent_y_train, ent_y_test)
 
         # Second train discriminate cls
@@ -93,7 +100,7 @@ class DeepModel(AbstractModel):
         self.train(train=False, number="2")
         self.evaluate(X=ent_X_test, y=ent_y_test)
 
-        first_yhat[idx] = self._yhat + 1
+        first_yhat[first_yhat > 0] = self._yhat + 1
         self._yhat = first_yhat
         self.export_results()
 
