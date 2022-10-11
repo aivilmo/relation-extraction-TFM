@@ -33,10 +33,11 @@ class AbstractModel:
     _sampling_strategy: dict = {
         "scenario2-taskA": {7: 100, 4: 350, 6: 250},
         "scenario3-taskB": {
-            13: 1811 * 2,
-            10: 1136 * 2,
-            7: 1693 * 2,
-            14: 2821 * 2,
+            11: 222 * 2,
+            3: 211 * 2,
+            5: 339 * 2,
+            10: 172 * 2,
+            8: 447 * 2,
         },
     }
 
