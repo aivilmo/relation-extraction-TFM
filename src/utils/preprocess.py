@@ -142,7 +142,8 @@ class Preprocessor:
         if "taskA" in AppConstants.instance()._task:
             new_df = self._data_augmentation_taskA(df_cls, aug, n)
         else:
-            new_df = self._data_augmentation_taskA(df_cls, aug, n)
+            new_df = self._data_augmentation_taskB(df_cls, aug, n)
+
         FilesHandler.instance().save_train_dataset(new_df, f"_aug_{type}_{cls}")
         return new_df
 
@@ -166,6 +167,35 @@ class Preprocessor:
                     name=index,
                 )
                 self._logger.info(f"Generated word {token} for original {row.token}")
+                index += 1
+                new_df = new_df.append(entity)
+        return new_df
+
+    def _data_augmentation_taskB(
+        self, df_cls: pd.DataFrame, aug, n: int
+    ) -> pd.DataFrame:
+        new_df = pd.DataFrame()
+        index: int = 0
+        for _, row in df_cls.iterrows():
+            augments1 = aug.augment(data=row.token1, num_thread=10, n=n)
+            augments2 = aug.augment(data=row.token2, num_thread=10, n=n)
+            for augment1, augment2 in zip(augments1, augments2):
+                token1 = augment1.replace(".", "")
+                token2 = augment2.replace(".", "")
+                entity = pd.Series(
+                    {
+                        "token1": token1,
+                        "original_token1": token1,
+                        "tag1": row.tag1,
+                        "token2": token2,
+                        "original_token2": token2,
+                        "tag2": row.tag2,
+                        "tag": row.tag,
+                        "sentence": row.sentence,
+                    },
+                    name=index,
+                )
+                self._logger.info(f"Generated word {token1} for original {row.token1}")
                 index += 1
                 new_df = new_df.append(entity)
         return new_df
