@@ -101,17 +101,17 @@ class DeepModel(AbstractModel):
         self._logger.info("Second model")
         self.build(X=ent_X_train, y=ent_y_train, model=model)
         self.train(train=True, number="2")
-        self.evaluate(X=ent_X_test, y=ent_y_test)
+        # self.evaluate(X=ent_X_test, y=ent_y_test)
 
-        # X = self._lda.transform(ent_X_test)
-        # yhat = self._model.predict(X)
+        X = self._lda.transform(ent_X_test)
+        yhat = self._model.predict(X)
 
-        # self._prob_yhat = self._prob_yhat[idx][:, 1:]
-        # mean_yhat = (np.array(self._prob_yhat) + yhat) / 2.0
-        # print(self._prob_yhat[0])
-        # print(yhat[0])
-        # print(mean_yhat[0])
-        # self._yhat = np.argmax(mean_yhat, axis=1)
+        self._prob_yhat = self._prob_yhat[idx][:, 1:]
+        mean_yhat = (self._prob_yhat * 0.10 + yhat * 0.90) / 2.0
+        print(self._prob_yhat[0])
+        print(yhat[0])
+        print(mean_yhat[0])
+        self._yhat = np.argmax(mean_yhat, axis=1)
 
         first_yhat[first_yhat > 0] = self._yhat + 1
         self._yhat = first_yhat
