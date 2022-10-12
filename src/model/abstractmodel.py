@@ -120,7 +120,7 @@ class AbstractModel:
         cm = confusion_matrix(y, self._yhat)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot()
-        # plt.show()
+        plt.show()
 
     def export_results(self) -> None:
         from sklearn.preprocessing import LabelEncoder
@@ -179,7 +179,6 @@ class AbstractModel:
 
     def under_sample_data(self) -> None:
         from imblearn.under_sampling import NearMiss
-        from imblearn.over_sampling import SMOTENC
 
         under_sampler = NearMiss(sampling_strategy=self._sampling_strategy[self._task])
 
@@ -266,6 +265,9 @@ class AbstractModel:
             )
         )
 
+        idx_14 = np.concatenate((np.where((from_ent == 0) & (to_ent == 0))[0],))
+
         yhat[idx_0] = 0
+        yhat[idx_14] = 14
 
         return yhat

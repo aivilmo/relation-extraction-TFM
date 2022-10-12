@@ -10,6 +10,7 @@ from collections import Counter
 
 from model.abstractmodel import AbstractModel, ModelType
 from utils.appconstants import AppConstants
+from utils.fileshandler import FilesHandler
 
 seed = 6
 random.seed(seed)
@@ -68,12 +69,10 @@ class DeepModel(AbstractModel):
         import sys
 
         pr_instance = Preprocessor.instance()
-
-        # X_train = self.handle_multi_input(X_train)[0]
-        # test = self.handle_multi_input(X_test)
-        # X_test, self._entity_vc_test = test[0], test[1]
+        _, self._entity_vc_test, _, _ = FilesHandler.instance().load_training_data(
+            "with_entities"
+        )
         ori_y_train, ori_y_test = y_train, y_test
-
         y_train, y_test = pr_instance.prepare_labels(y_train, y_test)
 
         self.build(X=X_train, y=y_train, model=model)
@@ -84,29 +83,8 @@ class DeepModel(AbstractModel):
         idx, ent_X_train, ent_X_test, ent_y_train, ent_y_test = self.take_subsample(
             self._yhat, X_train, X_test, ori_y_train, ori_y_test
         )
+        ent_X_train, ent_y_train = self.apply_oversampling(ent_X_train, ent_y_train)
 
-        self._n_classes = 14
-        self._X = ent_X_train
-        self._y = ent_y_train
-        counter = Counter(self._y)
-        counter = sorted(counter.items(), key=lambda f: f[1], reverse=True)
-
-        for k, v in counter:
-            per = v / len(self._y) * 100
-            print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
-
-        self.over_sample_data()
-
-        counter = Counter(self._y)
-        counter = sorted(counter.items(), key=lambda f: f[1], reverse=True)
-        for k, v in counter:
-            per = v / len(self._y) * 100
-            print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
-
-        # sys.exit()
-
-        ent_X_train = self._X
-        ent_y_train = self._y
         if AppConstants.instance()._lda:
             # with open("lda.model", "rb") as f:
             #     self._lda = pickle.load(f)
@@ -178,7 +156,7 @@ class DeepModel(AbstractModel):
         end: float = time() - start
         self._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
 
-    def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
+    def evaluate(self, X: np.ndarray, y: np.ndarray, repuntuate: bool = False) -> None:
         if AppConstants.instance()._lda:
             try:
                 X = self._lda.transform(X)
@@ -190,7 +168,8 @@ class DeepModel(AbstractModel):
         self._prob_yhat = yhat
 
         yhat = np.argmax(yhat, axis=1)
-        # yhat = self.repuntuate_binary_model(yhat)
+        if repuntuate:
+            yhat = self.repuntuate_binary_model(yhat)
         y = np.argmax(y, axis=1)
 
         super().evaluate(yhat, y)
@@ -325,3 +304,24 @@ class DeepModel(AbstractModel):
             (X[:, emb_size : emb_size + 1], X[:, emb_size + 1 : emb_size + 2])
         )
         return [embedding, entity]
+
+    def apply_oversampling(self, X_train, y_train) -> tuple[np.array]:
+        self._n_classes = 14
+        self._X = X_train
+        self._y = y_train
+        counter = Counter(self._y)
+        counter = sorted(counter.items(), key=lambda f: f[1], reverse=True)
+
+        for k, v in counter:
+            per = v / len(self._y) * 100
+            print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
+
+        self.over_sample_data()
+
+        counter = Counter(self._y)
+        counter = sorted(counter.items(), key=lambda f: f[1], reverse=True)
+        for k, v in counter:
+            per = v / len(self._y) * 100
+            print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
+
+        return self._X, self._y
