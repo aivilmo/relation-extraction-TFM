@@ -110,6 +110,25 @@ class Preprocessor:
     ) -> np.ndarray:
         from model.coremodel import AbstractModel
 
+        """
+        TaskB LABELS:
+        0: 'O'
+        1: 'arg'
+        2: 'causes'
+        3: 'domain'
+        4: 'entails'
+        5: 'has-part'
+        6: 'has-property'
+        7: 'in-context'
+        8: 'in-place'
+        9: 'in-time'
+        10: 'is-a'
+        11: 'part-of'
+        12: 'same-as'
+        13: 'subject'
+        14: 'target']
+        """
+
         self._logger.info(f"Transforming {y_column} into labels")
         y_train = self._le.fit_transform(train_df[y_column].values)
         y_test = self._le.transform(test_df[y_column].values)
