@@ -6,6 +6,7 @@ import tensorflow as tf
 from enum import Enum
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 import pickle
+from collections import Counter
 
 from model.abstractmodel import AbstractModel, ModelType
 from utils.appconstants import AppConstants
@@ -49,8 +50,9 @@ class DeepModel(AbstractModel):
         self._history = None
         self._n_classes = None
         self._is_multi = False
-        self._lda = LinearDiscriminantAnalysis(n_components=11)
+        self._lda = LinearDiscriminantAnalysis(n_components=13)
         self._entity_vc_test = None
+        self._prob_yhat = None
 
         DeepModel._instance = self
 
@@ -63,12 +65,13 @@ class DeepModel(AbstractModel):
         model,
     ) -> None:
         from utils.preprocess import Preprocessor
+        import sys
 
         pr_instance = Preprocessor.instance()
 
-        X_train = self.handle_multi_input(X_train)[0]
-        test = self.handle_multi_input(X_test)
-        X_test, self._entity_vc_test = test[0], test[1]
+        # X_train = self.handle_multi_input(X_train)[0]
+        # test = self.handle_multi_input(X_test)
+        # X_test, self._entity_vc_test = test[0], test[1]
         ori_y_train, ori_y_test = y_train, y_test
 
         y_train, y_test = pr_instance.prepare_labels(y_train, y_test)
@@ -82,23 +85,55 @@ class DeepModel(AbstractModel):
             self._yhat, X_train, X_test, ori_y_train, ori_y_test
         )
 
+        self._n_classes = 14
+        self._X = ent_X_train
+        self._y = ent_y_train
+        counter = Counter(self._y)
+        counter = sorted(counter.items(), key=lambda f: f[1], reverse=True)
+
+        for k, v in counter:
+            per = v / len(self._y) * 100
+            print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
+
+        self.over_sample_data()
+
+        counter = Counter(self._y)
+        counter = sorted(counter.items(), key=lambda f: f[1], reverse=True)
+        for k, v in counter:
+            per = v / len(self._y) * 100
+            print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
+
+        # sys.exit()
+
+        ent_X_train = self._X
+        ent_y_train = self._y
         if AppConstants.instance()._lda:
-            with open("lda.model", "rb") as f:
-                self._lda = pickle.load(f)
-            ent_X_train = self._lda.transform(ent_X_train)
-            # self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
-            # ent_X_train = self._lda.fit_transform(ent_X_train, ent_y_train)
-            # self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
-            # with open("lda.model", "wb") as f:
-            #     pickle.dump(self._lda, f)
+            # with open("lda.model", "rb") as f:
+            #     self._lda = pickle.load(f)
+            # ent_X_train = self._lda.transform(ent_X_train)
+            self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
+            ent_X_train = self._lda.fit_transform(ent_X_train, ent_y_train)
+            self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
+            with open("lda.model", "wb") as f:
+                pickle.dump(self._lda, f)
 
         ent_y_train, ent_y_test = pr_instance.prepare_labels(ent_y_train, ent_y_test)
 
         # Second train discriminate cls
         self._logger.info("Second model")
         self.build(X=ent_X_train, y=ent_y_train, model=model)
-        self.train(train=False, number="2")
+        self.train(train=True, number="2")
         self.evaluate(X=ent_X_test, y=ent_y_test)
+
+        # X = self._lda.transform(ent_X_test)
+        # yhat = self._model.predict(X)
+
+        # self._prob_yhat = self._prob_yhat[idx][:, 1:]
+        # mean_yhat = (np.array(self._prob_yhat) + yhat) / 2.0
+        # print(self._prob_yhat[0])
+        # print(yhat[0])
+        # print(mean_yhat[0])
+        # self._yhat = np.argmax(mean_yhat, axis=1)
 
         first_yhat[first_yhat > 0] = self._yhat + 1
         self._yhat = first_yhat
@@ -152,6 +187,8 @@ class DeepModel(AbstractModel):
                 self._logger.warning("Not applying LDA on that dataset")
 
         yhat = self._model.predict(X)
+        self._prob_yhat = yhat
+
         yhat = np.argmax(yhat, axis=1)
         # yhat = self.repuntuate_binary_model(yhat)
         y = np.argmax(y, axis=1)
@@ -279,7 +316,7 @@ class DeepModel(AbstractModel):
         checkpoint = tf.keras.callbacks.ModelCheckpoint(
             filepath=DeepModel._checkpoint_path, save_weights_only=True, verbose=1
         )
-        return [accuracy, loss, checkpoint]
+        return [accuracy, loss]  # , checkpoint]
 
     def handle_multi_input(self, X: np.array) -> list[np.array]:
         emb_size = 768 * 2
