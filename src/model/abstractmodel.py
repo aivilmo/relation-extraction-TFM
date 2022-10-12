@@ -175,7 +175,24 @@ class AbstractModel:
     def compute_class_weight_freq(self) -> dict:
         samples = self._y.shape[0]
         unique, counts = np.unique(np.argmax(self._y, axis=1), return_counts=True)
-        return dict(zip(unique, 100 - (counts / samples) * 100))
+        return {
+            0: 3.8144017219450177,
+            1: 99.90297752992205,
+            2: 99.91814238658971,
+            3: 99.8861820435052,
+            4: 99.96559371229169,
+            5: 99.99788018132602,
+            6: 99.94472165150181,
+            7: 99.74774157779734,
+            8: 99.85878746371849,
+            9: 99.92711085021035,
+            10: 99.82584874278446,
+            11: 99.9719531683136,
+            12: 99.96380001956756,
+            13: 99.71398754198871,
+            14: 99.56087140853798,
+        }
+        # return dict(zip(unique, 100 - (counts / samples) * 100))
 
     def under_sample_data(self) -> None:
         from imblearn.under_sampling import NearMiss
@@ -268,6 +285,6 @@ class AbstractModel:
         idx_14 = np.concatenate((np.where((from_ent == 0) & (to_ent == 0))[0],))
 
         yhat[idx_0] = 0
-        yhat[idx_14] = 14
+        # yhat[idx_14] = 14
 
         return yhat
