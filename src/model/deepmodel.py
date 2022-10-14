@@ -106,7 +106,7 @@ class DeepModel(AbstractModel):
         yhat = self._model.predict(X)
 
         self._prob_yhat = self._prob_yhat[idx][:, 1:]
-        mean_yhat = (self._prob_yhat * 0.10 + yhat * 0.90) / 2.0
+        mean_yhat = (self._prob_yhat * 0.40 + yhat * 0.60) / 2.0
         self._yhat = np.argmax(mean_yhat, axis=1)
 
         first_yhat[first_yhat > 0] = self._yhat + 1
@@ -291,7 +291,7 @@ class DeepModel(AbstractModel):
         checkpoint = tf.keras.callbacks.ModelCheckpoint(
             filepath=DeepModel._checkpoint_path, save_weights_only=True, verbose=1
         )
-        return [accuracy, loss, checkpoint]
+        return [accuracy, loss]  # , checkpoint]
 
     def handle_multi_input(self, X: np.array) -> list[np.array]:
         emb_size = 768 * 2
