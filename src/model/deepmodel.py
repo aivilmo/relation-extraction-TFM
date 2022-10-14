@@ -106,7 +106,7 @@ class DeepModel(AbstractModel):
         yhat = self._model.predict(X)
 
         self._prob_yhat = self._prob_yhat[idx][:, 1:]
-        mean_yhat = (self._prob_yhat * 0.40 + yhat * 0.60) / 2.0
+        mean_yhat = (self._prob_yhat * 0.55 + yhat * 0.45) / 2.0
         self._yhat = np.argmax(mean_yhat, axis=1)
 
         first_yhat[first_yhat > 0] = self._yhat + 1
