@@ -34,6 +34,7 @@ class DeepModel(AbstractModel):
     _epochs = 80
     _batch_size = 64
     _checkpoint_path = "training_1/cp.ckpt"
+    _lda_path = f"data/{AppConstants.instance()._task}/models/lda.model"
 
     @staticmethod
     def instance():
@@ -52,6 +53,7 @@ class DeepModel(AbstractModel):
         self._n_classes = None
         self._is_multi = False
         self._lda = LinearDiscriminantAnalysis(n_components=13)
+        self._lda_entities = LinearDiscriminantAnalysis(n_components=13)
         self._entity_vc_test = None
         self._prob_yhat = None
 
@@ -72,29 +74,36 @@ class DeepModel(AbstractModel):
         _, self._entity_vc_test, _, _ = FilesHandler.instance().load_training_data(
             "with_entities"
         )
-        ori_y_train, ori_y_test = y_train, y_test
+        ori_X_train, ori_X_test, ori_y_train, ori_y_test = (
+            X_train.copy(),
+            X_test.copy(),
+            y_train.copy(),
+            y_test.copy(),
+        )
+
+        if AppConstants.instance()._lda:
+            # self._lda.fit(X_train, y_train)
+            # with open(self._lda_path, "wb") as f:
+            #     pickle.dump(self._lda, f)
+            with open(self._lda_path, "rb") as f:
+                self._lda = pickle.load(f)
+            self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
+            X_train = self._lda.transform(X_train)
+            self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
+
         y_train, y_test = pr_instance.prepare_labels(y_train, y_test)
 
+        print(X_train.shape)
         self.build(X=X_train, y=y_train, model=model)
         self.train(train=False, number="1")
-        self.evaluate(X=X_test, y=y_test)
+        self.evaluate(X=X_test, y=y_test, lda_obj=self._lda)
         first_yhat = self._yhat
 
         idx, ent_X_train, ent_X_test, ent_y_train, ent_y_test = self.take_subsample(
-            self._yhat, X_train, X_test, ori_y_train, ori_y_test
+            self._yhat, ori_X_train, ori_X_test, ori_y_train, ori_y_test
         )
         ent_X_train, ent_y_train = self.apply_oversampling(ent_X_train, ent_y_train)
-
-        if AppConstants.instance()._lda:
-            # with open("lda.model", "rb") as f:
-            #     self._lda = pickle.load(f)
-            # ent_X_train = self._lda.transform(ent_X_train)
-            self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
-            ent_X_train = self._lda.fit_transform(ent_X_train, ent_y_train)
-            self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
-            with open("lda.model", "wb") as f:
-                pickle.dump(self._lda, f)
-
+        ent_X_train = self._lda_entities.fit_transform(ent_X_train, ent_y_train)
         ent_y_train, ent_y_test = pr_instance.prepare_labels(ent_y_train, ent_y_test)
 
         # Second train discriminate cls
@@ -102,7 +111,7 @@ class DeepModel(AbstractModel):
         self.build(X=ent_X_train, y=ent_y_train, model=model)
         self.train(train=True, number="2")
 
-        X = self._lda.transform(ent_X_test)
+        X = self._lda_entities.transform(ent_X_test)
         yhat = self._model.predict(X)
 
         self._prob_yhat = self._prob_yhat[idx][:, 1:]
@@ -152,7 +161,9 @@ class DeepModel(AbstractModel):
         end: float = time() - start
         self._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
 
-    def evaluate(self, X: np.ndarray, y: np.ndarray, repuntuate: bool = False) -> None:
+    def evaluate(
+        self, X: np.ndarray, y: np.ndarray, lda_obj, repuntuate: bool = False
+    ) -> None:
         if AppConstants.instance()._lda:
             try:
                 X = self._lda.transform(X)
