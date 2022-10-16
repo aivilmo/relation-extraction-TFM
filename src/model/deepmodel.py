@@ -53,7 +53,7 @@ class DeepModel(AbstractModel):
         self._n_classes = None
         self._is_multi = False
         self._lda = LinearDiscriminantAnalysis(n_components=13)
-        self._lda_entities = LinearDiscriminantAnalysis(n_components=13)
+        self._lda_entities = LinearDiscriminantAnalysis(n_components=12)
         self._entity_vc_test = None
         self._prob_yhat = None
 
