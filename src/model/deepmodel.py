@@ -95,7 +95,7 @@ class DeepModel(AbstractModel):
 
         print(X_train.shape)
         self.build(X=X_train, y=y_train, model=model)
-        self.train(train=False, number="1")
+        self.train(train=False, number="1", manual=True)
         self.evaluate(X=X_test, y=y_test, lda_obj=self._lda)
         first_yhat = self._yhat
 
@@ -109,7 +109,7 @@ class DeepModel(AbstractModel):
         # Second train discriminate cls
         self._logger.info("Second model")
         self.build(X=ent_X_train, y=ent_y_train, model=model)
-        self.train(train=True, number="2")
+        self.train(train=True, number="2", manual=False)
 
         X = self._lda_entities.transform(ent_X_test)
         yhat = self._model.predict(X)
@@ -134,7 +134,7 @@ class DeepModel(AbstractModel):
             self.build_multi_dense()
         self.compile()
 
-    def train(self, train=True, number: str = "1") -> None:
+    def train(self, train=True, number: str = "1", manual: bool = True) -> None:
         from time import time
 
         self._logger.info("Training model...")
@@ -155,7 +155,7 @@ class DeepModel(AbstractModel):
             validation_split=0.2,
             callbacks=self.get_callbacks(),
             # Para RE
-            class_weight=self.compute_class_weight_freq(),
+            class_weight=self.compute_class_weight_freq(manual),
         )
 
         end: float = time() - start
