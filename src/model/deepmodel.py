@@ -93,7 +93,6 @@ class DeepModel(AbstractModel):
 
         y_train, y_test = pr_instance.prepare_labels(y_train, y_test)
 
-        print(X_train.shape)
         self.build(X=X_train, y=y_train, model=model)
         self.train(train=False, number="1", manual=True)
         self.evaluate(X=X_test, y=y_test, lda_obj=self._lda)
@@ -102,6 +101,8 @@ class DeepModel(AbstractModel):
         idx, ent_X_train, ent_X_test, ent_y_train, ent_y_test = self.take_subsample(
             self._yhat, ori_X_train, ori_X_test, ori_y_train, ori_y_test
         )
+
+        self.repuntuate_binary_model()
         ent_X_train, ent_y_train = self.apply_oversampling(ent_X_train, ent_y_train)
         ent_X_train = self._lda_entities.fit_transform(ent_X_train, ent_y_train)
         ent_y_train, ent_y_test = pr_instance.prepare_labels(ent_y_train, ent_y_test)
@@ -119,7 +120,7 @@ class DeepModel(AbstractModel):
         self._yhat = np.argmax(mean_yhat, axis=1)
 
         first_yhat[first_yhat > 0] = self._yhat + 1
-        self._yhat = self.repuntuate_binary_model(first_yhat)
+        self._yhat = first_yhat
         self.export_results()
 
     def build(self, X: np.ndarray, y: np.ndarray, model) -> None:

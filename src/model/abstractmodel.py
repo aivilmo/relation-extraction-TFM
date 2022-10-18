@@ -257,7 +257,8 @@ class AbstractModel:
 
         return indices_test, out_X_train, out_X_test, out_y_train, out_y_test
 
-    def repuntuate_binary_model(self, yhat: np.ndarray):
+    def repuntuate_binary_model(self) -> None:
+
         """
         0 ['Action']
         1 ['Concept']
@@ -265,6 +266,26 @@ class AbstractModel:
         3 ['Predicate']
         4 ['Reference']
         """
+
+        """
+        TaskB LABELS:
+        0: 'O'
+        1: 'arg'
+        2: 'causes'
+        3: 'domain'
+        4: 'entails'
+        5: 'has-part'
+        6: 'has-property'
+        7: 'in-context'
+        8: 'in-place'
+        9: 'in-time'
+        10: 'is-a'
+        11: 'part-of'
+        12: 'same-as'
+        13: 'subject'
+        14: 'target']
+        """
+
         from_ent = self._entity_vc_test[:, 0]
         to_ent = self._entity_vc_test[:, 1]
 
@@ -285,7 +306,8 @@ class AbstractModel:
 
         idx_14 = np.concatenate((np.where((from_ent == 0) & (to_ent == 0))[0],))
 
-        yhat[idx_0] = 0
-        # yhat[idx_14] = 14
+        o_arr = np.array([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        self._prob_yhat[idx_0] = (self._prob_yhat[idx_0] * 0.5 + o_arr * 0.5) / 2.0
 
-        return yhat
+        target_arr = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+        self._prob_yhat[idx_14] = self._prob_yhat[idx_14] * 0.5 + target_arr * 0.5
