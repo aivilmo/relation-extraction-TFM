@@ -137,6 +137,23 @@ class VisualizationHandler:
         df = df.drop(columns=["tag1", "tag2"])
 
         df = df.value_counts().reset_index(name="counts")
-        flights_wide = df.pivot("entities", "tag", "counts")
+        counts = df.groupby("tag").sum().reset_index()
+
+        index = 0
+        df_copy = pd.DataFrame()
+        for _, row in df.iterrows():
+            series = pd.Series(
+                {
+                    "percent": (
+                        row.counts / counts[counts.tag == row.tag].counts * 100
+                    ).values[0]
+                },
+                name=index,
+            )
+            index += 1
+            df_copy = df_copy.append(series)
+        df["percent"] = df_copy.percent
+        # flights_wide = df.pivot("entities", "tag", "counts")
+        flights_wide = df.pivot("entities", "tag", "percent")
         sns.lineplot(data=flights_wide)
         plt.show()
