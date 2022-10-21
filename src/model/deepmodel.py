@@ -116,7 +116,7 @@ class DeepModel(AbstractModel):
         yhat = self._model.predict(X)
 
         self._prob_yhat = self._prob_yhat[idx][:, 1:]
-        mean_yhat = (self._prob_yhat * 0.55 + yhat * 0.45) / 2.0
+        mean_yhat = (self._prob_yhat * 0.70 + yhat * 0.30) / 2.0
         self._yhat = np.argmax(mean_yhat, axis=1)
 
         first_yhat[first_yhat > 0] = self._yhat + 1
@@ -325,6 +325,27 @@ class DeepModel(AbstractModel):
             print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
 
         self.over_sample_data()
+
+        counter = Counter(self._y)
+        counter = sorted(counter.items(), key=lambda f: f[1], reverse=True)
+        for k, v in counter:
+            per = v / len(self._y) * 100
+            print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
+
+        return self._X, self._y
+
+    def apply_undersampling(self, X_train, y_train) -> tuple[np.array]:
+        self._n_classes = 15
+        self._X = X_train
+        self._y = y_train
+        counter = Counter(self._y)
+        counter = sorted(counter.items(), key=lambda f: f[1], reverse=True)
+
+        for k, v in counter:
+            per = v / len(self._y) * 100
+            print("Class=%d, n=%d (%.3f%%)" % (k, v, per))
+
+        self.under_sample_data()
 
         counter = Counter(self._y)
         counter = sorted(counter.items(), key=lambda f: f[1], reverse=True)

@@ -120,7 +120,7 @@ class AbstractModel:
         cm = confusion_matrix(y, self._yhat)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot()
-        # plt.show()
+        plt.show()
 
     def export_results(self) -> None:
         from sklearn.preprocessing import LabelEncoder
@@ -291,7 +291,7 @@ class AbstractModel:
 
         self._logger.info("Repuntuating model with rules...")
 
-        idx_0 = np.concatenate(
+        idx_OO = np.concatenate(
             (
                 np.where((from_ent == 2) & (to_ent == 0))[0],
                 np.where((from_ent == 2) & (to_ent == 1))[0],
@@ -303,11 +303,15 @@ class AbstractModel:
                 np.where((from_ent == 4) & (to_ent == 2))[0],
             )
         )
+        idx_CC = np.concatenate((np.where((from_ent == 1) & (to_ent == 1))[0],))
+        idx_AC = np.concatenate((np.where((from_ent == 0) & (to_ent == 1))[0],))
+        idx_PC = np.concatenate((np.where((from_ent == 3) & (to_ent == 1))[0],))
 
-        idx_14 = np.concatenate((np.where((from_ent == 0) & (to_ent == 0))[0],))
-
-        o_arr = np.array([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-        self._prob_yhat[idx_0] = (self._prob_yhat[idx_0] * 0.5 + o_arr * 0.5) / 2.0
-
-        target_arr = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
-        self._prob_yhat[idx_14] = self._prob_yhat[idx_14] * 0.5 + target_arr * 0.5
+        # OO_arr = np.array([0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        # self._prob_yhat[idx_OO] = self._prob_yhat[idx_OO] + OO_arr * 0.5
+        # CC_arr = np.array([0.7, 0, 0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0, 0, 0, 0])
+        # self._prob_yhat[idx_CC] = self._prob_yhat[idx_CC] + CC_arr
+        # AC_arr = np.array([0.7, 0, 0, 0, 0, 0, 0.15, 0, 0, 0, 0, 0, 0, 0.15, 0])
+        # self._prob_yhat[idx_AC] = self._prob_yhat[idx_AC] + AC_arr
+        # PC_arr = np.array([0.4, 0.3, 0, 0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.15, 0])
+        # self._prob_yhat[idx_PC] = self._prob_yhat[idx_PC] + PC_arr
