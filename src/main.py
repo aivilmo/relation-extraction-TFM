@@ -177,7 +177,10 @@ class Main:
 
         self._dataset_train, self._dataset_test = self._fh_instance.load_datasets()
         if self._handle_data_augmentation():
-            features = features + f"_{self._args.data_aug}_is-a_inplace_domain"
+            aug_cls = "ref_pred"
+            if "taskB" in self._args.task:
+                aug_cls = "is-a_inplace_domain"
+            features = features + f"_{self._args.data_aug}_{aug_cls}"
 
         if self._args.load:
             return self._fh_instance.load_training_data(features)
