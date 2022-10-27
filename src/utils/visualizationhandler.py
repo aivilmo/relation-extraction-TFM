@@ -111,7 +111,7 @@ class VisualizationHandler:
 
     @staticmethod
     def visualice_relations_tags(df: pd.DataFrame) -> None:
-        df = df[df.tag != "O"]
+        # df = df[df.tag != "O"]
         df = df.drop(
             columns=[
                 "token1",
@@ -136,6 +136,16 @@ class VisualizationHandler:
         df["entities"] = df["tag1"].astype(str) + "-" + df["tag2"]
         df = df.drop(columns=["tag1", "tag2"])
 
+        df = df[df.entities != "O-O"]
+        df = df[df.entities != "O-A"]
+        df = df[df.entities != "O-P"]
+        df = df[df.entities != "O-R"]
+        df = df[df.entities != "O-C"]
+        df = df[df.entities != "A-O"]
+        df = df[df.entities != "P-O"]
+        df = df[df.entities != "R-O"]
+        df = df[df.entities != "C-O"]
+
         df = df.value_counts().reset_index(name="counts")
         counts = df.groupby("tag").sum().reset_index()
 
@@ -153,7 +163,7 @@ class VisualizationHandler:
             index += 1
             df_copy = df_copy.append(series)
         df["percent"] = df_copy.percent
-        # flights_wide = df.pivot("entities", "tag", "counts")
-        flights_wide = df.pivot("entities", "tag", "percent")
+        flights_wide = df.pivot("entities", "tag", "counts")
+        # flights_wide = df.pivot("entities", "tag", "percent")
         sns.lineplot(data=flights_wide)
         plt.show()
