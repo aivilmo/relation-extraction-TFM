@@ -35,8 +35,6 @@ class AbstractModel:
         "scenario3-taskB": {
             11: 222 * 2,
             3: 211 * 2,
-            # 5: 339 * 2,
-            # 10: 172 * 2,
             8: 447 * 2,
         },
     }
@@ -120,7 +118,7 @@ class AbstractModel:
         cm = confusion_matrix(y, self._yhat)
         disp = ConfusionMatrixDisplay(confusion_matrix=cm)
         disp.plot()
-        plt.show()
+        # plt.show()
 
     def export_results(self) -> None:
         from sklearn.preprocessing import LabelEncoder
@@ -285,7 +283,6 @@ class AbstractModel:
         13: 'subject'
         14: 'target']
         """
-
         from_ent = self._entity_vc_test[:, 0]
         to_ent = self._entity_vc_test[:, 1]
 
@@ -307,11 +304,11 @@ class AbstractModel:
         idx_AC = np.concatenate((np.where((from_ent == 0) & (to_ent == 1))[0],))
         idx_PC = np.concatenate((np.where((from_ent == 3) & (to_ent == 1))[0],))
 
-        # OO_arr = np.array([0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-        # self._prob_yhat[idx_OO] = self._prob_yhat[idx_OO] + OO_arr * 0.5
-        # CC_arr = np.array([0.7, 0, 0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0, 0, 0, 0])
-        # self._prob_yhat[idx_CC] = self._prob_yhat[idx_CC] + CC_arr
-        # AC_arr = np.array([0.7, 0, 0, 0, 0, 0, 0.15, 0, 0, 0, 0, 0, 0, 0.15, 0])
-        # self._prob_yhat[idx_AC] = self._prob_yhat[idx_AC] + AC_arr
-        # PC_arr = np.array([0.4, 0.3, 0, 0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.15, 0])
-        # self._prob_yhat[idx_PC] = self._prob_yhat[idx_PC] + PC_arr
+        OO_arr = np.array([0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        self._prob_yhat[idx_OO] = self._prob_yhat[idx_OO] + OO_arr * 0.5
+        CC_arr = np.array([0.7, 0, 0, 0, 0, 0, 0.3, 0, 0, 0, 0, 0, 0, 0, 0])
+        self._prob_yhat[idx_CC] = self._prob_yhat[idx_CC] + CC_arr
+        AC_arr = np.array([0.7, 0, 0, 0, 0, 0, 0.15, 0, 0, 0, 0, 0, 0, 0.15, 0])
+        self._prob_yhat[idx_AC] = self._prob_yhat[idx_AC] + AC_arr
+        PC_arr = np.array([0.4, 0.3, 0, 0.3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.15, 0])
+        self._prob_yhat[idx_PC] = self._prob_yhat[idx_PC] + PC_arr

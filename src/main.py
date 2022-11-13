@@ -49,8 +49,8 @@ class Main:
 
         # NER
         if "taskA" in self._args.task:
-            VisualizationHandler.visualice_tags(self._dataset_test)
-            VisualizationHandler.visualice_most_common_word(self._dataset_test, 10)
+            VisualizationHandler.visualice_tags(self._dataset_train)
+            # VisualizationHandler.visualice_most_common_word(self._dataset_train, 10)
             return
 
         # RE
@@ -176,6 +176,13 @@ class Main:
         FeaturesHandler.instance().check_features_for_task()
 
         self._dataset_train, self._dataset_test = self._fh_instance.load_datasets()
+        if self._dataset_train is None or self._dataset_test is None:
+            self._logger.warning(f"Datasets not found, generating for {features}")
+            (
+                self._dataset_train,
+                self._dataset_test,
+            ) = self._fh_instance.generate_datasets()
+
         if self._handle_data_augmentation():
             aug_cls = "ref_pred"
             if "taskB" in self._args.task:
@@ -184,13 +191,6 @@ class Main:
 
         if self._args.load:
             return self._fh_instance.load_training_data(features)
-
-        if self._dataset_train is None or self._dataset_test is None:
-            self._logger.warning(f"Datasets not found, generating for {features}")
-            (
-                self._dataset_train,
-                self._dataset_test,
-            ) = self._fh_instance.generate_datasets()
 
         X_train, X_test, y_train, y_test = self._pr_instance.train_test_split(
             self._dataset_train,
