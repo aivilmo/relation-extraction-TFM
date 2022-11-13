@@ -50,8 +50,8 @@ class PostProcessor:
             self.save_output_file_taskA(collection)
 
         if "taskB" in self._task:
-            collection = self.export_taskB(dataset_test)
-            self.save_output_file_taskB(collection)
+            df = self.export_taskB(dataset_test)
+            self.save_output_file_taskB(df)
 
         self._logger.info("Output data successfully exported")
 
@@ -258,19 +258,13 @@ class PostProcessor:
             i += 1
         return df
 
-    def save_output_file_taskA(self, df: pd.DataFrame) -> None:
+    def save_output_file_taskA(self, collection: Collection) -> None:
         output_dir = Path(
             self._path + self._dataset + "\\" + self._run + "\\" + self._task + "\\"
         )
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        df.to_csv(
-            str(output_dir) + "\\" + self._output_file,
-            header=None,
-            index=None,
-            sep="\t",
-            mode="w",
-        )
+        collection.dump(Path(str(output_dir) + "\\" + self._output_file))
 
         self._logger.info(f"File output.ann saved at path {str(output_dir)}")
 
