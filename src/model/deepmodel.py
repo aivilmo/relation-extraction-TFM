@@ -70,6 +70,11 @@ class DeepModel(AbstractModel):
         from utils.preprocess import Preprocessor
         import sys
 
+        # TaskA
+        # y_train, y_test = Preprocessor.instance().prepare_labels(y_train, y_test)
+        # super().start_training(X_train, X_test, y_train, y_test, model)
+
+        # TaskB
         pr_instance = Preprocessor.instance()
         _, self._entity_vc_test, _, _ = FilesHandler.instance().load_training_data(
             "with_entities"
@@ -80,16 +85,6 @@ class DeepModel(AbstractModel):
             y_train.copy(),
             y_test.copy(),
         )
-
-        if AppConstants.instance()._lda:
-            # self._lda.fit(X_train, y_train)
-            # with open(self._lda_path, "wb") as f:
-            #     pickle.dump(self._lda, f)
-            with open(self._lda_path, "rb") as f:
-                self._lda = pickle.load(f)
-            self._logger.info(f"Applying LinearDiscriminantAnalysis with {self._lda}")
-            X_train = self._lda.transform(X_train)
-            self._logger.info(f"LinearDiscriminantAnalysis succesfully appliyed")
 
         y_train, y_test = pr_instance.prepare_labels(y_train, y_test)
 
@@ -102,7 +97,7 @@ class DeepModel(AbstractModel):
             self._yhat, ori_X_train, ori_X_test, ori_y_train, ori_y_test
         )
 
-        self.repuntuate_binary_model()
+        # self.repuntuate_binary_model()
         ent_X_train, ent_y_train = self.apply_oversampling(ent_X_train, ent_y_train)
         ent_X_train = self._lda_entities.fit_transform(ent_X_train, ent_y_train)
         ent_y_train, ent_y_test = pr_instance.prepare_labels(ent_y_train, ent_y_test)
@@ -112,8 +107,8 @@ class DeepModel(AbstractModel):
         self.build(X=ent_X_train, y=ent_y_train, model=model)
         self.train(train=True, number="2", manual=False)
 
-        X = self._lda_entities.transform(ent_X_test)
-        yhat = self._model.predict(X)
+        ent_X_test = self._lda_entities.transform(ent_X_test)
+        yhat = self._model.predict(ent_X_test)
 
         self._prob_yhat = self._prob_yhat[idx][:, 1:]
         mean_yhat = (self._prob_yhat * 0.70 + yhat * 0.30) / 2.0
@@ -121,6 +116,8 @@ class DeepModel(AbstractModel):
 
         first_yhat[first_yhat > 0] = self._yhat + 1
         self._yhat = first_yhat
+
+        super().evaluate(self._yhat, ori_y_test)
         self.export_results()
 
     def build(self, X: np.ndarray, y: np.ndarray, model) -> None:
@@ -163,7 +160,7 @@ class DeepModel(AbstractModel):
         self._logger.info(f"Model trained, time: {round(end / 60, 2)} minutes")
 
     def evaluate(
-        self, X: np.ndarray, y: np.ndarray, lda_obj, repuntuate: bool = False
+        self, X: np.ndarray, y: np.ndarray, lda_obj=None, repuntuate: bool = False
     ) -> None:
         if AppConstants.instance()._lda:
             try:

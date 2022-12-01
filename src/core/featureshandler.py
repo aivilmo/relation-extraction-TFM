@@ -146,7 +146,7 @@ class FeaturesHandler:
     ) -> pd.DataFrame:
         if not test:
             self._logger.info(f"Fitting words to {object}")
-            object.fit(df[column].unique().tolist())
+            object.fit(df[column].values.tolist())
             self._logger.info(f"Vocab size: {len(object.vocabulary_.keys())}")
 
         df[column] = df[column].apply(

@@ -3,6 +3,7 @@ import numpy as np
 import time
 from model.abstractmodel import AbstractModel, ModelType
 from sklearn import svm, linear_model, tree, ensemble
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
 
 class CoreModel(AbstractModel):
@@ -30,40 +31,16 @@ class CoreModel(AbstractModel):
             raise Exception
 
         CoreModel._instance = self
-
-    # def start_training(
-    #     self,
-    #     X_train: np.ndarray,
-    #     X_test: np.ndarray,
-    #     y_train: np.ndarray,
-    #     y_test: np.ndarray,
-    #     model,
-    # ) -> None:
-    #     bin_y_train, bin_y_test = self.binarize_labels(y_train, y_test)
-
-    #     # First train with binary cls
-    #     self._logger.info("First model")
-    #     self.build(X=X_train, y=bin_y_train, model=model)
-    #     self.train()
-
-    #     """
-    #     2          2          2      143222
-    #     1          2          2       85763
-    #     2          1          2       85763
-    #     1          1          2       41866
-    #     0          2          2       30630
-    #     2          0          2       30630
-    #     """
-
-    #     yhat = self._model.predict(X_test)
-    #     yhat = self.repuntuate_binary_model(X_test, yhat)
-    #     super().evaluate(yhat, bin_y_test)
+        self._lda_entities = LinearDiscriminantAnalysis()
 
     def build(self, X: np.ndarray, y: np.ndarray, model, **kwargs) -> None:
+        # X = self._lda_entities.fit_transform(X, y)
+
         super().build(X, y)
         self._model = self._available_models[ModelType(model)]
 
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> None:
+        # X = self._lda_entities.transform(X)
         yhat = self._model.predict(X)
 
         super().evaluate(yhat, y)
